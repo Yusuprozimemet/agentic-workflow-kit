@@ -31,8 +31,8 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `specs/day-12-jwt-issuance.md` | `specs/day-12-jwt-issuance.md` | `b4403f7c2b5fff3c199e31bb97a8d8020124b8f453c72bccf454410fc99f0620` | J |
 | `specs/day-36-ecs-services.md` | `specs/day-36-ecs-services.md` | `bcebf46a49c4800f4b4d8036200d1a67e63ce56f1c29b0d2814e2b9c551b98b9` | J |
 | `.github/pull_request_template.md` | `.github/pull_request_template.md` | `79a102beb775a1b71d1a82c3d0fbd6141a9d447c8ea253c13a992d3d0f4281b1` | P |
-| `.github/workflows/pr-checks.yml` | `.github/workflows/pr-checks.yml` | `b4141baab9e46bbb19cf7b3a6605357c8ebbf90956d461ed865fd7ca6761de61` | mixed |
-| `.github/workflows/dashboard.yml` | `.github/workflows/dashboard.yml` | `922e27e3d2e106d2ae97931995ebca084a837083feecbabd78058f7aebbbc415` | P |
+| `.github/workflows/pr-checks.yml` | `.github/workflows/pr-checks.yml` | `b4141baab9e46bbb19cf7b3a6605357c8ebbf90956d461ed865fd7ca6761de61` | mixed. Modified in Batch 3: jobs 3 and 4 run their check step only `if: hashFiles('services/**') != ''` (invariants' compare step; `service-wiring.py`, while `test_service_wiring.py` still runs); the template check and the 400-line limit untouched. |
+| `.github/workflows/dashboard.yml` | `.github/workflows/dashboard.yml` | `922e27e3d2e106d2ae97931995ebca084a837083feecbabd78058f7aebbbc415` | P. Modified in Batch 3: a comment under the `workflow_run` trigger: with no workflow named "Infra checks", it never fires; the trigger itself kept. |
 | `.github/workflows/spec-drift-tests.yml` | `.github/workflows/spec-drift-tests.yml` | `17611315863261c90407c662718665b44416ba032faccc5641af152f37d712c6` | P |
 | `.github/workflows/README.md` | `.github/workflows/README.md` | `5bb11eba0f08aa01a1babbfed841b7a18bc27355a22e3646c7750246ffb2c53e` | P |
 | `scripts/spec-drift.py` | `scripts/spec-drift.py` | `16675a9c8846ae4c52876f62c0bb29276f9804c4e21306f62d916b830e7e6882` | P |

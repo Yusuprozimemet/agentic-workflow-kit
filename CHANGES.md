@@ -112,6 +112,9 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     workflow is jobmatch's `infra-ci.yaml`, not copied. In the kit the trigger never fires, so it is
     harmless but misleading. Change: remove the block, or name the project's own infra workflow
     from config. Tests: no.
+    **Done in Batch 3, by a comment only:** GitHub fires `workflow_run` only for a workflow with that
+    name, so with none the trigger is already inert; the block is kept, with a comment saying so. Not
+    seen on GitHub (the kit has no remote).
 
 11. **`.github/workflows/pr-checks.yml` job 4, "Every service is wired into compose and
     Prometheus" (`service-wiring.py`).** It reads `services/*`, `docker-compose.yml` and
@@ -120,6 +123,11 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     (`if: hashFiles('docker-compose.yml') != ''`), or move it out of the kit's default
     `pr-checks.yml`. Tests: `test_service_wiring.py` covers the script (7/7 pass), not the job's
     condition.
+    **Done in Batch 3, on `services/` rather than `docker-compose.yml`:** the step running
+    `service-wiring.py` has `if: hashFiles('services/**') != ''`. `hashFiles` is not available in a
+    job-level `if:`, so the condition is on the step; `test_service_wiring.py` (fixtures only) still
+    runs. Correction: run in the kit, the script fails first on the missing `docker-compose.yml`
+    (`FileNotFoundError`), not in `os.listdir`. Not seen on GitHub (no remote).
 
 12. **`.github/workflows/pr-checks.yml` job 3 and `scripts/invariants.py`: frozen paths.**
     `IDENTITY_TESTS` names `services/identity-service/.../nl/hackyourfuture/project/backend/`, and
@@ -129,6 +137,10 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     "contract tests and applied migrations stay unedited" is process; the paths are jobmatch's.
     Tests: `test_invariants.py` (8/8) uses `IDENTITY = "services/identity-service"` and would need
     the same config.
+    **Part done in Batch 3, the job only:** its compare step runs only
+    `if: hashFiles('services/**') != ''`, so with no `services/` the step shows as skipped instead of
+    passing after checking nothing. The frozen paths are still jobmatch's, written in
+    `invariants.py`; the config part stays open.
 
 13. **`scripts/pr-names.py` lines 34, 37, 39: the Jira key `KAN-`.** Change: take the key prefix
     from config (or any `[A-Z]+-\d+`), with none meaning "no tracker". Tests:

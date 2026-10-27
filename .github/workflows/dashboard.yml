@@ -13,6 +13,7 @@ on:
   push:
     branches: [main]
   # infra-ci finishes after the merge's own rebuild, so the page rebuilds again with its summary.
+  # With no workflow named "Infra checks" in the repository, this trigger never fires.
   workflow_run:
     workflows: ["Infra checks"]
     types: [completed]

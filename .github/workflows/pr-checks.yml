@@ -137,6 +137,7 @@ jobs:
           fetch-depth: 0
 
       - name: Compare with the base
+        if: hashFiles('services/**') != ''  # the frozen paths are under services/; none, nothing to compare
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -153,6 +154,7 @@ jobs:
       - run: pip install pyyaml
       - run: python scripts/test_service_wiring.py
       - run: python scripts/service-wiring.py
+        if: hashFiles('services/**') != ''  # it lists services/; with none it would fail on every PR
 
   names:
     name: Branch, title, commits and Jira keys agree
