@@ -35,7 +35,7 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `.github/workflows/dashboard.yml` | `.github/workflows/dashboard.yml` | `922e27e3d2e106d2ae97931995ebca084a837083feecbabd78058f7aebbbc415` | P. Modified in Batch 3: a comment under the `workflow_run` trigger: with no workflow named "Infra checks", it never fires; the trigger itself kept. |
 | `.github/workflows/spec-drift-tests.yml` | `.github/workflows/spec-drift-tests.yml` | `17611315863261c90407c662718665b44416ba032faccc5641af152f37d712c6` | P |
 | `.github/workflows/README.md` | `.github/workflows/README.md` | `5bb11eba0f08aa01a1babbfed841b7a18bc27355a22e3646c7750246ffb2c53e` | P |
-| `scripts/spec-drift.py` | `scripts/spec-drift.py` | `16675a9c8846ae4c52876f62c0bb29276f9804c4e21306f62d916b830e7e6882` | P |
+| `scripts/spec-drift.py` | `scripts/spec-drift.py` | `16675a9c8846ae4c52876f62c0bb29276f9804c4e21306f62d916b830e7e6882` | P. Modified in Batch 5: `main()`'s three `gh` lines moved into `github()`; when `gh repo view` fails it prints `NO_REMOTE` to stderr and returns no PRs, no runs and the note, which `main()` adds to `meta.caveats` (shown on the page) and to its last line; `import sys`. |
 | `scripts/token-usage.py` | `scripts/token-usage.py` | `1d5a981ab41afaa10fe263993022c548dab6d6feb2df6c28d024cda80f950a89` | P |
 | `scripts/infra-summary.py` | `scripts/infra-summary.py` | `a9d733f2f176133e733b2e3fa7de643c5e6a67463e69b88329505ad5891e2bf4` | J |
 | `scripts/live-checks.py` | `scripts/live-checks.py` | `d5bf006c5887317d9f682f43a31fc9edc75cf21e3675220de025f667173f9cc9` | J |
@@ -50,7 +50,7 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `scripts/invariants.py` | `scripts/invariants.py` | `5320bf99538533df5bae2d470bf7f8a4d085536891e2f87ee634bc137288a21b` | J |
 | `scripts/service-wiring.py` | `scripts/service-wiring.py` | `eeb5bf0b2abbe3d8ec2594ecda1737a7a3071a1ca66aa0590fcb54dc3102c3c6` | J |
 | `scripts/check-links.py` | `scripts/check-links.py` | `a8aff0d981fa24bc5435d6ebff74d0835797a1c565b2f213a3c6d20380873456` | P |
-| `scripts/test_spec_drift.py` | `scripts/test_spec_drift.py` | `f832d00fd2adbe6d324c149d6d35f78c75212043454c49a3c3555df044c43dd0` | P. Modified in Batch 2: `test_the_repositorys_plan_parses` replaced by `test_a_plan_and_its_specs_parse`: it writes its own plan.md (a cut item, a stop lifted by a course correction) and specs/ to a temp dir and reads them the same way. |
+| `scripts/test_spec_drift.py` | `scripts/test_spec_drift.py` | `f832d00fd2adbe6d324c149d6d35f78c75212043454c49a3c3555df044c43dd0` | P. Modified in Batch 2: `test_the_repositorys_plan_parses` replaced by `test_a_plan_and_its_specs_parse`: it writes its own plan.md (a cut item, a stop lifted by a course correction) and specs/ to a temp dir and reads them the same way.. Modified in Batch 5: new `test_with_no_github_remote_there_are_no_prs_and_a_note_says_so` (no remote, and the owner's PRs only with one); 70 tests, was 69. |
 | `scripts/test_token_usage.py` | `scripts/test_token_usage.py` | `336aa9d4a760925ca54856b61bba524b0552a22b106e52359b122ffb778b7340` | P |
 | `scripts/test_infra_summary.py` | `scripts/test_infra_summary.py` | `765d7ebe9f88fc8e88c39f7a10f24996e814456dfda7f384e639071c8200e9aa` | J |
 | `scripts/test_break.py` | `scripts/test_break.py` | `96ba34a2e3bf7331a27be0855182c82b1096c86ab8e06e409a38878157451203` | P |

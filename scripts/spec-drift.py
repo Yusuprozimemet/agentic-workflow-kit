@@ -37,6 +37,7 @@ import posixpath
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
 
 import numpy as np
@@ -1156,6 +1157,23 @@ def owners_prs(listed, owner):
     return [p for p in listed if (p.get("author") or {}).get("login") == owner]
 
 
+NO_REMOTE = "No GitHub remote: read from git only, so there are no PRs and the PR panels are empty."
+
+
+def github():
+    """The owner's PRs and the CI runs, and a note: with no GitHub remote, none of either and the
+    note says so, so a new repository gets a page from git alone."""
+    try:
+        owner = run("gh", "repo", "view", "--json", "owner", "-q", ".owner.login").strip()
+    except subprocess.CalledProcessError as e:
+        print(f"{NO_REMOTE} (gh repo view: {(e.stderr or '').strip()})", file=sys.stderr)
+        return [], [], NO_REMOTE
+    listed = owners_prs(gh_list(PR_LIMIT, "pr", "list", "--state", "all", "--json",
+                                "number,title,headRefName,state,url,body,author"), owner)
+    runs = gh_list(RUN_LIMIT, "run", "list", "--json", "headBranch,headSha,conclusion,event,workflowName")
+    return listed, runs, None
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     out = ap.add_mutually_exclusive_group()
@@ -1166,10 +1184,7 @@ def main():
     args = ap.parse_args()
     if not args.no_cache:
         load_cache(args.cache)
-    owner = run("gh", "repo", "view", "--json", "owner", "-q", ".owner.login").strip()
-    listed = owners_prs(gh_list(PR_LIMIT, "pr", "list", "--state", "all", "--json",
-                                "number,title,headRefName,state,url,body,author"), owner)
-    runs = gh_list(RUN_LIMIT, "run", "list", "--json", "headBranch,headSha,conclusion,event,workflowName")
+    listed, runs, note = github()
     prs = {p["number"]: p for p in listed}
     open_prs = sorted((p for p in listed if p["state"] == "OPEN"), key=lambda p: p["number"])
     with Blobs() as blobs:
@@ -1196,7 +1211,7 @@ def main():
                                infra=infra(),
                                deployment=deployment(),
                                conclusion=conclusion(blobs.read(snaps[-1]["sha"], "docs/lab-notebook.md")),
-                               meta=dict(caveats=CAVEATS, provenance=provenance())),
+                               meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance())),
                           separators=(",", ":"))
     target = args.build or args.out
     if args.build:
@@ -1205,7 +1220,7 @@ def main():
         f.write(data)
     if not args.no_cache:
         save_cache(args.cache)
-    print(f"{target}: {len(rows)} snapshots, {len(days)} days, next: {now['next_step']}")
+    print(f"{target}: {len(rows)} snapshots, {len(days)} days, next: {now['next_step']}" + (f" ({note})" if note else ""))
 
 
 if __name__ == "__main__":

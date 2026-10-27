@@ -165,6 +165,15 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     fails, warn and carry on with git only (no PRs, no runs, owner None), so a new project gets a
     page from its first commit. Why: Step 4 could not check the page, or whether its output names
     jobmatch, because of this. Tests: no; the tests call functions, not `main()`. Add one.
+    - **Done in Batch 5:** `github()` holds `main()`'s three `gh` calls. When `gh repo view` fails
+      (`CalledProcessError`) it prints `NO_REMOTE` to stderr with gh's message, and returns no PRs,
+      no runs and the note; `main()` appends the note to `meta.caveats`, which the page lists, and
+      to its last line. A missing `gh` (`FileNotFoundError`) is not caught. The test calls
+      `github()`, not `main()`; the scratch run below is what checked `main()`.
+      - `broken: github() lets gh repo view's failure through, as before → FAILED (errors=1)` (the
+        error, read from the run: `subprocess.CalledProcessError: Command '('gh', 'repo', 'view', …)' returned non-zero exit status 1.`)
+      - `broken: github() gives no note when there is no remote → AssertionError: Tuples differ: ([], [], None) != ([], [], 'No GitHub remote: read from git only, so[43 chars]ty.')`
+      - `broken: github() says no remote when there is one → AssertionError: Tuples differ: ([{'n[39 chars] [], 'No GitHub remote: read from git only, so[43 chars]ty.') != ([{'n[39 chars] [], None)`
     - Owner and repo: spec-drift has no hard-coded owner or repo. It uses whatever `gh repo view`
       resolves, so it does not fall back to jobmatch's. The Pages URL appears only in `CLAUDE.md`
       (twice; placeholders in the template).
@@ -234,3 +243,27 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     in these batches ran with `PYTHONDONTWRITEBYTECODE=1` and `scripts/__pycache__` deleted first.
     Change, if wanted: have `break.py` run the command with `PYTHONDONTWRITEBYTECODE=1` and delete
     the broken file's cached bytecode before and after. Tests: `test_break.py` would need one.
+
+23. **The scratch run (Batch 5): what a new repository's page shows.** A scratch repository made
+    from the kit's working tree at Batch 5, with a toy `plan.md` (one phase, "First step", Day 1) and
+    one toy spec (`specs/day-01-toy-file.md`, from `templates/spec.template.md`), two commits, no
+    remote. `--out` and `--build` each wrote their file, in about a second each; stderr held only the
+    `NO_REMOTE` line, with gh's "no git remotes found". Not fixed here:
+    - **The branch must be `main`.** The first run, on the `master` that `git init` made, failed in
+      `snapshots()`: `git log --first-parent main` exited 128 and nothing was written. After
+      `git branch -m master main`, both files were written. `spec-drift.py` names `main` twice
+      (lines 395 and 1064).
+    - **Names of jobmatch:** 3 in the data, 4 in the page. The data's come from copied jobmatch
+      files, not the script: `specs/day-12-jwt-issuance.md` (`jobmatch-identity`, `jobmatch-api`)
+      and `docs/dashboard/deployment.json` (its domain). The page adds `PROJECT` (item 2), so the
+      eyebrow reads `jobmatch-microservices · Day 01 of 3 · 1 merged PRs`.
+    - **jobmatch content without the name:** the kit's example specs, Days 12 and 36, are listed as
+      "ready" days; the tokens panel is jobmatch's `token-usage.json`; the deployment and
+      conclusion panels are jobmatch's `deployment.json` and `docs/lab-notebook.md`; the roadmap
+      labels phases 1, 2 and 7 with `PHASES` (item 19), "Modularise in place", "Gateway + JWT",
+      "ECS + Terraform", where the toy plan says "First step"; panel text names jobmatch's four
+      services, Days 1-4's contract tests, #310 and AWS.
+    - **Commits without a PR:** both are titled `Initial commit: monolith + migration plan` and
+      kind `origin` (line 399), and the eyebrow counts `N - 1` snapshots as merged PRs: "1 merged
+      PRs" with none.
+    - **Empty panels:** with no PRs, "Share of the gap closed by the spec" shows `NaN%`.

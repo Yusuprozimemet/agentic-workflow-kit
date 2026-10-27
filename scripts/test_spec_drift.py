@@ -230,6 +230,26 @@ class SpecDriftTest(unittest.TestCase):
         self.assertEqual(got["latest"], dict(sha="aaaaaaa", conclusion="success", date="2026-10-07", url="u1",
                                              summary={"criteria": {"C32.2": "pass"}}))
 
+    def test_with_no_github_remote_there_are_no_prs_and_a_note_says_so(self):
+        def fake(*args):
+            if args[1:3] == ("repo", "view"):
+                if remote:
+                    return "me"
+                raise subprocess.CalledProcessError(1, args, stderr="no git remotes found")
+            if args[1:3] == ("pr", "list"):
+                return json.dumps([dict(number=1, author=dict(login="me")), dict(number=2, author=dict(login="x"))])
+            return "[]"
+        real = sd.run
+        try:
+            sd.run = fake
+            remote = False
+            self.assertEqual(sd.github(), ([], [], sd.NO_REMOTE))
+            remote = True
+            self.assertEqual(sd.github(), ([dict(number=1, author=dict(login="me"))], [], None))
+        finally:
+            sd.run = real
+        self.assertTrue(sd.NO_REMOTE.startswith("No GitHub remote"))
+
     def test_the_deployment_is_its_checks_and_none_without_the_file(self):
         real = sd.PAGE
         sd.PAGE = tempfile.mkdtemp()
