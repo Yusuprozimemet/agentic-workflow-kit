@@ -28,13 +28,13 @@ reports, or any file in the scratchpad that holds them: your findings must be yo
   (`gh api repos/{owner}/{repo}/branches/main/protection`).
 - CI/CD: `.github/workflows/`, every third-party action and how it is pinned, `permissions:` blocks,
   the deploy jobs and `DEPLOY_ENABLED`.
-- Infrastructure: `infra/terraform/` (the OIDC provider and `jobmatch-deploy` role in `deploy.tf`,
+- Infrastructure (jobmatch's paths, as examples): `infra/terraform/` (the OIDC provider and `jobmatch-deploy` role in `deploy.tf`,
   task roles, `secrets.tf`, `alb.tf`, the network module, `alarms.tf`), `infra/terraform/bootstrap/`,
   `scripts/write-secrets.sh`, `scripts/deploy-preflight.sh`, `scripts/teardown-check.sh`,
   `docs/runbooks/deploy.md`.
 - The application: `services/api-gateway/` (JWT and JWKS validation, `Routes.java`, which headers
   it strips and which it sets, `X-User-Id` among them), how each service trusts what the gateway
-  sends, database roles (`scripts/db-setup.py`, `scripts/db-init/`), where the LLM is called and
+  sends, database roles (`scripts/db-setup.py`, `scripts/db-init/`: jobmatch's, as examples), where the LLM is called and
   what it is given (job descriptions, CVs: untrusted input).
 - Supply chain: Dockerfiles and their base images, `pom.xml` and `package.json` dependencies, images
   pulled by tag rather than digest.

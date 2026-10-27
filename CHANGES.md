@@ -1,7 +1,8 @@
 # Proposed changes
 
-Nothing here is applied. Each item is one commit, chosen by the maintainer, with the copied tests
-passing before and after. Smallest and safest first. "Tests" says whether a copied test covers
+Items marked **Done** are applied; the rest are not. Each batch is one commit, chosen by the
+maintainer, with the copied tests passing before and after. A done item names its batch; the
+batch's commit subject starts `Batch N:` (`git log --oneline --grep '^Batch N:'`). Smallest and safest first. "Tests" says whether a copied test covers
 the change today.
 
 Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 failing) and
@@ -13,6 +14,7 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
 1. **`.gitignore`: `__pycache__/`.** Running `python scripts/test_*.py` leaves
    `scripts/__pycache__/` untracked. Add the line. Why: the kit's excerpt has only the dashboard
    cache. Tests: no.
+   **Done in Batch 1.**
 
 2. **`docs/dashboard/index.html`: the name.** Line 6 `<title>JobMatch Spec Drift</title>`, line 15
    `jobmatch-microservices` in the eyebrow. Change: a project name, from the same config value as
@@ -21,13 +23,23 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
 3. **`docs/dashboard/dashboard.js`: the name.** Lines 587-588 write
    `jobmatch-microservices · Day …`. Change: as item 2. Tests: no.
 
+   **Items 2 and 3 done in Batch 1, differently from the proposal:** fewer lines than a config value
+   filled in by `--build` (the data carries no repository name). `dashboard.js` has one marked value,
+   `const PROJECT = "jobmatch-microservices";  // PROJECT: …`, used for the eyebrow and the tab
+   title; `index.html` has a neutral `<title>Spec Drift</title>` and an empty eyebrow, both set by
+   the script. A project edits that one line. The tab title becomes `jobmatch-microservices Spec
+   Drift` where it was `JobMatch Spec Drift`.
+
 4. **`specs/README.md` line 75: dangling link** to `../docs/paper/success-criteria.md` (not
    copied; `check-links.py` reports it). Change: drop the link or name the idea it points to in
    place. Tests: no.
+   **Done in Batch 1:** the link removed; the text `` `docs/paper/success-criteria.md` `` kept.
 
 5. **`docs/lab-notebook.md`: three dangling links** (lines 3 and 1088 to `../README.md`, line 1095
    to `paper/success-criteria.md`). Change: none if the notebook stays jobmatch's record (flag J);
    otherwise replace it with an empty notebook template. Why: it is jobmatch data. Tests: no.
+   **Done in Batch 1:** the three links removed, their text kept; the notebook stays jobmatch's
+   record.
 
 6. **Dangling paths in backticks.** `check-links.py` does not see these, because they are not
    Markdown links:
@@ -42,6 +54,26 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
    Change: in the two agents, replace the paths with a placeholder ("the project's deploy runbook
    and setup scripts"). Leave `CLAUDE.md` as jobmatch's reference copy. Why: an auditor told to read
    a file that does not exist reports a finding about the kit, not the project. Tests: no.
+
+   **Done in Batch 1, as examples rather than placeholders:** the paths are kept and marked
+   "jobmatch's, as examples" (security-ops: the Infrastructure bullet and the database-role
+   scripts; architecture: `scripts/infra-checks.py`, `scripts/teardown-check.sh`); no other word
+   changed. `CLAUDE.md` left as jobmatch's reference copy.
+
+   **Known, checked by hand.** `check-links.py` is not extended. These backticked paths in the
+   agents and spec rules do not exist in the kit (found by listing every backticked path with a `/`
+   and testing it, Batch 1); each is jobmatch's, or a pattern rather than a file:
+   - `architecture-auditor.md`: `scripts/infra-checks.py`, `scripts/teardown-check.sh` (marked),
+     `services/identity-service/src/test/.../contract/`.
+   - `implementer.md`: `db/migration`, `services/identity-service/`, `src/test/.../contract/`
+     (P agent, wording kept, not marked).
+   - `security-ops-auditor.md`: `docs/runbooks/deploy.md`, `infra/terraform/`,
+     `infra/terraform/bootstrap/`, `scripts/db-init/`, `scripts/db-setup.py`,
+     `scripts/deploy-preflight.sh`, `scripts/teardown-check.sh`, `scripts/write-secrets.sh` (marked),
+     `services/api-gateway/`.
+   - `specs/README.md`: `contract/`, `day-04/track-b-saved-jobs-tests` (a branch name),
+     `docs/paper/success-criteria.md` (its link removed, item 4).
+   - `CLAUDE.md`: `scripts/db-setup.py`, `scripts/db-init/` (jobmatch's reference copy).
 
 7. **`templates/`: links that resolve only after the copy.** `check-links.py` reports 12 links in
    `templates/CLAUDE.template.md` and `templates/plan.template.md` (`plan.md`, `specs/`, …). They

@@ -571,6 +571,8 @@ function setSel(i) {
 }
 
 /* ---------- where we are ---------- */
+const PROJECT = "jobmatch-microservices";  // PROJECT: the project's name; the one place the page names it
+document.title = `${PROJECT} Spec Drift`;
 const PHASES = ["Make the split safe", "Modularise in place", "Gateway + JWT", "Extract job-service",
   "Extract matching-service", "Extract application-service", "Functions + uploads bucket (cut)", "ECS + Terraform"];
 const STOPS = [16, 20, 24, 28, 35];
@@ -584,8 +586,8 @@ function drawNow() {
   const nextBox = `<div class="next"><span class="eyebrow">Next step</span><b>${md(now.next_step)}</b>${open ? `<div>${open}</div>` : ""}</div>
     <div class="refreshed">refreshed ${esc(now.generated.replace("T", " "))} · main at ${esc(now.head)}${now.last_pr ? ` (#${now.last_pr})` : ""}</div>`;
   document.getElementById("eyebrow").textContent = cur
-    ? `jobmatch-microservices · Day ${dd(now.current_day)} of ${days.length} · ${N - 1} merged PRs`
-    : `jobmatch-microservices · between days · ${N - 1} merged PRs`;
+    ? `${PROJECT} · Day ${dd(now.current_day)} of ${days.length} · ${N - 1} merged PRs`
+    : `${PROJECT} · between days · ${N - 1} merged PRs`;
   // Between days: the next piece of work has no day spec yet (the platform step, the cleanup day), or work has stopped.
   if (!cur) document.getElementById("today").innerHTML = `
     <div class="eyebrow">Between days</div>

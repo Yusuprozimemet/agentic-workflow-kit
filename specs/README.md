@@ -72,7 +72,7 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
   drafts is as many lines as it finds problems. The paper had to decide all three of these after
   the data (its §5.3); deciding them on the day is cheaper. A track whose code the main session
   rewrote beyond review fixes gets a `Rewrite` line. These are the counts
-  [`docs/paper/success-criteria.md`](../docs/paper/success-criteria.md) judges H1–H3 by; its
+  `docs/paper/success-criteria.md` judges H1–H3 by; its
   amendment maps `process` and the `found:` values above.
 
   At the close, a reader who wrote none of it labels them again, blind

@@ -23,10 +23,10 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `.claude/agents/spec-auditor.md` | `.claude/agents/spec-auditor.md` | `506dc155c89a746d5a9994d6a216e4a83b897fa9d37d0db5cae41bafc2524db6` | P |
 | `.claude/agents/implementer.md` | `.claude/agents/implementer.md` | `e73cd793009b9ed7c292e00d9c6476a35745829a1840c6391be74890af634aea` | P |
 | `.claude/agents/defect-rater.md` | `.claude/agents/defect-rater.md` | `b7d32dae0fdb35bfef3016c3bd023764a890c8b13829a3a190737b9b37ec209b` | P |
-| `.claude/agents/security-ops-auditor.md` | `.claude/agents/security-ops-auditor.md` | `67f41ca17a5051e171d80d05c26efd8d76e1ca61a1d7088714822f82e2ecee39` | J |
+| `.claude/agents/security-ops-auditor.md` | `.claude/agents/security-ops-auditor.md` | `67f41ca17a5051e171d80d05c26efd8d76e1ca61a1d7088714822f82e2ecee39` | J. Modified in Batch 1: jobmatch-only paths marked as examples (the Infrastructure bullet, and the database-role scripts); no wording changed. |
 | `.claude/agents/agentic-engineering-auditor.md` | `.claude/agents/agentic-engineering-auditor.md` | `ca25c4892ef6609d9a8daaa6fb0f03a2b2080bcc25eb8319950f4a079c38a569` | J |
-| `.claude/agents/architecture-auditor.md` | `.claude/agents/architecture-auditor.md` | `47be9b561218e82d867040112e7c0c3497689fc3d4d8d7c5a4faea493e4852a5` | J |
-| `specs/README.md` | `specs/README.md` | `11f4ff3a617b32ecc73bb1fb76aa86ab379d089cea46dbc6280537fad673b028` | P |
+| `.claude/agents/architecture-auditor.md` | `.claude/agents/architecture-auditor.md` | `47be9b561218e82d867040112e7c0c3497689fc3d4d8d7c5a4faea493e4852a5` | J. Modified in Batch 1: `scripts/infra-checks.py` and `scripts/teardown-check.sh` marked as jobmatch examples; no wording changed. |
+| `specs/README.md` | `specs/README.md` | `11f4ff3a617b32ecc73bb1fb76aa86ab379d089cea46dbc6280537fad673b028` | P. Modified in Batch 1: line 75: the link to `docs/paper/success-criteria.md` removed, its text kept. |
 | `specs/_template.md` | `specs/_template.md` | `a8080d62e4675aaa167b197269f7d99c693b5607e542c040bc6e953b9b12c5b0` | P |
 | `specs/day-12-jwt-issuance.md` | `specs/day-12-jwt-issuance.md` | `b4403f7c2b5fff3c199e31bb97a8d8020124b8f453c72bccf454410fc99f0620` | J |
 | `specs/day-36-ecs-services.md` | `specs/day-36-ecs-services.md` | `bcebf46a49c4800f4b4d8036200d1a67e63ce56f1c29b0d2814e2b9c551b98b9` | J |
@@ -39,9 +39,9 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `scripts/token-usage.py` | `scripts/token-usage.py` | `1d5a981ab41afaa10fe263993022c548dab6d6feb2df6c28d024cda80f950a89` | P |
 | `scripts/infra-summary.py` | `scripts/infra-summary.py` | `a9d733f2f176133e733b2e3fa7de643c5e6a67463e69b88329505ad5891e2bf4` | J |
 | `scripts/live-checks.py` | `scripts/live-checks.py` | `d5bf006c5887317d9f682f43a31fc9edc75cf21e3675220de025f667173f9cc9` | J |
-| `docs/dashboard/index.html` | `docs/dashboard/index.html` | `187175d922f58c1bbc2ad1473d6e11561321506b4f78c56d8e8ecc3d9836bec1` | P |
+| `docs/dashboard/index.html` | `docs/dashboard/index.html` | `187175d922f58c1bbc2ad1473d6e11561321506b4f78c56d8e8ecc3d9836bec1` | P. Modified in Batch 1: `<title>` is `Spec Drift` and the eyebrow starts empty; `dashboard.js` sets both from its `PROJECT` value. |
 | `docs/dashboard/dashboard.css` | `docs/dashboard/dashboard.css` | `50a2e322dc720ff31fbe1a02e57aecd222a14402ba0f78bae9b1a464bfa8d801` | P |
-| `docs/dashboard/dashboard.js` | `docs/dashboard/dashboard.js` | `b01e13a1444d552cbd0c1df4540cd7394713bb335e3999ccc3e8952cf764f40c` | P |
+| `docs/dashboard/dashboard.js` | `docs/dashboard/dashboard.js` | `b01e13a1444d552cbd0c1df4540cd7394713bb335e3999ccc3e8952cf764f40c` | P. Modified in Batch 1: the project name is one marked value, `const PROJECT` (default `jobmatch-microservices`), used for the eyebrow and the tab title (`${PROJECT} Spec Drift`). |
 | `docs/dashboard/token-usage.json` | `docs/dashboard/token-usage.json` | `c137dd53cf034ed38cec03fd2b42c511cea1e3106ee8d9b6e79b160beab0fb65` | J |
 | `docs/dashboard/deployment.json` | `docs/dashboard/deployment.json` | `a46ea919947e6a1e0c3e36776af9354947f877390e3ffe93c5b0e8a44b5ff4d0` | J |
 | `scripts/break.py` | `scripts/break.py` | `7972981fcf4699c32f33b47ddeec0521cadb7e772d7dbe902b1942c430267554` | P |
@@ -63,11 +63,11 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `docs/agent-workflow.svg` | `docs/agent-workflow.svg` | `e6ddbc0adea3289d673ea14ff3987c0eef2253d99ceed8829a193ae480a1e658` | P |
 | `docs/agent-workflow.png` | `docs/agent-workflow.png` | `39b1f3b068af9e87b2f39cc51972e0f56ff84b85188ae28fe6e62789a77676a9` | P |
 | `docs/defects.md` | `docs/defects.md` | `90d287e8a51ccc9c179881e430b6b7e64237b93bab9f58f3693a1e72100946c7` | P |
-| `docs/lab-notebook.md` | `docs/lab-notebook.md` | `605d3f2b18b432c6ec76260e244890be2f6b4bd2364948133af7876f93cf8e4e` | J |
+| `docs/lab-notebook.md` | `docs/lab-notebook.md` | `605d3f2b18b432c6ec76260e244890be2f6b4bd2364948133af7876f93cf8e4e` | J. Modified in Batch 1: three dangling links (lines 3 and 1088 to `../README.md`, 1095 to `paper/success-criteria.md`) removed, their text kept. |
 | `docs/audit-findings.md` | `docs/audit-findings.md` | `5fd8aba423ec91161dd1dc73614920611a83ccb53bc55c3a54f41fea941ee68a` | J |
 | `plan.md` | `plan.md` | `88201b753d9a155136fbf72589416d0cae4c183eae13beed9c2516a4cb84a23f` | J |
 | `.gitattributes` | `.gitattributes` | `5a3e1b44d3c45726a00be7ef0545b7846f68146c6369e15581915d1e2b18875a` | mixed |
-| `.gitignore` | `.gitignore`, excerpt, lines 241-242 | `83e6f807ad3a1e40037e8c062345d90b5b3afa2fce125489d6c1d3fca0d608ec` (the excerpt) | P |
+| `.gitignore` | `.gitignore`, excerpt, lines 241-242 | `83e6f807ad3a1e40037e8c062345d90b5b3afa2fce125489d6c1d3fca0d608ec` (the excerpt) | P. Modified in Batch 1: added `__pycache__/`. |
 
 ## Lessons
 
@@ -91,6 +91,9 @@ so LF in git is kept; the byte-for-byte rule is for the repository files, and th
 
 ## Notes
 
+- Changes after the copy are recorded in each changed file's row: "Modified in Batch N: <what>".
+  A commit cannot name its own hash, so each batch's commit subject starts `Batch N:`; find it with
+  `git log --oneline --grep '^Batch N:'`.
 - `.gitignore` is an excerpt: lines 241-242 of jobmatch's `.gitignore` (the dashboard
   cache), not the whole file. It is the one copied file that is not a whole file.
 - The two example specs are Day 12 (early) and Day 36 (late). No early day shows the full close as it is

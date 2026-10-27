@@ -26,8 +26,8 @@ auditors run beside you. Do not read their reports: your findings must be your o
 - The gates as enforced: `.github/workflows/` (`pr-checks.yml`: the description and diff-size
   checks; each service's CI; `infra-ci.yaml`; `spec-drift-tests.yml`), branch protection on `main`
   (`gh api repos/{owner}/{repo}/branches/main/protection`), checkstyle, Flyway's rule that applied
-  migrations never change, `scripts/infra-checks.py`, `scripts/live-checks.py`,
-  `scripts/teardown-check.sh`.
+  migrations never change, `scripts/infra-checks.py` (jobmatch's, an example), `scripts/live-checks.py`,
+  `scripts/teardown-check.sh` (jobmatch's, an example).
 - The boundaries as code: the Day 1–4 contract tests
   (`services/identity-service/src/test/.../contract/`), identity's `RestClientRuleTest`, the per-module
   database roles and schemas, the gateway's routes, the bus and its message contracts, the
