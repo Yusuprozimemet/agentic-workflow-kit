@@ -77,11 +77,17 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `lessons/spec-process-improvements.md` | `memory/spec-process-improvements.md` | `999409b1723446eb53196842b503543d19a7e760bb26269dcf0f91b3277d0a5a` | P |
 | `lessons/checks-before-push.md` | `memory/checks-before-push.md` | `22afc2c8ccbd2c58f00045940fb03ef71620a65432144ed151ff05dfa2fe9ce9` | mixed |
 | `lessons/auditors-on-opus.md` | `memory/auditors-on-opus.md` | `7e6c7b270d3b2d5e03a8634ebdbc15cc1efc5f1ca1f5c6fffaf8135b9a7e9b0c` | P |
-| `lessons/implementer-on-haiku.md` | `memory/implementer-on-haiku.md` | `c87586ddfa45aa519e9fde5d2688d559c69e502ef20469426843fce4539e0bd1` | P |
-| `lessons/maintainer-review-style.md` | `memory/maintainer-review-style.md` | `0a3592ce657ce735cd1c8d82f3160d2313c566af9aa38d69b4baa1487e31720a` | P |
+| `lessons/implementer-on-haiku.md` | `memory/implementer-on-haiku.md` | source disk (CRLF): `c87586ddfa45aa519e9fde5d2688d559c69e502ef20469426843fce4539e0bd1`; stored in git (LF): `0027a360e7d1c54b0a63ccc16f126b5057b7eede768f7c372227546a9fad99ff` | P |
+| `lessons/maintainer-review-style.md` | `memory/maintainer-review-style.md` | source disk (CRLF): `0a3592ce657ce735cd1c8d82f3160d2313c566af9aa38d69b4baa1487e31720a`; stored in git (LF): `707f84329b933b63dced6e8670561dbf0df5780acd38baa6d09a0f5aee840795` | P |
 | `lessons/spec-auditor-eval.md` | `memory/spec-auditor-eval.md` | `f9f6c78a63e08b548bfc20913b9bd3442fc27dbb8a7503c40ea6aa64ad2b121a` | P |
-| `lessons/attribution-rejected.md` | `memory/attribution-rejected.md` | `4d89a31d44799909db495d7f956a7bbfe0f452d128ccbd849cd914d752a1e96d` | P |
+| `lessons/attribution-rejected.md` | `memory/attribution-rejected.md` | source disk (CRLF): `4d89a31d44799909db495d7f956a7bbfe0f452d128ccbd849cd914d752a1e96d`; stored in git (LF): `975850bdc45f86ccfa075d517789213493547dd10b431cdc9ca17087d9aad5bc` | P |
 | `lessons/dev-loop-dropped.md` | `memory/dev-loop-dropped.md` | `5578f6fb0f588356ac21246489d74ddcdf584e0dda713d61114a4e6e38d3c77a` | P |
+
+Three lessons were CRLF on disk (`attribution-rejected.md`, `implementer-on-haiku.md`,
+`maintainer-review-style.md`); `core.autocrlf` stored them LF in git. The only difference is CRLF→LF:
+for every lesson, the source with CR removed (`tr -d '\r' < <source> | sha256sum`) hashes the same as
+the git blob (`git show HEAD:lessons/<file> | sha256sum`), 9 of 9. Lessons are read, never executed,
+so LF in git is kept; the byte-for-byte rule is for the repository files, and those 48 match.
 
 ## Notes
 
@@ -92,3 +98,8 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
   relabel yet; it exists only in `CLAUDE.md` (A day, in order, step 3) and `scripts/relabel.py`.
 - `lessons/checks-before-push.md` is mixed: about half its items are Maven and test-harness lessons
   from jobmatch.
+- Correction: the Step 1 inventory said every memory was LF. Three were CRLF. The check used then,
+  `grep -lc $'\r'` in Git Bash, could not see CR bytes: that grep treats a pattern of a lone CR as
+  empty, so it matches every line of an LF-only file too (15 of 15 lines of `auditors-on-opus.md`,
+  which has no CR), and the 0 it printed was not a count of CRLF files. CRs are counted with
+  `tr -cd '\r' < <file> | wc -c`.
