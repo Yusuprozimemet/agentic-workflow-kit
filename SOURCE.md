@@ -50,11 +50,11 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `scripts/invariants.py` | `scripts/invariants.py` | `5320bf99538533df5bae2d470bf7f8a4d085536891e2f87ee634bc137288a21b` | J |
 | `scripts/service-wiring.py` | `scripts/service-wiring.py` | `eeb5bf0b2abbe3d8ec2594ecda1737a7a3071a1ca66aa0590fcb54dc3102c3c6` | J |
 | `scripts/check-links.py` | `scripts/check-links.py` | `a8aff0d981fa24bc5435d6ebff74d0835797a1c565b2f213a3c6d20380873456` | P |
-| `scripts/test_spec_drift.py` | `scripts/test_spec_drift.py` | `f832d00fd2adbe6d324c149d6d35f78c75212043454c49a3c3555df044c43dd0` | P |
+| `scripts/test_spec_drift.py` | `scripts/test_spec_drift.py` | `f832d00fd2adbe6d324c149d6d35f78c75212043454c49a3c3555df044c43dd0` | P. Modified in Batch 2: `test_the_repositorys_plan_parses` replaced by `test_a_plan_and_its_specs_parse`: it writes its own plan.md (a cut item, a stop lifted by a course correction) and specs/ to a temp dir and reads them the same way. |
 | `scripts/test_token_usage.py` | `scripts/test_token_usage.py` | `336aa9d4a760925ca54856b61bba524b0552a22b106e52359b122ffb778b7340` | P |
 | `scripts/test_infra_summary.py` | `scripts/test_infra_summary.py` | `765d7ebe9f88fc8e88c39f7a10f24996e814456dfda7f384e639071c8200e9aa` | J |
 | `scripts/test_break.py` | `scripts/test_break.py` | `96ba34a2e3bf7331a27be0855182c82b1096c86ab8e06e409a38878157451203` | P |
-| `scripts/test_relabel.py` | `scripts/test_relabel.py` | `58c73cdc085dd3988a9ea97a8dde49da27ab8abe49598db79a5f2c2dc37865ae` | P |
+| `scripts/test_relabel.py` | `scripts/test_relabel.py` | `58c73cdc085dd3988a9ea97a8dde49da27ab8abe49598db79a5f2c2dc37865ae` | P. Modified in Batch 2: `PaperSampleTest` (82 entries, 11 escapes in jobmatch's Days 21-28) replaced by `SampleTest`, two small day specs it writes itself (7 entries, 3 escapes, every found: given a stage); the module docstring's first paragraph says so. |
 | `scripts/test_pr_names.py` | `scripts/test_pr_names.py` | `4c50e672ab3a73ac3c2eec3408f168fc9a02bc78517b11d735dc21445c3a8cc2` | P |
 | `scripts/test_invariants.py` | `scripts/test_invariants.py` | `2796a58cc5ab1141b137fbaf2cf57a00039896856a011843b70dbbcb4ba7fcb5` | J |
 | `scripts/test_service_wiring.py` | `scripts/test_service_wiring.py` | `b42105c0c9a3ca3e4fe98eba450d71cf93f83ee32e3dbc18bad7221cbf889903` | J |

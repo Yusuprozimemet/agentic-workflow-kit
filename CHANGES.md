@@ -87,12 +87,24 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
    escapes in `specs/day-21..28` (82 != 0 in the kit). Change: skip when those specs are absent
    (`unittest.skipUnless`), or move the check to a fixture of two small specs. Why: it measures
    jobmatch's record, not the tool. Tests: it is the test.
+   **Done in Batch 2, as a fixture:** `SampleTest` writes two small day specs (Days 21 and 22) with
+   the qualified `found:` values older Notes use, and checks the same three things: 7 entries, 3
+   escapes, none without a stage.
+   - `broken: relabel.stage keeps a qualified found: value's "(...)" → AssertionError: Lists differ: [] != ['auditor (spec-auditor)', 'review (Track A)']`
+   - `broken: relabel.made never reads a defect as made on an earlier day → AssertionError: 3 != 2`
 
 9. **`scripts/test_spec_drift.py` line 739, `test_the_repositorys_plan_parses`:** reads the real
    `plan.md` and `specs/`, and hard-codes Phase 6's cut days `(29, 30, 31)`. In the kit,
    jobmatch's plan lists Days 17-43 but only Days 12 and 36 exist. Change: keep the test (every
    project wants "my plan parses") but drop the `(29, 30, 31)` literal, reading cut days from the
    plan instead. Why: it is the right check, with jobmatch's numbers in it. Tests: it is the test.
+   **Done in Batch 2, as a fixture rather than by reading cut days from the plan:**
+   `test_a_plan_and_its_specs_parse` writes a plan.md (Days 12, 11, 13; a stop after Phase 3 lifted
+   by its course correction; Days 16-17 **cut**) and nine empty specs to a temp dir, reads them as
+   the old test read the repository's, and checks the same two things. The cut days `(16, 17)` are
+   the fixture's own.
+   - `broken: run_order no longer takes a **cut** item's days out → AssertionError: Lists differ: [10, 11, 12, 13, 14, 15, 16, 17, 18] != [10, 11, 12, 13, 14, 15, 18]`
+   - `broken: run_order no longer finds the course correction that lifts a stop → AssertionError: 15 is not None`
 
 ## CI jobs that are jobmatch's
 
@@ -185,3 +197,17 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
 
     Change: add an optional `## How the checks work` section and a one-line "Origin" hint. Tests:
     no.
+
+## Found while applying
+
+22. **`scripts/break.py` on Python: a stale `.pyc` can stand in for the break.** Found in Batch 2.
+    Two breaks of `spec-drift.py` in a row (`**cut**` → `**gone**`, then `after` → `before`) each
+    made the file one byte longer, and both were written within the same second. Python's bytecode
+    cache checks only the source's size and whole-second mtime, so the second run loaded the first
+    break's `.pyc` and reported the first break's failure (`Lists differ: [... 16, 17 ...]`) as the
+    second's. With `scripts/__pycache__` deleted, the second break reported its own failure
+    (`15 is not None`). A break whose replacement has the find text's length, written in the second
+    the source was last compiled, could likewise run the unbroken code. Not fixed here; every break
+    in these batches ran with `PYTHONDONTWRITEBYTECODE=1` and `scripts/__pycache__` deleted first.
+    Change, if wanted: have `break.py` run the command with `PYTHONDONTWRITEBYTECODE=1` and delete
+    the broken file's cached bytecode before and after. Tests: `test_break.py` would need one.

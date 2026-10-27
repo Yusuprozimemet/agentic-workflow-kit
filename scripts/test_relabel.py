@@ -1,7 +1,7 @@
 """scripts/relabel.py hides a day's Defect tags from the rater and finds where its labels disagree.
 
-The first test replays the paper's sample, Days 21-28: 82 entries, 11 of them escapes. The rest
-take one spec written the way specs/_template.md asks.
+The first test reads two small day specs, with the qualified found: values older Notes use. The
+rest take one spec written the way specs/_template.md asks.
 
     python scripts/test_relabel.py
 """
@@ -36,13 +36,31 @@ def write_spec(text):
     return d, path
 
 
-class PaperSampleTest(unittest.TestCase):
-    def test_days_21_to_28_give_the_papers_82_entries_and_11_escapes(self):
-        paths = [os.path.join(HERE, "..", "specs", f) for f in sorted(os.listdir(os.path.join(HERE, "..", "specs")))
-                 if f[:6] in {f"day-{n}" for n in range(21, 29)}]
-        rows = [r for p in paths for r in relabel.entries(p)]
-        self.assertEqual(82, len(rows))
-        self.assertEqual(11, sum(relabel.stage(r) == "escape" for r in rows))
+SAMPLE = {
+    "day-21-a.md": """## Notes
+- **Defect** — found: auditor (spec-auditor) · cause: spec · made: Day 21 · C21.3 counted the wrong files.
+- **Defect** — found: review (Track A) · cause: implementation · made: Day 21 · a dead branch.
+- **Defect** — found: Track B, C · cause: spec · made: Day 20 · Day 20's grep matched comments.
+- **Defect** — found: the close · cause: process · made: Day 21 · a box ticked without its
+  evidence.
+""",
+    "day-22-b.md": """## Notes
+- **Defect** — found: review (Day 22) · cause: spec · made: Day 22 · the hold was never broken.
+- **Defect** — found: break on purpose · cause: implementation · made: Day 22 · the test passed broken.
+- **Defect** — found: spec-change PR · cause: spec · made: none · the premise was wrong.
+""",
+}
+
+
+class SampleTest(unittest.TestCase):
+    def test_two_days_give_seven_entries_three_escapes_and_a_stage_for_each(self):
+        d = tempfile.mkdtemp()
+        for name, text in SAMPLE.items():
+            with open(os.path.join(d, name), "w", encoding="utf-8") as f:
+                f.write(text)
+        rows = [r for f in sorted(os.listdir(d)) for r in relabel.entries(os.path.join(d, f))]
+        self.assertEqual(7, len(rows))
+        self.assertEqual(3, sum(relabel.stage(r) == "escape" for r in rows))
         self.assertEqual([], [r["found"] for r in rows if not relabel.stage(r)])
 
 

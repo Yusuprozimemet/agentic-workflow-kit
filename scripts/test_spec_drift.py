@@ -736,13 +736,21 @@ Days keep their numbers; they run in this order:
         self.assertEqual(sd.out_of_order(list(range(1, 10))), [])
         self.assertEqual(sd.out_of_order([]), [])
 
-    def test_the_repositorys_plan_parses(self):
-        with open(os.path.join(HERE, os.pardir, "plan.md"), encoding="utf-8") as f:
+    def test_a_plan_and_its_specs_parse(self):
+        root = tempfile.mkdtemp()
+        os.mkdir(os.path.join(root, "specs"))
+        for n in range(10, 19):
+            open(os.path.join(root, "specs", f"day-{n}-x.md"), "w").close()
+        with open(os.path.join(root, "plan.md"), "w", encoding="utf-8") as f:
+            f.write("## Day-by-day specs\n\n1. Phase 2: Days 12, 11, 13.\n"
+                    "2. Phase 3: Days 14, 15. **Stop and evaluate.**\n3. Phase 4 (Days 16–17): **cut**.\n"
+                    "4. Phase 5: Day 18.\n\n## Course correction after Phase 3\n\nGo on.\n")
+        with open(os.path.join(root, "plan.md"), encoding="utf-8") as f:
             plan = f.read()
-        days = sorted({sd.day_of(n) for n in os.listdir(os.path.join(HERE, os.pardir, "specs")) if sd.day_of(n)})
+        days = sorted({sd.day_of(n) for n in os.listdir(os.path.join(root, "specs")) if sd.day_of(n)})
         order, stop = sd.run_order(plan, days)
-        self.assertEqual(sorted(d for d in order if d not in sd.PLACEHOLDERS), [d for d in days if d not in (29, 30, 31)])
-        self.assertIsNone(stop)  # evaluated: plan.md has the course correction after Phase 5
+        self.assertEqual(sorted(d for d in order if d not in sd.PLACEHOLDERS), [d for d in days if d not in (16, 17)])
+        self.assertIsNone(stop)  # evaluated: the plan has the course correction after Phase 3
 
     def test_the_cleanup_day_comes_after_the_stop_once_it_is_evaluated(self):
         plan = self.PLAN.replace("5. Phases 6–7 (Days 29–37): rewritten after the evaluation, or not started.",
