@@ -46,7 +46,7 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `docs/dashboard/deployment.json` | `docs/dashboard/deployment.json` | `a46ea919947e6a1e0c3e36776af9354947f877390e3ffe93c5b0e8a44b5ff4d0` | J |
 | `scripts/break.py` | `scripts/break.py` | `7972981fcf4699c32f33b47ddeec0521cadb7e772d7dbe902b1942c430267554` | P |
 | `scripts/relabel.py` | `scripts/relabel.py` | `87d856ed70bb2474bdbe6571d81428bb954da5800795449846e6e5329e2fab0d` | P |
-| `scripts/pr-names.py` | `scripts/pr-names.py` | `125051aa4700be36afdb327680bbd086968071b4790420072a859b73ed1f5b05` | P |
+| `scripts/pr-names.py` | `scripts/pr-names.py` | `125051aa4700be36afdb327680bbd086968071b4790420072a859b73ed1f5b05` | P. Modified in Batch 4: the Jira key comes from `JIRA_KEY`, `KAN` when unset or empty, in `TITLE_DAY`, `TITLE_CLOSE` and `KEY`; one docstring line says so. |
 | `scripts/invariants.py` | `scripts/invariants.py` | `5320bf99538533df5bae2d470bf7f8a4d085536891e2f87ee634bc137288a21b` | J |
 | `scripts/service-wiring.py` | `scripts/service-wiring.py` | `eeb5bf0b2abbe3d8ec2594ecda1737a7a3071a1ca66aa0590fcb54dc3102c3c6` | J |
 | `scripts/check-links.py` | `scripts/check-links.py` | `a8aff0d981fa24bc5435d6ebff74d0835797a1c565b2f213a3c6d20380873456` | P |
@@ -55,7 +55,7 @@ Flags: **P** process, works in any project; **J** jobmatch-specific, copied for 
 | `scripts/test_infra_summary.py` | `scripts/test_infra_summary.py` | `765d7ebe9f88fc8e88c39f7a10f24996e814456dfda7f384e639071c8200e9aa` | J |
 | `scripts/test_break.py` | `scripts/test_break.py` | `96ba34a2e3bf7331a27be0855182c82b1096c86ab8e06e409a38878157451203` | P |
 | `scripts/test_relabel.py` | `scripts/test_relabel.py` | `58c73cdc085dd3988a9ea97a8dde49da27ab8abe49598db79a5f2c2dc37865ae` | P. Modified in Batch 2: `PaperSampleTest` (82 entries, 11 escapes in jobmatch's Days 21-28) replaced by `SampleTest`, two small day specs it writes itself (7 entries, 3 escapes, every found: given a stage); the module docstring's first paragraph says so. |
-| `scripts/test_pr_names.py` | `scripts/test_pr_names.py` | `4c50e672ab3a73ac3c2eec3408f168fc9a02bc78517b11d735dc21445c3a8cc2` | P |
+| `scripts/test_pr_names.py` | `scripts/test_pr_names.py` | `4c50e672ab3a73ac3c2eec3408f168fc9a02bc78517b11d735dc21445c3a8cc2` | P. Modified in Batch 4: the module loads through `load(key)` with `JIRA_KEY` unset; new `KeyTest` (the default, an empty value, and `ABC`) and `CommandTest.test_reads_the_key_from_jira_key`; the first command test drops the runner's `JIRA_KEY`; 15 tests, was 12. |
 | `scripts/test_invariants.py` | `scripts/test_invariants.py` | `2796a58cc5ab1141b137fbaf2cf57a00039896856a011843b70dbbcb4ba7fcb5` | J |
 | `scripts/test_service_wiring.py` | `scripts/test_service_wiring.py` | `b42105c0c9a3ca3e4fe98eba450d71cf93f83ee32e3dbc18bad7221cbf889903` | J |
 | `CLAUDE.md` | `CLAUDE.md` | `4bc473b17f1c4ddaf9d195339d884d85289d2937ed5e3d03d8bfee22fa2ffd98` | mixed |

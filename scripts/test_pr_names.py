@@ -14,9 +14,25 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "pr-names.py")
-spec = importlib.util.spec_from_file_location("pr_names", SCRIPT)
-pr_names = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(pr_names)
+
+
+def load(key=None):
+    """pr-names.py as loaded with JIRA_KEY unset, or set to key."""
+    saved = os.environ.pop("JIRA_KEY", None)
+    if key is not None:
+        os.environ["JIRA_KEY"] = key
+    try:
+        spec = importlib.util.spec_from_file_location("pr_names", SCRIPT)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        os.environ.pop("JIRA_KEY", None)
+        if saved is not None:
+            os.environ["JIRA_KEY"] = saved
+
+
+pr_names = load()
 problems = pr_names.problems
 
 TRACK = ("day-43/track-d2-KAN-166-outward-docs", "Day 43 track D2: the README says where the migration ended",
@@ -89,6 +105,27 @@ class RulesTest(unittest.TestCase):
                          problems(branch, title, "Day issue KAN-152.", subjects))
 
 
+class KeyTest(unittest.TestCase):
+    """JIRA_KEY names the project key; unset, it is KAN."""
+    ABC = ("day-43/track-d2-ABC-166-x", "Day 43 track D2: x", "Closes ABC-7.", ["ABC-166 Day 43 track D2: x"])
+    CLOSE = ("day-42/close-the-day-ABC-97", "ABC-97 Day 43 close: tick the criteria", "ABC-97", [])
+
+    def test_unset_the_key_is_kan_and_another_key_is_text(self):
+        self.assertEqual(["the description names KAN-6, not KAN-5"],
+                         problems("day-27/track-a-KAN-5-x", "Day 27 track A: x", "Closes KAN-6.", ["KAN-5 Day 27 track A: x"]))
+        self.assertEqual([], problems(*self.ABC))
+        self.assertEqual([], problems(*self.CLOSE))
+        self.assertEqual("KAN", load("").JIRA_KEY)  # an unset CI variable arrives empty
+
+    def test_a_key_set_in_jira_key_is_the_key_and_kan_is_text(self):
+        abc = load("ABC")
+        self.assertEqual(["the description names ABC-7, not ABC-166"], abc.problems(*self.ABC))
+        self.assertEqual(["a Day 43 close comes from day-43/close-the-day, not `day-42/close-the-day-ABC-97`"],
+                         abc.problems(*self.CLOSE))
+        self.assertEqual([], abc.problems("day-27/track-a-KAN-5-x", "Day 27 track A: x", "Closes KAN-6.",
+                                          ["KAN-5 Day 27 track A: x"]))
+
+
 class CommandTest(unittest.TestCase):
     def test_reads_the_commits_from_git_and_exits_1(self):
         repo = tempfile.mkdtemp()
@@ -97,11 +134,25 @@ class CommandTest(unittest.TestCase):
         subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "base"], check=True)
         subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "KAN-9 Day 43 track D2: x"], check=True)
         env = dict(os.environ, PR_BRANCH="day-43/track-d2-KAN-166-x", PR_TITLE="Day 43 track D2: x", PR_BODY="")
+        env.pop("JIRA_KEY", None)  # the default, whatever the shell running the tests has set
         run = subprocess.run([sys.executable, SCRIPT, "HEAD~1", "HEAD"], cwd=repo, env=env,
                              capture_output=True, text=True)
         self.assertEqual(1, run.returncode, run.stdout + run.stderr)
         self.assertIn("2 Jira keys: KAN-166, KAN-9", run.stdout)
         self.assertIn("1 problems over the branch, the title and 1 commits", run.stdout)
+
+    def test_reads_the_key_from_jira_key(self):
+        repo = tempfile.mkdtemp()
+        git = ["git", "-C", repo, "-c", "user.name=t", "-c", "user.email=t@t"]
+        subprocess.run(git[:3] + ["init", "-q"], check=True)
+        subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "base"], check=True)
+        subprocess.run(git + ["commit", "-q", "--allow-empty", "-m", "ABC-9 Day 43 track D2: x"], check=True)
+        env = dict(os.environ, PR_BRANCH="day-43/track-d2-ABC-166-x", PR_TITLE="Day 43 track D2: x", PR_BODY="",
+                   JIRA_KEY="ABC")
+        run = subprocess.run([sys.executable, SCRIPT, "HEAD~1", "HEAD"], cwd=repo, env=env,
+                             capture_output=True, text=True)
+        self.assertEqual(1, run.returncode, run.stdout + run.stderr)
+        self.assertIn("2 Jira keys: ABC-166, ABC-9", run.stdout)
 
 
 if __name__ == "__main__":

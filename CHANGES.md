@@ -145,6 +145,17 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
 13. **`scripts/pr-names.py` lines 34, 37, 39: the Jira key `KAN-`.** Change: take the key prefix
     from config (or any `[A-Z]+-\d+`), with none meaning "no tracker". Tests:
     `test_pr_names.py` (12/12; 21 lines name `KAN`).
+    **Done in Batch 4, as an environment variable with jobmatch's default:** `JIRA_KEY`, read like
+    the script's other inputs (`PR_BRANCH`, …); unset or empty, it is `KAN`, so jobmatch's behaviour
+    is unchanged. Empty counts as unset because an unset CI variable (`${{ vars.JIRA_KEY }}`)
+    arrives as `""`. `pr-checks.yml` does not pass it yet: a project that uses another key adds it
+    to the "Compare the names" step's `env:`. "No tracker" is not done. `test_pr_names.py`: 15/15,
+    with and without `JIRA_KEY` set in the shell.
+    - `broken: pr-names' default key is XYZ, not KAN → AssertionError: Lists differ: ['the description names KAN-6, not KAN-5'] != []`
+    - `broken: an empty JIRA_KEY is taken as the key → AssertionError: 'KAN' != ''`
+    - `broken: pr-names ignores JIRA_KEY → AssertionError: Lists differ: ['the description names ABC-7, not ABC-166'] != []`
+    - `broken: pr-names ignores JIRA_KEY, run as a command → AssertionError: 1 != 0 : 0 problems over the branch, the title and 1 commits`
+    - `broken: a close title's key prefix stays KAN whatever JIRA_KEY says → AssertionError: Lists differ: ['a Day 43 close comes from day-43/close-t[38 chars]97`'] != []`
 
 ## spec-drift.py
 

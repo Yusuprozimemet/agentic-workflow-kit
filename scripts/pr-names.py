@@ -2,6 +2,8 @@
 
     python scripts/pr-names.py <base sha> <head sha>     # reads PR_BRANCH, PR_TITLE, PR_BODY
 
+JIRA_KEY names the tracker's project key, `KAN` (jobmatch's) when unset or empty.
+
 spec-drift.py reads a day's progress from branch names and Jira from the keys in them, so a name
 that disagrees is a wrong state on the dashboard or in Jira, found only after the merge. Three
 escaped that way (docs/paper, the process defects): #237's branch said `track-b`, its title track
@@ -25,18 +27,20 @@ import re
 import subprocess
 import sys
 
+JIRA_KEY = re.escape(os.environ.get("JIRA_KEY") or "KAN")  # the Jira project key: KAN-123; empty is unset
+
 # Areas outside the days, as used so far. A new one is added here, on purpose.
 AREAS = ("workflow", "paper", "tooling", "dashboard", "docs", "specs", "plan", "ci", "security", "trial",
          "dependabot")
 DAY_BRANCH = re.compile(r"^day-(\d{2})/[0-9A-Za-z]")
 AREA_BRANCH = re.compile(r"^([a-z]+)/[0-9A-Za-z]")
 BRANCH_TRACK = re.compile(r"^day-\d{2}/track-([0-9a-z]+)(?=-|$)")
-TITLE_DAY = re.compile(r"^(?:KAN-\d+ )?Day (\d{2})\b")
+TITLE_DAY = re.compile(rf"^(?:{JIRA_KEY}-\d+ )?Day (\d{{2}})\b")
 # "Day 35 track C2a (1 of 2): ..." and "Day 38 track C fix: ..." are tracks too.
 TITLE_TRACK = re.compile(r"\bDay (\d{2}) track ([0-9A-Za-z]+)\b")
-TITLE_CLOSE = re.compile(r"^(?:KAN-\d+ )?Day (\d{2}) close\b")
+TITLE_CLOSE = re.compile(rf"^(?:{JIRA_KEY}-\d+ )?Day (\d{{2}}) close\b")
 CLOSE_BRANCH = re.compile(r"^day-(\d{2})/close-the-day(?:-|$)")
-KEY = re.compile(r"\bKAN-\d+\b")
+KEY = re.compile(rf"\b{JIRA_KEY}-\d+\b")
 
 
 def problems(branch, title, body, subjects):
