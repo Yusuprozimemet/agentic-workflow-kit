@@ -8,6 +8,7 @@ a reply is counted once, from its last streamed line, and the day comes from the
 import importlib.util
 import json
 import os
+import re
 import tempfile
 import unittest
 
@@ -70,6 +71,20 @@ class CountTest(unittest.TestCase):
         self.assertEqual(day43[0][0][1], 43)
         main = self.rows(self.count([line(branch="main")]))
         self.assertIsNone(main[0][0][1])
+
+
+class TranscriptsTest(unittest.TestCase):
+    """Only this repository's transcript folders are read: its own and its worktrees'."""
+
+    def test_a_sibling_whose_name_starts_with_this_ones_is_not_read(self):
+        root = tempfile.mkdtemp()
+        name = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(os.path.join(HERE, os.pardir)))
+        for folder in (name, name + "--claude-worktrees-a", name + "-pilot", name + "2", "other"):
+            os.mkdir(os.path.join(root, folder))
+            with open(os.path.join(root, folder, "s.jsonl"), "w", encoding="utf-8") as f:
+                f.write(line())
+        read = sorted(os.path.basename(os.path.dirname(p)) for p in tu.transcripts(root))
+        self.assertEqual(read, [name, name + "--claude-worktrees-a"])
 
 
 if __name__ == "__main__":

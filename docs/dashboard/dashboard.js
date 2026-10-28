@@ -476,11 +476,12 @@ function drawVerification() {
   const V = DATA.verification || [], code = V.filter(v => v.kind === "code");
   if (!V.length) return;
   const n = (vs, s) => vs.filter(v => v.breaks === s).length;
-  // From #310 the rules ask for the break line, so only those PRs can be silent.
+  // From this PR the rules ask for the break line, so only those PRs can be silent; 0 is every PR.
+  const from = (DATA.meta || {}).break_line_from_pr || 0;
   const since = code.filter(v => v.breaks !== "not measured"), silent = since.filter(v => v.breaks === "silent");
   const recorded = n(since, "recorded"), none = n(since, "none");
-  document.getElementById("breaks").innerHTML = `<p>Since #310, ${recorded} of ${since.length} code PRs record a break on purpose${none ? `, ${none} say why there is none` : ""}; ${silent.length} silent.</p>`
-    + `<p style="font-size:13px;color:var(--muted)">${n(code, "not measured")} code PRs before #310 are not measured.</p>`
+  document.getElementById("breaks").innerHTML = `<p>${from ? `Since #${from}, ` : ""}${recorded} of ${since.length} code PRs record a break on purpose${none ? `, ${none} say why there is none` : ""}; ${silent.length} silent.</p>`
+    + (from ? `<p style="font-size:13px;color:var(--muted)">${n(code, "not measured")} code PRs before #${from} are not measured.</p>` : "")
     + (silent.length ? `<ul>${silent.map(v => `<li>#${v.number}${v.day ? ` · Day ${dd(v.day)}` : ""}</li>`).join("")}</ul>` : "");
   const sum = (vs, k) => vs.reduce((a, v) => a + v[k], 0);
   const pushes = sum(V, "pushes"), failed = sum(V, "failed"), bad = V.filter(v => v.failed);

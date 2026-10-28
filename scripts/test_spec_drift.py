@@ -177,7 +177,14 @@ class SpecDriftTest(unittest.TestCase):
                             ("", "silent"), (None, "silent")]:
             self.assertEqual(sd.break_state(body and body + checklist, 310), state, body)
         self.assertEqual(sd.break_state(checklist, 310), "silent")
+        self.addCleanup(setattr, sd, "BREAK_LINE_FROM_PR", sd.BREAK_LINE_FROM_PR)
+        sd.BREAK_LINE_FROM_PR = 310  # jobmatch-microservices asked for the line from #310
         self.assertEqual(sd.break_state("broken: the guard removed → 401\n", 309), "not measured")
+
+    def test_a_new_project_reads_the_break_line_from_its_first_pr(self):
+        self.assertEqual(sd.BREAK_LINE_FROM_PR, 0)
+        self.assertEqual(sd.break_state("broken: the guard removed → 401\n", 1), "recorded")
+        self.assertEqual(sd.break_state("No break.\n", 7), "silent")
 
     def test_ci_counts_each_pushed_commit_once_and_only_pull_request_runs(self):
         run = lambda sha, result, flow="PR checks", event="pull_request": dict(
@@ -842,6 +849,20 @@ class PageTest(unittest.TestCase):
             self.assertTrue(panels[box], box)
             self.assertNotIn("This panel failed", panels[box], box)
 
+    def test_the_break_panel_names_the_first_pr_only_when_there_is_one(self):
+        # Two code PRs, one recorded and one silent; jobmatch also had one before its #310.
+        rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
+                for i, pr in enumerate([None, None, 1, 2])]
+        pr = lambda n, breaks: dict(number=n, day=None, kind="code", breaks=breaks, pushes=1, failed=0, failed_in=[])
+        new = [pr(1, "recorded"), pr(2, "silent")]
+        _, panels, _ = drawn(rows, verification=new, meta=dict(break_line_from_pr=0))
+        self.assertTrue(panels["breaks"].startswith("<p>1 of 2 code PRs record a break on purpose; 1 silent.</p><ul>"),
+                        panels["breaks"])
+        self.assertNotIn("not measured", panels["breaks"])
+        _, panels, _ = drawn(rows, verification=[pr(309, "not measured")] + new, meta=dict(break_line_from_pr=310))
+        self.assertTrue(panels["breaks"].startswith("<p>Since #310, 1 of 2 code PRs"), panels["breaks"])
+        self.assertIn("1 code PRs before #310 are not measured.", panels["breaks"])
+
     @unittest.skipUnless(os.path.exists(COMPARE), "kit/ removed")
     def test_jobmatchs_data_draws_the_boxes_it_drew(self):
         # kit/compare-page.py: jobmatch's published data through this page, against its saved 53 boxes.
@@ -883,6 +904,35 @@ Days keep their numbers; they run in this order:
         self.assertEqual(order[29:], list(range(29, 38)))
         self.assertEqual(stop, 28)
         self.assertEqual(sd.run_order(self.PLAN, list(range(1, 40)))[0][16:18], [38, 39])
+
+    def test_a_day_under_10_is_a_day_and_only_a_phase_number_is_not(self):
+        plan = "## Day-by-day specs\n\n1. Phase 0: Days 3, 1, 2. **Stop and evaluate.**\n2. Phase 1: Days 4-5.\n"
+        self.assertEqual(sd.run_order(plan, [1, 2, 3, 4, 5]), ([3, 1, 2, 4, 5], 2))
+
+    def test_jobmatchs_plan_runs_in_its_order(self):
+        # jobmatch-microservices' list as it ended: phase numbers inside words and after "after".
+        plan = """## Day-by-day specs
+
+1. The record fix and the platform step (new day specs, numbered from 38).
+2. Phase 3: Days 18, 19, 17, 20.
+3. Phase 4: Day 41 (the profile endpoint and user id, split out of Day 24) first, then Days 21, 22
+   (no dual write), 23, 24.
+4. Phase 5: Days 26, 27, 25, 28. **Stop and evaluate.**
+5. The cleanup day (course correction after Phase 5), Day 42; done.
+6. Phase 7 for ECS on Fargate, in this order: Days 32, 33 (the code before ECS), 36 (the services on
+   ECS), 34, 35; done.
+7. Phase 6 (Days 29–31): **cut** after Phase 7 (*Phase 7 outcome*).
+8. The close-out day, Day 43: the end-of-Phase-7 audits' findings; done.
+
+## Course correction after Phase 5
+
+The cleanup day first.
+"""
+        specs = list(range(1, 37)) + list(range(38, 44))  # its specs: no Day 37; Days 29-31 written, then cut
+        order, stop = sd.run_order(plan, specs)
+        self.assertEqual(order, list(range(1, 17)) + [38, 39, 40, 18, 19, 17, 20, 41, 21, 22, 23, 24, 26, 27, 25, 28,
+                                                      42, 32, 33, 36, 34, 35, 43])
+        self.assertIsNone(stop)
 
     def test_the_days_out_of_order_are_those_that_break_the_rising_run(self):
         order = list(range(1, 17)) + [38, 39, 40, 18, 19, 17, 20, 21, 26, 27, 25, 28, sd.PLATFORM]

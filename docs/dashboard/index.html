@@ -112,7 +112,7 @@
   <section class="panel">
     <div class="panel-head">
       <h2>Verification the lines do not show</h2>
-      <p>A break on purpose never merges and a failed CI run leaves nothing in git, so neither is in “Where the work went”. Both are read from GitHub instead. First, each code PR's description: does it record a break on purpose in the one line the rules fix (<code>broken: &lt;what&gt; → &lt;what it reported&gt;</code>), say why there is none (<code>broken: none → &lt;why&gt;</code>), or say nothing? The line was asked for from #310; a PR before it described its breaks in free text, read by phrasing until then, and is not measured. Any silent PR is listed below.</p>
+      <p>A break on purpose never merges and a failed CI run leaves nothing in git, so neither is in “Where the work went”. Both are read from GitHub instead. First, each code PR's description: does it record a break on purpose in the one line the rules fix (<code>broken: &lt;what&gt; → &lt;what it reported&gt;</code>), say why there is none (<code>broken: none → &lt;why&gt;</code>), or say nothing? If the line was asked for only from a later PR, a PR before it described its breaks in free text and is not measured; the panel names that PR. Any silent PR is listed below.</p>
     </div>
     <div id="breaks"></div>
     <div class="panel-head" style="margin-top:14px">
