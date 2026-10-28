@@ -1,4 +1,4 @@
-// The migration dashboard. scripts/spec-drift.py writes the data line that calls start().
+// The spec-drift dashboard. scripts/spec-drift.py writes the data line that calls start().
 function boot(DATA) {
 const R = DATA.rows;
 const N = R.length;
@@ -71,6 +71,8 @@ const ofGap = x => gapClosed ? `${Math.round(-x / gapClosed * 100)}%` : "–";
 const firstGap = R.find(r => r.gap_full != null) || first;
 const specShare = -byKind.spec / gapClosed;
 const nKind = k => R.filter(r => r.kind === k).length;
+// A count and its noun, singular for one: "1 day", "2 days".
+const many = (n, one, more = one + "s") => `${n} ${n === 1 ? one : more}`;
 let forward = 0, specEdits = 0;
 R.forEach(r => {
   for (const [f, n] of Object.entries(r.spec_files || {})) {
@@ -89,15 +91,15 @@ document.getElementById("stats").innerHTML = `
     <span class="n" style="color:var(--muted)">Name-gap angle (secondary): ${fmt(firstGap.gap_full)}° → ${fmt(last.gap_full)}°, ${fmt(gapClosed)}° closed across ${N - 1} merges; ${fmt(last.gap_chance)}° by chance (95%: ${band(last.gap_chance_band)}). ${last.names_kept == null ? "" : `${last.names_kept} names the specs dropped are still in the code. `}${last.names_retired == null ? "" : `${last.names_retired} of the names not in the code were there at an earlier merge: retired, still counted as missing. `}${last.coverage == null ? "" : `${fmt(last.coverage * 100, 1)}% of the names the reached days use are in the code.`}</span></div>
   <div class="stat"><span class="k">Share of the gap closed by the spec</span>
     <span class="v num">${ofGap(byKind.spec)}</span>
-    <span class="n"><span class="sw" style="background:var(--spec)"></span>${nKind("spec")} spec-change PRs ${specShare >= 0 ? "moved the spec toward the code" : "widened the gap, naming what was not built yet"}; <span class="sw" style="background:var(--code)"></span>${nKind("code")} code PRs closed ${ofGap(byKind.code)}</span></div>
-  <div class="stat"><span class="k">Spec text since Sep 20</span>
+    <span class="n"><span class="sw" style="background:var(--spec)"></span>${many(nKind("spec"), "spec-change PR")} ${specShare >= 0 ? "moved the spec toward the code" : "widened the gap, naming what was not built yet"}; <span class="sw" style="background:var(--code)"></span>${many(nKind("code"), "code PR")} closed ${ofGap(byKind.code)}</span></div>
+  <div class="stat"><span class="k">Spec text since ${shortDate(R[0].date)}</span>
     <span class="v num">−${last.deleted} <small>/ +${last.added} lines</small></span>
     <span class="n">of ${DATA.origin_lines} lines as written: ${Math.round(last.deleted / DATA.origin_lines * 100)}% rewritten, the rest kept</span></div>`;
 document.getElementById("headline").textContent = specShare >= -byKind.code / gapClosed
   ? "The plan moved to meet the code" : "The spec leads, the code follows";
 document.querySelectorAll(".vocab-n").forEach(e => { e.textContent = DATA.vocab_size; });
 const merged = R.filter(r => r.pr).map(r => r.pr);
-document.getElementById("pr-range").textContent = `${N - 1} merges, #${Math.min(...merged)}–#${Math.max(...merged)}`;
+document.getElementById("pr-range").textContent = many(N - 1, "merge") + (merged.length ? `, #${Math.min(...merged)}–#${Math.max(...merged)}` : "");
 document.getElementById("gap-chance").textContent = `${fmt(last.gap_chance)}° (95%: ${band(last.gap_chance_band)})`;
 document.getElementById("caveats").innerHTML = ((DATA.meta || {}).caveats || []).map(c => `<li>${esc(c)}</li>`).join("");
 
@@ -178,7 +180,8 @@ function drawReadout() {
 
 /* ---------- line charts ---------- */
 const LW = 1000, LP = { l: 44, r: 104, t: 14, b: 60 };
-const lx = i => LP.l + (i / (N - 1)) * (LW - LP.l - LP.r);
+// A lone row (no merge yet) sits mid-plot, and its strip cell, i ± 0.5, spans the plot.
+const lx = i => LP.l + (N > 1 ? i / (N - 1) : i + 0.5) * (LW - LP.l - LP.r);
 function dayStarts() {
   const out = []; let d = -1;
   R.forEach((r, i) => { if (r.day !== d) { out.push([i, r.day]); d = r.day; } });
@@ -189,10 +192,12 @@ function dateStarts() {
   return R.map((r, i) => [i, r.date]).filter(([i, s]) => !i || R[i - 1].date !== s);
 }
 const steps = (lo, hi, n) => Array.from({ length: n + 1 }, (_, i) => +(lo + (hi - lo) * i / n).toFixed(1));
+// The out-of-order days that have a merge: one not run yet has no day label for a * to mark.
+const oooRun = () => [...OOO].filter(d => R.some(r => r.day === d)).sort((a, b) => rank(a) - rank(b));
 // The key to the * on a day label, under any axis that draws day labels; there is none when no day ran out of order.
 function oooNote(box) {
-  if (!OOO.size) return;
-  const days = [...OOO].sort((a, b) => rank(a) - rank(b));
+  const days = oooRun();
+  if (!days.length) return;
   box.insertAdjacentHTML("beforeend", `<p class="axis-note">* Day run out of number order: ${days.map(d => "D" + dd(d)).join(", ")}.</p>`);
 }
 // bands: [{ color, get: r => [lo, hi] }], shaded under the lines.
@@ -223,8 +228,12 @@ function lineChart(box, { H, yMin, yMax, ticks, unit, series, bands, label, stri
     el("text", { x: lx(i) + 3, y: H - LP.b + (strip ? 46 : 32), class: "date" }, svg).textContent = shortDate(s);
   });
   if (strip) {
-    const w = (LW - LP.l - LP.r) / (N - 1);
-    R.forEach((r, i) => el("rect", { x: lx(i) - w / 2 + 1, y: H - LP.b + 5, width: Math.max(2, w - 2), height: 8, rx: 2, fill: KVAR[r.kind] }, svg));
+    // A merge's cell runs halfway to each neighbour, clipped to the plot: with few merges a cell is wide, and the end ones ran off the card.
+    const edge = x => Math.min(LW - LP.r, Math.max(LP.l, x));
+    R.forEach((r, i) => {
+      const a = edge(lx(i - 0.5)), b = edge(lx(i + 0.5));
+      el("rect", { x: a + 1, y: H - LP.b + 5, width: Math.max(2, b - a - 2), height: 8, rx: 2, fill: KVAR[r.kind] }, svg);
+    });
   }
   el("line", { x1: lx(sel), x2: lx(sel), y1: LP.t, y2: H - LP.b, stroke: "var(--ink-2)", "stroke-width": 1 }, svg);
   const cross = el("line", { x1: 0, x2: 0, y1: LP.t, y2: H - LP.b, stroke: "var(--muted)", "stroke-dasharray": "3 3", visibility: "hidden" }, svg);
@@ -255,9 +264,13 @@ function lineChart(box, { H, yMin, yMax, ticks, unit, series, bands, label, stri
   oooNote(box);
 }
 // The axes follow the data, so a later phase that pushes the gap or coverage past today's range stays on the chart.
-const degMax = Math.ceil(Math.max(...R.map(r => Math.max(r.gap_full || 0, (r.gap_chance_band || [])[1] || 0))) / 15) * 15;
+// At least one 15° step: with no gap yet the axis was 0 to 0, its ticks 0/0, and drew "NaN°".
+const degMax = Math.max(15, Math.ceil(Math.max(...R.map(r => Math.max(r.gap_full || 0, (r.gap_chance_band || [])[1] || 0))) / 15) * 15);
 const covMin = Math.min(92, Math.floor(Math.min(...R.filter(r => r.coverage != null).map(r => r.coverage * 100)) / 2) * 2);
 function drawLines() {
+  // The legend's sample is this repository's first out-of-order day, and there is no key when none ran out of order.
+  const key = document.getElementById("ooo-key"), first = oooRun()[0];
+  if (key) { if (first == null) key.style.display = "none"; else key.querySelector("b").textContent = "D" + dd(first) + "*"; }
   lineChart(document.getElementById("lines"), {
     H: 330, yMin: 0, yMax: degMax, ticks: steps(0, degMax, degMax / 15), unit: "°", strip: true,
     label: "Spec–code name gap in degrees across merges",
@@ -306,9 +319,9 @@ function drawLines() {
     ],
   });
   const p = R[sel].placed || {};
-  document.getElementById("placed").innerHTML = `<p>At ${prLabel(R[sel])}: ` + Object.keys(p).sort().map(s =>
+  document.getElementById("placed").innerHTML = `<p>At ${prLabel(R[sel])}: ` + (Object.keys(p).sort().map(s =>
     `<b>${s}</b> ${p[s][1] ? (p[s][0] ? `${p[s][1]} lines out, ${p[s][0]} still in place` : `out (${p[s][1]} lines)`) : `in place (${p[s][0]} lines)`}`).join(" · ")
-    + "</p>";
+    || "no service code.") + "</p>";
 }
 const movedShare = r => {
   const v = Object.values(r.placed || {}), all = v.reduce((a, [i, o]) => a + i + o, 0);
@@ -554,13 +567,15 @@ function drawFindings() {
   const days = DATA.days.filter(finished).length;
   const f = [
     [last.deleted < DATA.origin_lines / 2 ? "Most of the plan as written still stands" : "Most of the plan as written has been rewritten",
-     `${days} days in, ${Math.round(last.deleted / DATA.origin_lines * 100)}% of the Sep 20 spec's lines have been rewritten, and ${last.added} lines added.`],
-    [specShare >= codeShare ? "The spec moved toward the code, not the reverse" : "The code now closes more of the gap than the spec",
-     `Of the ${fmt(gapClosed)}° of gap that closed, ${Math.round(specShare * 100)}% came from ${nKind("spec")} spec-change PRs and ${Math.round(codeShare * 100)}% from ${nKind("code")} code PRs.`],
-    [covFloor >= 90 ? "Spec first keeps the gap from ever opening" : "The gap opened at least once",
-     `Reached-day coverage never fell below ${fmt(covFloor, 1)}%: the share of names in the specs of days already reached that exist in the code.`],
+     `${many(days, "day")} in, ${Math.round(last.deleted / DATA.origin_lines * 100)}% of the ${shortDate(R[0].date)} spec's lines have been rewritten, and ${last.added} lines added.`],
+    [!gapClosed ? "No gap has closed yet" : specShare >= codeShare ? "The spec moved toward the code, not the reverse" : "The code now closes more of the gap than the spec",
+     `Of the ${fmt(gapClosed)}° of gap that closed, ${ofGap(byKind.spec)} came from ${many(nKind("spec"), "spec-change PR")} and ${ofGap(byKind.code)} from ${many(nKind("code"), "code PR")}.`],
+    // With no day reached there is no coverage to fall: Math.min() of nothing is Infinity.
+    isFinite(covFloor) ? [covFloor >= 90 ? "Spec first keeps the gap from ever opening" : "The gap opened at least once",
+     `Reached-day coverage never fell below ${fmt(covFloor, 1)}%: the share of names in the specs of days already reached that exist in the code.`]
+      : ["No day reached yet", "Reached-day coverage, the share of names in the specs of days already reached that exist in the code, starts at the first merge that reaches a day."],
     [forward * 2 >= specEdits ? "Corrections reach forward" : "Corrections land on the day at hand",
-     `${Math.round(forward / specEdits * 100)}% of all edited day-spec lines (${forward} of ${specEdits}) went to days not reached yet.`],
+     `${specEdits ? Math.round(forward / specEdits * 100) + "%" : "–"} of all edited day-spec lines (${forward} of ${specEdits}) went to days not reached yet.`],
   ];
   document.getElementById("findings").innerHTML = f.map(([h, p]) => `<div class="finding"><h3>${h}</h3><p>${p}</p></div>`).join("");
 }
@@ -608,8 +623,8 @@ function drawNow() {
   const planned = new Set([...ORDER, ...days.map(d => d.day)]).size;
   // Merged PRs are the merges to main that name a PR; a direct commit is not one.
   document.getElementById("eyebrow").textContent = cur
-    ? `${PROJECT} · Day ${dd(now.current_day)} of ${planned} · ${merged.length} merged PRs`
-    : `${PROJECT} · between days · ${merged.length} merged PRs`;
+    ? `${PROJECT} · Day ${dd(now.current_day)} of ${planned} · ${many(merged.length, "merged PR")}`
+    : `${PROJECT} · between days · ${many(merged.length, "merged PR")}`;
   // Between days: the next piece of work has no day spec yet (the platform step, the cleanup day), or work has stopped.
   if (!cur) document.getElementById("today").innerHTML = `
     <div class="eyebrow">Between days</div>
@@ -707,7 +722,8 @@ function drawEvidence() {
   const chip = c => `<span class="chip" style="color:${REMOVAL[c.now][1]}">${c.now === "found" ? `${c.n} line${c.n === 1 ? "" : "s"}` : c.now === "empty" ? "reads no files" : "clean"}</span>`;
   const found = c => c.found.length ? `<tr class="found"><td></td><td colspan="5"><ul>${c.found.map(f =>
     `<li><code>${esc(f.path)}:${f.line}</code> ${esc(f.text)}</li>`).join("")}${c.n > c.found.length ? `<li>and ${c.n - c.found.length} more</li>` : ""}</ul></td></tr>` : "";
-  document.getElementById("removals").innerHTML = `<thead><tr><th>Day</th><th>Check</th><th>From</th><th>On main</th><th class="r">Files read</th><th>Since</th></tr></thead><tbody>` +
+  document.getElementById("removals").innerHTML = !removals.length
+    ? `<tbody><tr><td>None: no finished day's criteria or Verify name a grep that must print nothing.</td></tr></tbody>` : `<thead><tr><th>Day</th><th>Check</th><th>From</th><th>On main</th><th class="r">Files read</th><th>Since</th></tr></thead><tbody>` +
     removals.map(c => `<tr><td class="num">${dd(c.day)}</td><td class="t"><code>${esc(c.cmd)}</code></td><td class="num">${esc(c.base)}</td><td>${chip(c)}</td><td class="r num">${c.reads}</td>` +
       `<td class="num" title="${esc(R[c.from].title || "")}">${prLabel(R[c.from])}${c.from === c.since ? " · day end" : ""}</td></tr>${found(c)}`).join("") + "</tbody>";
 }
