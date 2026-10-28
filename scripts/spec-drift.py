@@ -68,8 +68,8 @@ BREAK_LINE = re.compile(r"^[ \t]*(?:[-*][ \t]+)?broken:[ \t]*(\S[^\n]*?)[ \t]*(?
 BREAK_LINE_FROM_PR = 0  # PROJECT: the first PR asked for the broken: line; 0 for all of them
 # A test CI can skip: switched off, or run only on a condition. A condition on a system property
 # is met when a workflow passes it as true (GatewayHarnessIT, -Dharness.gateway=true), so that
-# test runs. A bare @Disabled stays skippable.
-SKIPPABLE = re.compile(r"@Disabled\b|@(?:Enabled|Disabled)If|@(?:unittest\.|pytest\.mark\.)skip")
+# test runs. A bare @Disabled stays skippable. In Python, a skip decorator or a skipTest() call.
+SKIPPABLE = re.compile(r"@Disabled\b|@(?:Enabled|Disabled)If|@(?:unittest\.|pytest\.mark\.)skip|\.skipTest\(")
 PY_CLASS = re.compile(r"^[ \t]*class[ \t]+(\w+)", re.M)
 ON_PROPERTY = re.compile(r'@EnabledIfSystemProperty\(\s*named\s*=\s*"([^"]+)"\s*,\s*matches\s*=\s*"true"\s*\)')
 CI_PROPERTY = re.compile(r"-D([\w.-]+)=true\b")
@@ -590,6 +590,15 @@ def phases(plan):
     return [named.get(p, "") for p in range(max(named, default=-1) + 1)]
 
 
+def lifted(plan, phase):
+    """Whether plan.md lifts the stop of Phase `phase`: a "Course correction after Phase N" section,
+    or the template's "Course corrections" section naming the phase outside its comment. wordtally
+    put its stop's decisions there, and three days ran under the stop."""
+    corrections = re.sub(r"<!--.*?-->", "", section(plan, "Course corrections"), flags=re.S)
+    return bool(section(plan, f"Course correction after Phase {phase}")
+                or re.search(rf"\bPhase {phase}\b", corrections))
+
+
 def run_order(plan, spec_days):
     """The order days run in, from plan.md's "Day-by-day specs" list, and the day after which work
     stops to be evaluated. Days the list does not name (the finished ones) come first. A day named
@@ -615,8 +624,7 @@ def run_order(plan, spec_days):
             continue
         listed += days
         phase = re.search(r"Phase (\d+)", line)
-        if "Stop and evaluate" in line and days and not (
-                phase and section(plan, f"Course correction after Phase {phase.group(1)}")):
+        if "Stop and evaluate" in line and days and not (phase and lifted(plan, phase.group(1))):
             stop = days[-1]
     listed = [d for i, d in enumerate(listed) if d not in listed[i + 1:]]
     return [d for d in sorted(spec_days) if d not in listed + cut] + listed, stop

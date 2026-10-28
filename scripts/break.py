@@ -1,7 +1,7 @@
 """Break the code on purpose once, run the check, put the code back, and print the `broken:` line.
 
     python scripts/break.py --file <path> --find <text> --replace <text> --what "<what was broken>" \
-        [--cwd <dir>] [--] <command> [args...]
+        [--cwd <dir>] [--expect-stdout <regex>] [--] <command> [args...]
 
 for example `... --what "the guard removed" python -m unittest tests.test_cli`: everything from the
 command on is the command's, options included.
@@ -14,7 +14,11 @@ incremental build can skip the broken source and pass. One break at a time: a se
 is active refuses.
 
 It exits 0 only when the check failed with the break in and the file is back as it was, and prints
-the record for the PR (specs/README.md): `broken: <what> → <what the check reported>`. <what> holds
+the record for the PR (specs/README.md): `broken: <what> → <what the check reported>`. A check judged
+by what it prints, not its exit code (`grep -c` exits 1 at a count of 0), takes --expect-stdout: it
+failed when the regex no longer matches its stdout. See the regex match once without the break: one
+that never matches catches every break. A command that started but did not run the check (on
+Windows, `bash` can be WSL's: "execvpe(/bin/bash) failed") is refused, not recorded. <what> holds
 no arrow: spec-drift.py reads the line up to its first one. A temporary directory in the report is
 written <tmp>, so no local path, a user name in it, reaches the PR.
 
@@ -37,6 +41,9 @@ REPORTED = [re.compile(p) for p in (
     r"(?:AssertionError|AssertionFailedError|ComparisonFailure)[:\s].*",
     r"(?:FAIL|FAILED|ERROR|BUILD FAILURE)\b.*",
 )]
+# A command that started but never ran the check: WSL's bash with no Linux shell to start, a shell
+# that could not find or run the program.
+NOT_RUN = re.compile(r"execvpe\(.*?\) failed|command not found|is not recognized as an internal or external command")
 LOCK = ".break-active"
 ARROW = re.compile(r"→|->")
 # tempfile's own names (tmp and 8 characters), the whole path up to them; unittest may have cut its start.
@@ -65,6 +72,23 @@ def reported(output):
     return lines[-1] if lines else "no output"
 
 
+def not_run(returncode, output):
+    """The line saying the check never ran though its command started, or None. A shell's 126 and
+    127 are a program it could not run or find."""
+    hit = NOT_RUN.search(output)
+    if hit:
+        return next(l.strip() for l in output.splitlines() if hit.group(0) in l)
+    return f"exit {returncode}: the shell could not run the program" if returncode in (126, 127) else None
+
+
+def caught(returncode, stdout, expect=None):
+    """Whether the check saw the break: it failed, or, with --expect-stdout, its stdout no longer
+    matches the regex, whatever its exit code."""
+    if expect is not None:
+        return re.search(expect, stdout, re.M) is None
+    return returncode != 0
+
+
 def argv_for(command, cwd):
     """The command as it runs here: a relative path to the program taken from cwd (Windows looks
     for it from the caller's directory), and mvnw as mvnw.cmd on Windows, since a sh script needs a
@@ -89,6 +113,8 @@ def main(args=None):
     p.add_argument("--replace", required=True)
     p.add_argument("--what", required=True, help="what was broken, for the broken: line")
     p.add_argument("--cwd", default=".")
+    p.add_argument("--expect-stdout", metavar="REGEX",
+                   help="the check's stdout without the break; the break is caught when it no longer matches")
     p.add_argument("command", nargs=argparse.REMAINDER, help="the check, with its options; a leading -- is dropped")
     a = p.parse_args(args)
     a.command = a.command[1:] if a.command[:1] == ["--"] else a.command
@@ -100,6 +126,10 @@ def main(args=None):
         return refuse("--what holds an arrow: spec-drift.py would end <what> there; write it without one")
     if os.path.basename(a.command[0]) in ("mvnw", "mvn") and "clean" not in a.command:
         return refuse("a Maven check must clean, or the broken source may not be recompiled")
+    try:
+        re.compile(a.expect_stdout or "")
+    except re.error as e:
+        return refuse(f"--expect-stdout is not a regex: {e}")
     with open(a.file, "rb") as f:
         original = f.read()
     find, replace = a.find.encode(), a.replace.encode()
@@ -128,7 +158,10 @@ def main(args=None):
         if f.read() != original:
             return refuse(f"{a.file} is not back as it was: restore it by hand")
     output = run.stdout + run.stderr
-    if run.returncode == 0:
+    said = not_run(run.returncode, output)
+    if said:
+        return refuse(f"the command started but the check did not run, so nothing is recorded: {untemp(said)}")
+    if not caught(run.returncode, run.stdout, a.expect_stdout):
         print(f"The check passed with the break in: it cannot see this break.\n  last line: {reported(output)}")
         return 1
     print(f"broken: {a.what} → {untemp(reported(output))}")

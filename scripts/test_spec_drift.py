@@ -465,6 +465,13 @@ class EvidenceTest(unittest.TestCase):
                                  "CliTest.test_gone": "missing", "RuleTest.test_word": "skippable",
                                  "HelperTest": "missing"})  # src/helper.py is not a test file
 
+    def test_a_python_test_that_calls_skip_test_is_skippable(self):
+        # wordtally PR #20: a test can skip itself from its body, as CI on a missing tool does.
+        self.repo.merge({"tests/test_cli.py": "import unittest\n\n\nclass CliTest(unittest.TestCase):\n"
+                                              "    def test_bash(self):\n        self.skipTest('no bash')\n"})
+        state = self.repo.inside(lambda blobs: sd.test_state({"CliTest.test_bash"}, self.repo.snaps[-1]["sha"], blobs))
+        self.assertEqual(state, {"CliTest.test_bash": "skippable"})
+
     def test_a_test_moved_under_a_new_name_is_followed_from_the_merge_it_arrives(self):
         # Day 17: SavedJobCountsUnavailableIT left in #174, and its Test arrived in #180. A helper
         # leaving as a test of its name arrives is not a move: only tests are followed.
@@ -1263,6 +1270,15 @@ Go on.
         self.assertEqual(sd.stops(plan), [2, 6])  # Day 2's stop, lifted since, is still marked
         self.assertEqual(sd.run_order(plan, list(range(1, 8)))[1], 6)
         self.assertEqual((sd.phases("# Plan\n"), sd.stops("# Plan\n")), ([], []))
+
+    def test_a_course_corrections_entry_naming_the_phase_lifts_its_stop(self):
+        # wordtally Day 4: the stop's decisions went under the template's "Course corrections",
+        # and Days 2, 4 and 5 ran under "Day 03 is done: stop".
+        plan = ("# Plan\n\n## Course corrections\n\n<!-- A stop's decision, e.g. after Phase 0. -->\n\n{}\n"
+                "## Day-by-day specs\n\n1. Phase 0: Days 3, 1. **Stop and evaluate.**\n2. Phase 1: Days 2, 4.\n")
+        stop = lambda entry: sd.run_order(plan.format(entry), list(range(1, 5)))[1]
+        self.assertEqual([stop(""), stop("- **Phase 0 stop:** go on.\n"), stop("- **Phase 10 stop:** go on.\n")],
+                         [1, None, 1])  # the comment's "Phase 0" lifts nothing
 
     def test_the_plan_templates_list_marks_its_stop_once_filled(self):
         with open(os.path.join(HERE, "..", "plan.md"), encoding="utf-8") as f:

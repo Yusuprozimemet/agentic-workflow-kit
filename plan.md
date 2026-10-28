@@ -58,7 +58,9 @@ section, N the item's phase, lifts it. -->
 ## Course corrections
 
 <!-- Added by plan-change PRs, newest first: what a stopping point or audit found, and what the
-maintainer chose. Empty at the start. -->
+maintainer chose. Empty at the start. A stop's decisions go under their own heading,
+"## Course correction after Phase N", N the stop item's phase: that heading lifts the stop. An
+entry left here lifts it only if it names "Phase N"; one that names only the day does not. -->
 
 ## Day-by-day specs
 

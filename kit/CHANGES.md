@@ -1258,6 +1258,40 @@ Tests: none; the text has no test that reads it. `kit/starter-check.py` 5 of 5 a
 
 - `broken: none → text only`
 
+**Days 2-5, the scripts** (`dashboard/pilot-days-scripts`). wordtally ran Days 2-5 after the
+three PRs above; its Notes and PR #20 (`69c419b`) hold items A-K, numbered on in the pilot notes
+as findings 29-39. These are A-D; E-K, the text, follow in `dashboard/pilot-days-docs`.
+
+- **A, `spec-drift.py`: `self.skipTest(`** (wordtally PR #20, finding 29). A Python test that
+  skips itself from its body read "present". `SKIPPABLE` takes `.skipTest(` too.
+- **B, a stop lifted under "Course corrections"** (Day 4 Notes, finding 30; the maintainer's
+  decision: both). Only a "Course correction after Phase N" section lifted a stop, and the plan
+  template's own "Course corrections" section is where wordtally (PR #10) put the stop's
+  decisions: Days 2, 4 and 5 ran under "Day 03 is done: stop". `lifted()` also takes a "Course
+  corrections" section that names Phase N outside its comment. The template's comment there and
+  README step 4 name the exact heading. wordtally's entries name "Day 3 stop", not "Phase 0", so
+  they would still not lift it: one word in its plan.md.
+- **C, `break.py`: a command that started but never ran the check** (Day 3 Notes, finding 31).
+  `bash` was WSL's, which printed "execvpe(/bin/bash) failed", exited 1, and got a `broken:`
+  line. `not_run()` finds that line, a shell's "command not found" or cmd's "is not recognized",
+  or exit 126 or 127, and the run is refused (2), nothing recorded. The CLAUDE template's
+  "Breaks on purpose" names Git Bash by its full path.
+- **D, `--expect-stdout <regex>`** (Day 4 and Day 5 Notes, finding 32; the maintainer's decision:
+  one option, no inverted exit). A `grep -c` check exits 1 at its passing 0, so both days broke it
+  through a wrapper. With the option, `caught()` judges by stdout: the break is caught when the
+  regex no longer matches, whatever the exit code. A regex that never matches catches every
+  break, so the CLAUDE template's bullet says to see it match once unbroken.
+
+Tests: 4 in `test_break.py` and 2 in `test_spec_drift.py`, all 6 failing on `main`'s scripts
+first (`not_run` and `caught` missing; on `main` the WSL line was recorded as "broken: the guard
+removed → ERROR: execvpe(/bin/bash) failed"). C's and D's breaks are on the functions their unit
+tests call, so `break.py` ran on itself without its lock in the way.
+
+- `broken: SKIPPABLE without skipTest → AssertionError: {'CliTest.test_bash': 'present'} != {'CliTest.test_bash': 'skippable'}`
+- `broken: lifted() reads no Course corrections section → AssertionError: Lists differ: [1, 1, 1] != [1, None, 1]`
+- `broken: not_run() finds nothing → AssertionError: None != '<3>WSL (9) ERROR: CreateProcessCommon:55[51 chars]tory'`
+- `broken: caught() judges by the exit code with --expect-stdout → AssertionError: True is not false`
+
 ### Open questions
 
 All decided by the maintainer in the Batch 0 PR, each under its item: 47, 48, 49, 52, 55,

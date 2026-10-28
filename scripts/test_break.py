@@ -25,6 +25,14 @@ def check(path):
             "sys.exit('AssertionError: expected ok but was broken') if 'broken' in t else print('1 passed')"]
 
 
+def load():
+    """break.py as a module, for the functions a test calls without a run."""
+    spec = importlib.util.spec_from_file_location("break_script", SCRIPT)
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    return script
+
+
 class BreakTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
@@ -113,6 +121,36 @@ class BreakTest(unittest.TestCase):
         self.assertIn("did not start", run.stderr)
         self.assertEqual(self.contents(), self.original)
         self.assertFalse(os.path.exists(LOCK))
+
+    def test_a_command_that_starts_but_never_runs_the_check_is_known(self):
+        # wordtally Day 3: `bash` was WSL's, and break.py printed broken: lines for checks never run.
+        script = load()
+        wsl = "<3>WSL (9) ERROR: CreateProcessCommon:559: execvpe(/bin/bash) failed: No such file or directory\n"
+        self.assertEqual(script.not_run(1, wsl), wsl.strip())
+        self.assertEqual(script.not_run(127, "x\n"), "exit 127: the shell could not run the program")
+        self.assertIsNone(script.not_run(1, "FAILED (failures=1)\n"))
+
+    def test_a_command_that_starts_but_never_runs_the_check_is_refused(self):
+        wsl = [sys.executable, "-c", "import sys; sys.exit('<3>WSL (9) ERROR: execvpe(/bin/bash) failed')"]
+        run = self.run_break("// ok", "// broken", wsl)
+        self.assertEqual((run.returncode, run.stdout), (2, ""))
+        self.assertIn("the check did not run", run.stderr)
+        self.assertEqual(self.contents(), self.original)
+
+    def test_expect_stdout_judges_the_check_by_its_output(self):
+        # wordtally Days 4, 5: `grep -c` prints 0 and exits 1 when no test was edited.
+        script = load()
+        self.assertFalse(script.caught(1, "0\n", "^0$"))
+        self.assertTrue(script.caught(1, "3\n", "^0$"))
+        self.assertTrue(script.caught(0, "removed=2\n", "removed=0"))
+        self.assertEqual((script.caught(1, "", None), script.caught(0, "", None)), (True, False))
+
+    def test_expect_stdout_records_a_count_check(self):
+        count = [sys.executable, "-c", f"import sys; n = open({self.file!r}).read().count('broken'); "
+                 "print(n); sys.exit(0 if n else 1)"]
+        run = self.run_break("// ok", "// broken", count, extra=("--expect-stdout", "^0$"))
+        self.assertEqual((run.returncode, run.stdout.strip()), (0, "broken: the guard removed → 1"))
+        self.assertEqual(self.run_break("// ok", "// broken", count).returncode, 1)  # by exit code, blind
 
     def test_a_relative_program_is_found_from_cwd(self):
         # `--cwd services/job-service -- ../../mvnw` names the root's mvnw; Windows would look for
