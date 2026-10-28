@@ -13,5 +13,5 @@ tools and their tests (`scripts/`), and the lessons the maintainer kept (`kit/le
   [kit/examples/](kit/examples/), kept as references. They are not instructions for this
   repository.
 
-To start a new project, begin from [templates/](templates/): `CLAUDE.template.md`,
-`plan.template.md` and `spec.template.md`, copied to the project's root (the spec into `specs/`).
+To start a new project, fill in the templates at the root, [CLAUDE.md](CLAUDE.md) and
+[plan.md](plan.md), and copy [specs/_template.md](specs/_template.md) for each day's spec.
