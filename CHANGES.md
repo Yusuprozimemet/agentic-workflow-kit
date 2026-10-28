@@ -140,7 +140,7 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     **Part done in Batch 3, the job only:** its compare step runs only
     `if: hashFiles('services/**') != ''`, so with no `services/` the step shows as skipped instead of
     passing after checking nothing. The frozen paths are still jobmatch's, written in
-    `invariants.py`; the config part stays open.
+    `invariants.py`; the config part stays open. **Done in Batch 4** as item 57.
 
 13. **`scripts/pr-names.py` lines 34, 37, 39: the Jira key `KAN-`.** Change: take the key prefix
     from config (or any `[A-Z]+-\d+`), with none meaning "no tracker". Tests:
@@ -606,6 +606,16 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     and the item 41 file may add more. Tests: `test_pr_names.py` names `KAN` in 45 lines; they
     set `JIRA_KEY=KAN` instead of relying on the default. `pr-checks.yml`'s job title "Branch,
     title, commits and Jira keys agree" stays (a required check's name; item 69).
+    **Done in Batch 4** (`dashboard/check-inputs`): `JIRA_KEY` unset or empty, the key's text is
+    `(?!)`, which matches nothing, so no key is checked and a `XYZ-97 ` title prefix is text;
+    `AREAS` is the seven generic areas plus the project file's `areas` (a list of names, empty in
+    the kit), read by pr-names.py's own `project_areas()`: a few lines, where sharing
+    `project_config()` would import `spec-drift.py` and numpy into a CI job. The tests set
+    `JIRA_KEY=ABC` (the escapes and samples renamed: `ABC-5`, `search-client`, `orders-consumer`);
+    new `KeyTest` (unset or empty, set), `AreasTest` and a command test with no key; 16 tests,
+    was 15. The docstring's history paragraph (#237, KAN-5, #321) is left for item 61-70's text.
+    - `broken: with JIRA_KEY unset, pr-names checks any key → AssertionError: Lists differ: [] != ['the description names ABC-6, not ABC-5']`
+    - `broken: project_areas() reads "area", not the file's "areas" → AssertionError: Tuples differ: ('research', 'security') != ()`
 52. **C, `token-usage.py` lines 36-38: transcripts found by path.** The folder name is derived
     from the repository's own path, so a copy in another folder finds its own transcripts
     (checked: this folder gives `c--users-hackyourfuture-yusup-agentic-workflow-kit`, and
@@ -656,6 +666,18 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     `services/`. Proposal: the frozen patterns in the item 41 file (`frozen`: contract tests,
     applied migrations); none set, the step prints "nothing frozen" and passes, in place of the
     `services/**` condition. Tests: `test_invariants.py` passes the patterns in.
+    **Done in Batch 4** (`dashboard/check-inputs`): `frozen` is a list of regular expressions over
+    the path, as `PROTECTED` was, so jobmatch's four move over unchanged; empty in the kit.
+    `frozen_patterns(base)` reads them with `git show <base>:spec-drift.config.json`, the base's
+    copy, so a PR that empties `frozen` and edits a migration still fails; none, it prints
+    ``Nothing frozen: spec-drift.config.json sets no `frozen` patterns.`` and exits 0. The step's
+    `services/**` condition is gone. The OK and failure lines say "frozen file", not "Day 1-4
+    test"; the job's name stays (a required check). The tests' base commit holds jobmatch's
+    patterns under neutral names (`account-service`, `com/example/core`, `CoreApplicationTests`);
+    new `…test_with_nothing_frozen_it_says_so_and_passes` and
+    `…test_the_patterns_are_the_bases_so_a_change_cannot_unfreeze_what_it_edits`; 10 tests, was 8.
+    - `broken: with nothing frozen, invariants.py compares anyway → AssertionError: 'Nothing frozen: spec-drift.config.json se[22 chars]s.\n' != 'OK: no frozen file was modified, deleted [64 chars]).\n'`
+    - ``broken: invariants.py reads the frozen patterns from the head, not the base → AssertionError: 'modified: services/account-service/src/main/resources/db/migration/V1__init.sql' not found in 'Nothing frozen: spec-drift.config.json sets no `frozen` patterns.\n'``
 58. **F, `service-wiring.py` and `pr-checks.yml` job 4** (item 11, done as skip). Compose and
     Prometheus wiring for `services/*`. Proposal: keep, off as it is; its job name stays
     generic enough. Open: remove it from the default `pr-checks.yml` instead?
@@ -820,6 +842,9 @@ except the differences the PR names.
    differs in `now.generated` and `meta.provenance.script_edited` only. 53 of 53 boxes the same.
    92 tests, was 88.
 4. **The checks' inputs** (51, 57): `pr-names.py`, `invariants.py`, their tests, `pr-checks.yml`.
+   **Done** in `dashboard/check-inputs`, plus `spec-drift.config.json` (`areas`, `frozen`, both
+   empty), with the four `broken:` lines under the items. On its own PR, pr-names read no key and
+   invariants nothing frozen. 53 of 53 boxes the same. 153 tests, was 150.
 5. **The page's words** (40's texts, 49, 50): `dashboard.js`, `index.html`, `spec-drift.py`'s
    `next_step()`. 53 boxes: a stated diff on items 49's boxes, if allowed.
 6. **Process text** (61-70, 59): the agents, `specs/README.md`, `docs/workflow.md`, the SVG and

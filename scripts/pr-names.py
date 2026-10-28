@@ -2,7 +2,8 @@
 
     python scripts/pr-names.py <base sha> <head sha>     # reads PR_BRANCH, PR_TITLE, PR_BODY
 
-JIRA_KEY names the tracker's project key, `KAN` (jobmatch's) when unset or empty.
+JIRA_KEY names the tracker's project key (`ABC` for ABC-123); unset or empty, no key is checked.
+The project file, spec-drift.config.json at the root, may list more areas (`areas`).
 
 spec-drift.py reads a day's progress from branch names and Jira from the keys in them, so a name
 that disagrees is a wrong state on the dashboard or in Jira, found only after the merge. Three
@@ -22,25 +23,37 @@ description KAN-6, and neither was the sub-task (D27-062); #321 was opened from
 A wrong key used the same way everywhere still passes: CI cannot ask Jira which key is the right one.
 It prints each problem and exits 1 if there is any.
 """
+import json
 import os
 import re
 import subprocess
 import sys
 
-JIRA_KEY = re.escape(os.environ.get("JIRA_KEY") or "KAN")  # the Jira project key: KAN-123; empty is unset
+JIRA_KEY = os.environ.get("JIRA_KEY", "")  # an unset CI variable arrives empty
+KEY_TEXT = re.escape(JIRA_KEY) if JIRA_KEY else "(?!)"  # (?!) matches nothing: no key
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "spec-drift.config.json")
 
-# Areas outside the days, as used so far. A new one is added here, on purpose.
-AREAS = ("workflow", "paper", "tooling", "dashboard", "docs", "specs", "plan", "ci", "security", "trial",
-         "dependabot")
+
+def project_areas(path=CONFIG_FILE):
+    """The areas the project file adds (`areas`); none with no file or no field."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return tuple(json.load(f).get("areas", []))
+    except FileNotFoundError:
+        return ()
+
+
+# Areas outside the days. A project adds its own to the project file, on purpose.
+AREAS = ("workflow", "tooling", "dashboard", "docs", "specs", "plan", "ci") + project_areas()
 DAY_BRANCH = re.compile(r"^day-(\d{2})/[0-9A-Za-z]")
 AREA_BRANCH = re.compile(r"^([a-z]+)/[0-9A-Za-z]")
 BRANCH_TRACK = re.compile(r"^day-\d{2}/track-([0-9a-z]+)(?=-|$)")
-TITLE_DAY = re.compile(rf"^(?:{JIRA_KEY}-\d+ )?Day (\d{{2}})\b")
+TITLE_DAY = re.compile(rf"^(?:{KEY_TEXT}-\d+ )?Day (\d{{2}})\b")
 # "Day 35 track C2a (1 of 2): ..." and "Day 38 track C fix: ..." are tracks too.
 TITLE_TRACK = re.compile(r"\bDay (\d{2}) track ([0-9A-Za-z]+)\b")
-TITLE_CLOSE = re.compile(rf"^(?:{JIRA_KEY}-\d+ )?Day (\d{{2}}) close\b")
+TITLE_CLOSE = re.compile(rf"^(?:{KEY_TEXT}-\d+ )?Day (\d{{2}}) close\b")
 CLOSE_BRANCH = re.compile(r"^day-(\d{2})/close-the-day(?:-|$)")
-KEY = re.compile(rf"\b{JIRA_KEY}-\d+\b")
+KEY = re.compile(rf"\b{KEY_TEXT}-\d+\b")
 
 
 def problems(branch, title, body, subjects):

@@ -1,11 +1,12 @@
 """The frozen files stay frozen, and the moves and additions around them pass.
 
-Each test builds a scratch git repository with a base commit holding one applied migration, identity's
-contract test, the two Day 01 harness self-tests and an unprotected file, changes it on a branch, and
-runs scripts/invariants.py over the branch as a subprocess.
+Each test builds a scratch git repository with a base commit holding the project file's `frozen`
+patterns, one applied migration, a contract test, the two harness self-tests and an unprotected file,
+changes it on a branch, and runs scripts/invariants.py over the branch as a subprocess.
 
     python scripts/test_invariants.py
 """
+import json
 import os
 import subprocess
 import sys
@@ -15,20 +16,29 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "invariants.py")
 
-IDENTITY = "services/identity-service"
-TESTS = IDENTITY + "/src/test/java/nl/hackyourfuture/project/backend"
-MIGRATION = IDENTITY + "/src/main/resources/db/migration/V1__init.sql"
+SERVICE = "services/account-service"
+TESTS = SERVICE + "/src/test/java/com/example/core"
+MIGRATION = SERVICE + "/src/main/resources/db/migration/V1__init.sql"
 CONTRACT = TESTS + "/contract/LoginContractTest.java"
 HARNESS = TESTS + "/support/TestHarnessTest.java"
-APP_TESTS = TESTS + "/BackendApplicationTests.java"
-README = IDENTITY + "/README.md"
+APP_TESTS = TESTS + "/CoreApplicationTests.java"
+README = SERVICE + "/README.md"
+CONFIG = "spec-drift.config.json"
+
+CORE_TESTS = r"^services/account-service/(.+/)?src/test/java/com/example/core/"
+FROZEN = [
+    r"^services/.+/db/(.+/)?V[^/]*__[^/]*\.sql$",
+    CORE_TESTS + r"contract/",
+    CORE_TESTS + r"support/TestHarnessTest\.java$",
+    CORE_TESTS + r"CoreApplicationTests\.java$",
+]
 
 BASE = {
     MIGRATION: "".join(f"CREATE TABLE users_{i} (id BIGINT PRIMARY KEY);\n" for i in range(10)),
     CONTRACT: "class LoginContractTest {\n    void logsIn() {}\n}\n",
     HARNESS: "class TestHarnessTest {\n    void starts() {}\n}\n",
-    APP_TESTS: "class BackendApplicationTests {\n    void loads() {}\n}\n",
-    README: "# identity\n",
+    APP_TESTS: "class CoreApplicationTests {\n    void loads() {}\n}\n",
+    README: "# account\n",
 }
 
 
@@ -55,6 +65,9 @@ class InvariantsTest(unittest.TestCase):
         git(self.repo, "config", "commit.gpgsign", "false")
         for path, text in BASE.items():
             write(self.repo, path, text)
+        self.commit("the files, nothing frozen")
+        git(self.repo, "tag", "unfrozen")
+        write(self.repo, CONFIG, json.dumps({"frozen": FROZEN}))
         self.commit("base")
         git(self.repo, "checkout", "-q", "-b", "change")
 
@@ -65,9 +78,9 @@ class InvariantsTest(unittest.TestCase):
         git(self.repo, "add", "-A")
         git(self.repo, "commit", "-q", "-m", message)
 
-    def run_script(self):
+    def run_script(self, base="main"):
         return subprocess.run(
-            [sys.executable, SCRIPT, "main", "change"],
+            [sys.executable, SCRIPT, base, "change"],
             cwd=self.repo, capture_output=True, text=True, encoding="utf-8",
         )
 
@@ -92,15 +105,15 @@ class InvariantsTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn(f"modified: {HARNESS}", result.stdout)
 
-    def test_an_edit_of_backend_application_tests_fails(self):
-        write(self.repo, APP_TESTS, "class BackendApplicationTests {\n    void loads() { }\n}\n")
-        self.commit("edit BackendApplicationTests")
+    def test_an_edit_of_the_application_tests_fails(self):
+        write(self.repo, APP_TESTS, "class CoreApplicationTests {\n    void loads() { }\n}\n")
+        self.commit("edit CoreApplicationTests")
         result = self.run_script()
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn(f"modified: {APP_TESTS}", result.stdout)
 
     def test_a_new_migration_passes(self):
-        added = IDENTITY + "/src/main/resources/db/migration/V2__more.sql"
+        added = SERVICE + "/src/main/resources/db/migration/V2__more.sql"
         write(self.repo, added, "CREATE TABLE jobs (id BIGINT PRIMARY KEY);\n")
         self.commit("add V2")
         result = self.run_script()
@@ -109,16 +122,16 @@ class InvariantsTest(unittest.TestCase):
 
     def test_a_pure_rename_of_the_whole_tree_passes(self):
         # Moves the src tree one level down, contents identical: every file is R100.
-        os.makedirs(os.path.join(self.repo, IDENTITY, "app"))
-        os.rename(os.path.join(self.repo, IDENTITY, "src"),
-                  os.path.join(self.repo, IDENTITY, "app", "src"))
+        os.makedirs(os.path.join(self.repo, SERVICE, "app"))
+        os.rename(os.path.join(self.repo, SERVICE, "src"),
+                  os.path.join(self.repo, SERVICE, "app", "src"))
         self.commit("move src down one level")
         result = self.run_script()
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("OK", result.stdout)
 
     def test_a_rename_with_an_edit_fails_and_names_the_old_path(self):
-        moved = IDENTITY + "/src/main/resources/db/V1__init.sql"
+        moved = SERVICE + "/src/main/resources/db/V1__init.sql"
         os.makedirs(os.path.dirname(os.path.join(self.repo, *moved.split("/"))), exist_ok=True)
         os.rename(os.path.join(self.repo, *MIGRATION.split("/")),
                   os.path.join(self.repo, *moved.split("/")))
@@ -129,8 +142,23 @@ class InvariantsTest(unittest.TestCase):
         self.assertIn("renamed with an edit", result.stdout)
         self.assertIn(MIGRATION, result.stdout)
 
+    def test_with_nothing_frozen_it_says_so_and_passes(self):
+        write(self.repo, MIGRATION, BASE[MIGRATION] + "ALTER TABLE users_0 ADD COLUMN x INT;\n")
+        self.commit("edit V1")
+        result = self.run_script(base="unfrozen")
+        self.assertEqual("Nothing frozen: spec-drift.config.json sets no `frozen` patterns.\n", result.stdout)
+        self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_the_patterns_are_the_bases_so_a_change_cannot_unfreeze_what_it_edits(self):
+        write(self.repo, CONFIG, json.dumps({"frozen": []}))
+        write(self.repo, MIGRATION, BASE[MIGRATION] + "ALTER TABLE users_0 ADD COLUMN x INT;\n")
+        self.commit("unfreeze and edit V1")
+        result = self.run_script()
+        self.assertIn(f"modified: {MIGRATION}", result.stdout)
+        self.assertEqual(result.returncode, 1, result.stdout)
+
     def test_an_edit_of_an_unprotected_file_passes(self):
-        write(self.repo, README, "# identity, edited\n")
+        write(self.repo, README, "# account, edited\n")
         self.commit("edit the README")
         result = self.run_script()
         self.assertEqual(result.returncode, 0, result.stdout)

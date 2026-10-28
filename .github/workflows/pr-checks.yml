@@ -137,7 +137,7 @@ jobs:
           fetch-depth: 0
 
       - name: Compare with the base
-        if: hashFiles('services/**') != ''  # the frozen paths are under services/; none, nothing to compare
+        # The frozen patterns are the project file's (spec-drift.config.json, `frozen`); none, it says so.
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
