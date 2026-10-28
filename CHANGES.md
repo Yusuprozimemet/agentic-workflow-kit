@@ -502,17 +502,21 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     from the constant in four phases (1 adds "(no network yet)", 5 "+ events", 6 lacks "(cut)",
     7 is "ECS on Fargate"), so the 53 boxes hold only with the constant's names given to the live
     data; the comparison says so.
+    **Decision (maintainer, Batch 0 PR):** accepted: the four names change for jobmatch's data too; the comparison does not fake
+    the old names, and the PR lists the boxes that change.
 48. **C, `dashboard.js` line 596, `STOPS = [16, 20, 24, 28, 35]`.** jobmatch's phase-end tags;
     its plan names one stop (Day 28). Proposal: `meta.stops`, the days plan.md's list marks
     **Stop and evaluate** plus those under its "Stopping points" heading (the template's). 53
     boxes: kept with the five given to the live data. Open: should a stop be what the plan says,
     or every phase's last day, as the constant was?
+    **Decision (maintainer, Batch 0 PR):** only what the plan marks. The plan template gets a way to mark them (Batch 2).
 49. **C, `dashboard.js`: jobmatch text inside boxes.** Line 156 ("the monolith and the plan
     written for it"), 287 ("the Java packages in spec-drift.py's `SERVICE` map"), 310 ("still in
     the monolith"), 479-483 (#310, item 38), 687 ("before the evidence format (#55)"), 846
     ("infra-ci … touches infra/"). Proposal: neutral words, or the value from the data. **This
     cannot keep the 53 boxes byte for byte** where the words change in a box jobmatch's data
     fills (156, 310, 687). Open: allow a stated diff, those boxes only, listed in the PR?
+    **Decision (maintainer, Batch 0 PR):** accepted: a diff in those three boxes only, listed in the PR.
 50. **C, `index.html`: jobmatch prose around the panels.** Lines 79 (four services, the monolith),
     94 (Days 1–4, the 1,000-line start), 115 (#310), 137 (infra-ci, Terraform, AWS, LocalStack,
     Days 32 and 36), 150 (Day 35, C35.16-17), 181 (`backend/`, job-service), 189 (Day 17,
@@ -536,6 +540,7 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     Proposal: match the exact name, or the name followed by `--` (a worktree). The pilot must not
     sit in a folder whose name starts with the kit's until then. Tests: `test_token_usage.py`
     calls `count()`, not `transcripts()`; add one.
+    **Decision (maintainer, Batch 0 PR):** fixed in Batch 1, as its third bug.
 53. **C, paths and names that locate this repository.** Checked: `spec-drift.py` takes owner and
     repo from `gh repo view`, and every `gh` call follows the remote; `.spec-drift-cache.json` is
     next to the script (`CACHE_FILE`) and ignored by git; the Pages workflow deploys to whatever
@@ -557,10 +562,12 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     runs, the panel says "No infra-ci summary on main yet". Proposal: keep, off; the workflow's
     file name in the item 41 file (none: `infra()` not called); neutral panel text (item 50).
     Removing it would drop a panel (the 53 boxes fall) and one of the 8 suites.
+    **Decision (maintainer, Batch 0 PR):** keep, off when its inputs are absent.
 56. **F, the deployment panel and `scripts/live-checks.py`.** The panel is off without
     `deployment.json` (item 36). `live-checks.py` checks jobmatch's Day 35 criteria (C35.16-17)
     on a host; no workflow runs it, and no test covers it. Proposal: keep the panel, off; move
     `live-checks.py` to `kit/jobmatch/` as an example a project rewrites.
+    **Decision (maintainer, Batch 0 PR):** keep the panel, off when its input is absent.
 57. **F, `invariants.py` and `pr-checks.yml` job 3** (item 12, part done). The frozen paths are
     jobmatch's (`IDENTITY_TESTS`, `services/.+/db/…V*__*.sql`); the step is skipped with no
     `services/`. Proposal: the frozen patterns in the item 41 file (`frozen`: contract tests,
@@ -569,6 +576,7 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
 58. **F, `service-wiring.py` and `pr-checks.yml` job 4** (item 11, done as skip). Compose and
     Prometheus wiring for `services/*`. Proposal: keep, off as it is; its job name stays
     generic enough. Open: remove it from the default `pr-checks.yml` instead?
+    **Decision (maintainer, Batch 0 PR):** keep it in `pr-checks.yml`, off when there are no services.
 59. **F, `.gitattributes` lines 5-7: `mvnw` line endings.** Harmless without `mvnw`. Proposal:
     drop the three lines; keep `*.sh` LF.
 60. **F, `break.py` lines 9, 17, 49-54, 75-76: the Maven rules** (`mvnw` as `mvnw.cmd` on Windows; a
@@ -591,6 +599,8 @@ placeholder cannot carry it without rewording, the item says so.
       evidence, not a fact a project fills in. **A placeholder cannot fix it.** Open: keep it as
       jobmatch's evidence ("In the project this kit came from, …", a rewording), or cut the
       clause.
+    **Decision (maintainer, Batch 0 PR):** keep the evidence, prefixed "In jobmatch-microservices,", and change nothing
+    else in the sentence.
     - Line 43: `grep -rniE "expires on Day|until Day|TODO day-" services frontend scripts
       --include=*.java --include=*.ts --include=*.py --include=*.yaml` → `… <!-- PROJECT: source
       directories --> <!-- PROJECT: --include for each source extension -->`.
@@ -622,6 +632,8 @@ placeholder cannot carry it without rewording, the item says so.
     not filled. Proposal: cut the date clauses (a starter has no "before"); for the evidence,
     open (as item 61). The process sentences around them stay word for word. The contract-test
     rule (46-57) also needs `contract/` → `<!-- PROJECT: the frozen tests' path -->`.
+    **Decision (maintainer, Batch 0 PR):** the evidence is kept, prefixed "In jobmatch-microservices,", nothing else changed
+    (as item 61); the "from Day 21 on" and "from Day 28 on" clauses are cut.
 64. **B, `specs/README.md` lines 103-134: "Map to plan.md", "Provisional specs", "Stopping
     points".** jobmatch's data, whole. Proposal: each section's heading kept with a one-line
     `<!-- PROJECT: … -->` (the table's header row kept: Days | Phase | Outcome | Status).
@@ -631,6 +643,8 @@ placeholder cannot carry it without rewording, the item says so.
     - Lines 3, 56, 138: "the migration" → "the project" (a reword of one word each).
     - Line 57: "up to Day 17, 64% of the main sessions' context tokens were read after a session
       had passed 300k" is evidence (open, as item 61).
+      **Decision (maintainer, Batch 0 PR):** kept, prefixed "In jobmatch-microservices," (as
+      item 61).
     - Line 65: "Maven, surefire and CI logs" → "<!-- PROJECT: build and test --> and CI logs".
     - Line 82 and 89-91: "the end of Phase 7, before `terraform destroy`", "while the deployment is
       up, beside the plan-auditor on Phase 7" → "<!-- PROJECT: the end of the last phase, and
@@ -647,6 +661,9 @@ placeholder cannot carry it without rewording, the item says so.
     placeholder cannot go in a picture.** Proposal: neutral words in the SVG ("the checks CI
     runs", "a frozen test needs an edit"), and the PNG made again from it. Open: how the PNG was
     made in jobmatch.
+    **Decision (maintainer, Batch 0 PR):** find out how the PNG was made (its git log, any source file next to it, the
+    docs that mention it). If it cannot be made again, a Mermaid diagram in Markdown replaces it.
+    Decided in Batch 6.
 68. **B, `.github/pull_request_template.md`, "Contract impact".** "Does this change a mart the
     backend reads, or the shape of an endpoint? … tag the backend reviewer" is jobmatch's (a dbt
     mart). The heading is required by the template check. Proposal: keep the heading and "Say
@@ -669,6 +686,7 @@ placeholder cannot carry it without rewording, the item says so.
     "on the cloud account, if any". **The security-ops Infrastructure and Application lists
     (lines 27-37, 48-51) are jobmatch's system, not a fact:** open: a placeholder list, or keep
     them as marked examples.
+    **Decision (maintainer, Batch 0 PR):** a placeholder list, with jobmatch's list as an example in the comment.
 71. **B, `README.md`.** Says the kit is jobmatch's copy and points at jobmatch's references.
     Proposal: rewritten in Batch 8 for the person copying it (item 73).
 
@@ -677,12 +695,30 @@ placeholder cannot carry it without rewording, the item says so.
 One PR each, under 400 changed lines, in this order. Each keeps the 8 suites and the node page
 check green, and runs the 53-box comparison; where it cannot hold byte for byte, the item says so.
 
+**Decision (maintainer, Batch 0 PR):** from Batch 1 on, the comparison holds byte for byte,
+except the differences the PR names.
+
 0. **The comparison, as a script.** It is run by hand today and not committed. `kit/compare-page.py`:
    fetch the jobmatch page (or read a saved copy), take its embedded data, add the fields later
    batches move into the data (`project`, `phases`, `stops`, `break_line_from_pr`: jobmatch's
    values), draw the page in node with the `DRAW` stub from `test_spec_drift.py`, and print the
    boxes that differ from a saved run. Files: `kit/compare-page.py`.
-1. **The two kit bugs** (38, 39) and item 45's error line. `spec-drift.py`, `dashboard.js`,
+   **Done** in `tooling/page-comparison`. It reads a saved copy, never the network:
+   `kit/page/jobmatch-data.json` (575 KB, one line) is the published page's `window.SPEC_DRIFT`
+   value byte for byte, fetched on 2026-10-28; `kit/page/jobmatch-boxes.sha256` (4 KB, 55 lines)
+   is the saved run: the error and what went to `console.error`, then each box's HTML as
+   `<sha256>  <box>`, one box a line. Not JSON: GitGuardian read four `"token-…": "<hash>"` lines
+   as secrets. The live page's own inlined `dashboard.js` draws the same 53 boxes as this
+   repository's, with no error and nothing logged. A named difference is accepted by rewriting the
+   saved run (`--write`) in the PR that names it; its diff is one line per box. CI runs it as
+   `PageTest.test_jobmatchs_data_draws_the_boxes_it_drew` (skipped once `kit/` is gone), so
+   `test_spec_drift.py` has 77 tests, was 76; `spec-drift-tests.yml`'s `PATHS` gains `kit/`'s
+   script and fixtures. Two things the break showed: (1) hover tooltips are not boxes (`DRAW`'s
+   `addEventListener` does nothing), so the comparison cannot see them: a first break, the Tokens
+   tooltip's "context per reply", passed with 53 of 53 the same; (2) `break.py` quotes only the
+   last line, so the summary line names the boxes that differ.
+1. **The three kit bugs** (38, 39, and 52's prefix match: a decision of the Batch 0 PR) and
+   item 45's error line. `spec-drift.py`, `dashboard.js`,
    `index.html` line 115, `test_spec_drift.py`.
 2. **Page constants into the data** (46, 47, 48) and the data-only fixes (43, 44). `spec-drift.py`,
    `dashboard.js`, `test_spec_drift.py`.
@@ -756,6 +792,9 @@ Each of these has never run in the kit; the pilot runs each once:
 - A plan whose order is not by number, with a stop on a day under 10 (item 39).
 
 ### Open questions
+
+All decided by the maintainer in the Batch 0 PR, each under its item: 47, 48, 49, 52, 55,
+56, 58, 61, 63, 65, 67, 70, and the comparison's rule under Batches.
 
 - Items 61, 63, 65: jobmatch's evidence inside the rules: keep it, marked as jobmatch's, or cut
   it? A placeholder cannot carry it.
