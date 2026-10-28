@@ -4,5 +4,7 @@
   "verify_bases": [],
   "package_root": "",
   "services": {},
-  "infra_workflow": ""
+  "infra_workflow": "",
+  "areas": [],
+  "frozen": []
 }
