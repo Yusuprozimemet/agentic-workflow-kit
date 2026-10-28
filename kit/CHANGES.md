@@ -661,6 +661,15 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     merge, which shows neither sentence. Not changed: the `moved` chart's label, "Share of the four
     services' main source lines under services/", is in a box the Decision does not allow; open.
     - `broken: the boxes say a part-moved service is still in the monolith → AssertionError: '<b>b[28 chars]es) · <b>orders</b> 40 lines out, 30 still in the monolith</p>' != '<b>b[28 chars]es) · <b>orders</b> 40 lines out, 30 still in place</p>'`
+
+    **Decision (maintainer, `dashboard/moved-label`):** a stated diff in the `moved` box, that
+    box only. **Done** in `dashboard/moved-label`: the label reads "Share of the services' main
+    source lines in their own directories", no count and no path (the directory is
+    `spec-drift.py`'s; the panel's prose in `index.html` names it). `test_the_boxes_words_name_no_project`
+    checks the drawn box's `aria-label`; it failed on `main`'s label. `kit/compare-page.py`: 54 of
+    54 before, 53 of 54 after (`moved` only), 54 of 54 once saved with `--write`.
+    `kit/starter-check.py` 5 of 5 before and after.
+    - `broken: the moved chart's label names the four services again → AssertionError: "Share of the four services' main source lines in their own directories" != "Share of the services' main source lines in their own directories"`
 50. **C, `index.html`: jobmatch prose around the panels.** Lines 79 (four services, the monolith),
     94 (Days 1–4, the 1,000-line start), 115 (#310), 137 (infra-ci, Terraform, AWS, LocalStack,
     Days 32 and 36), 150 (Day 35, C35.16-17), 181 (`backend/`, job-service), 189 (Day 17,
