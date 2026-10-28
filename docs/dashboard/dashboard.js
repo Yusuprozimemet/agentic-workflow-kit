@@ -590,11 +590,11 @@ function setSel(i) {
 }
 
 /* ---------- where we are ---------- */
-const PROJECT = "jobmatch-microservices";  // PROJECT: the project's name; the one place the page names it
+// From spec-drift.py: the repository's name, plan.md's phase headings, and the days its list marks **Stop and evaluate.**
+const PROJECT = (DATA.meta || {}).project || "";
 document.title = `${PROJECT} Spec Drift`;
-const PHASES = ["Make the split safe", "Modularise in place", "Gateway + JWT", "Extract job-service",
-  "Extract matching-service", "Extract application-service", "Functions + uploads bucket (cut)", "ECS + Terraform"];
-const STOPS = [16, 20, 24, 28, 35];
+const PHASES = ((DATA.meta || {}).phases || []).map(esc);  // plan.md's text, which the template fills from <name>
+const STOPS = (DATA.meta || {}).stops || [];
 const STATUS = { done: "Done", closed: "Closed, boxes open", active: "In progress", ready: "Ready", provisional: "Provisional", cut: "Cut" };
 const finished = d => d.status === "done" || d.status === "closed" || d.status === "cut";
 function drawNow() {
@@ -646,7 +646,7 @@ function drawNow() {
   document.getElementById("roadmap").innerHTML = rows + `<div class="tile-legend">
     <span><i class="tile done"></i>Done</span><span><i class="tile closed"></i>Closed, boxes open</span><span><i class="tile active"></i>In progress (bar: tracks merged)</span>
     <span><i class="tile"></i>Ready</span><span><i class="tile provisional"></i>Provisional</span><span><i class="tile cut"></i>Cut</span>${u ? `<span><i class="tile unwritten"></i>Spec not written</span>` : ""}
-    <span><i class="tile stop"></i>Ends a phase</span><span><i class="tile ooo"></i>Run out of numeric order</span></div>`;
+    <span><i class="tile stop"></i>Stop and evaluate</span><span><i class="tile ooo"></i>Run out of numeric order</span></div>`;
   document.querySelectorAll("#roadmap .tile.unwritten[tabindex]").forEach(tile => {
     const show = ev => showTip(ev, `<b>Day ${dd(u.day)} · Spec not written</b><div style="margin:3px 0 6px">${md(u.title)}</div>
       <div>${md(now.next_step)}</div>`);

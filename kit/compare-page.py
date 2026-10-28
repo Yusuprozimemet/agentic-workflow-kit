@@ -27,13 +27,14 @@ ROOT = os.path.join(HERE, "..")
 DATA = os.path.join(HERE, "page", "jobmatch-data.json")
 BOXES = os.path.join(HERE, "page", "jobmatch-boxes.sha256")
 
-# The fields later batches move from the page's constants into the data (CHANGES.md, Batch 0),
-# with the values the constants give jobmatch today. The page reads none of them yet.
+# The fields that moved from the page's constants into the data (CHANGES.md, Batches 1 and 2), as
+# spec-drift.py now writes them for jobmatch at its source commit: phases and stops from its plan.md
+# (its "### Phase N — <name>" headings, and the one day its list marks **Stop and evaluate.**).
 LATER = dict(project="jobmatch-microservices",
-             phases=["Make the split safe", "Modularise in place", "Gateway + JWT", "Extract job-service",
-                     "Extract matching-service", "Extract application-service",
-                     "Functions + uploads bucket (cut)", "ECS + Terraform"],
-             stops=[16, 20, 24, 28, 35], break_line_from_pr=310)
+             phases=["Make the split safe", "Modularise in place (no network yet)", "Gateway + JWT",
+                     "Extract job-service", "Extract matching-service", "Extract application-service + events",
+                     "Functions + uploads bucket", "ECS on Fargate"],
+             stops=[28], break_line_from_pr=310)
 
 
 def draw_js():

@@ -9,6 +9,7 @@ git and numpy; the page tests run docs/dashboard/dashboard.js and need node.
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -726,8 +727,28 @@ class OwnerAndCaveatTest(unittest.TestCase):
         self.assertEqual(sd.unopened_tracks([theirs]), [dict(track="E1c", pr=51)])
         self.assertEqual(sd.unopened_tracks(sd.owners_prs([theirs], "Yusuprozimemet")), [])
 
-    def test_the_coverage_caveat_says_tests_and_tooling_count(self):
-        self.assertTrue(any("test" in c and "tooling" in c and "0.433" in c for c in sd.CAVEATS))
+    def test_the_coverage_caveat_says_tests_and_tooling_count_and_cites_no_measurement(self):
+        self.assertIn("Name coverage counts test and tooling files as code.", sd.CAVEATS)
+        for c in sd.CAVEATS:  # another project has no such audit, file or figure
+            self.assertNotRegex(c, r"\d|\.md\b", c)
+
+    def test_the_project_is_the_repositorys_name_or_with_no_remote_its_folders(self):
+        def fake(*args):
+            if args[:3] == ("gh", "repo", "view"):
+                if remote:
+                    return "toy-repo\n"
+                raise subprocess.CalledProcessError(1, args, stderr="no git remotes found")
+            if args[:2] == ("git", "rev-parse"):
+                return "/home/someone/toy-folder\n"
+        real = sd.run
+        try:
+            sd.run = fake
+            remote = True
+            self.assertEqual(sd.project_name(), "toy-repo")
+            remote = False
+            self.assertEqual(sd.project_name(), "toy-folder")
+        finally:
+            sd.run = real
 
 
 # Boots docs/dashboard/dashboard.js on the data from stdin, with a document that accepts anything,
@@ -855,6 +876,16 @@ class PageTest(unittest.TestCase):
             self.assertTrue(panels[box], box)
             self.assertNotIn("This panel failed", panels[box], box)
 
+    def test_the_name_phases_and_stops_come_from_the_data(self):
+        days = [dict(a_day(n), status="ready", phase=p, title="t", prs=[]) for n, p in ((1, 0), (2, 0), (3, 1))]
+        meta = dict(project="toy-repo", phases=["Lay the ground", "<name>"], stops=[2])
+        _, panels, _ = drawn([page_row(0, None, "origin", 50)], days, [1, 2, 3], meta=meta)
+        self.assertTrue(panels["eyebrow"].startswith("toy-repo · "), panels["eyebrow"])
+        self.assertIn("<b>0. Lay the ground</b>", panels["roadmap"])
+        self.assertIn("<b>1. &lt;name&gt;</b>", panels["roadmap"])  # a heading the template left unfilled
+        stopped = re.findall(r'class="tile ready stop" data-day="(\d+)"', panels["roadmap"])
+        self.assertEqual(stopped, ["2"])
+
     def test_the_break_panel_names_the_first_pr_only_when_there_is_one(self):
         # Two code PRs, one recorded and one silent; jobmatch also had one before its #310.
         rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
@@ -902,6 +933,55 @@ Days keep their numbers; they run in this order:
         self.assertEqual(sd.kind("Day 16 spec change: checks", "day-16/spec-x", ["specs/day-16-cutover.md"]), "spec")
         self.assertEqual(sd.kind("Plan change: seam first", "plan/course", ["plan.md"]), "spec")
         self.assertEqual(sd.kind("Add spec-drift.py", "tooling/spec-drift-script", []), "other")
+
+    def test_code_is_a_track_and_an_early_day_has_no_exception(self):
+        self.assertEqual(sd.kind("Day 01 track A: the harness", "day-01/track-a-harness"), "code")
+        self.assertEqual(sd.kind("Day 01: the harness", "day-01/harness"), "other")
+        self.assertEqual(sd.kind("Day 02: a fix", "day-02/fix"), "other")
+
+    def test_a_commit_with_no_pr_keeps_its_subject_and_a_repo_without_main_says_so(self):
+        repo = Repo().merge({"plan.md": "# Plan\n"})
+        self.addCleanup(repo.close)
+        repo.git("commit", "--amend", "-q", "-m", "Start the toy project")
+        repo.git("branch", "-M", "trunk")
+        try:
+            said = repo.inside(lambda blobs: sd.snapshots({}))
+        except SystemExit as e:
+            said = str(e)
+        except subprocess.CalledProcessError as e:
+            said = f"git exited {e.returncode}"
+        self.assertEqual(said, "spec-drift.py reads the branch main, and this repository has none: git branch -m main")
+        repo.git("branch", "-M", "main")
+        snaps = repo.inside(lambda blobs: sd.snapshots({}))
+        self.assertEqual([(s["pr"], s["title"]) for s in snaps], [(None, "Start the toy project")])
+
+    def test_phases_are_the_plans_headings_and_stops_the_days_its_list_marks(self):
+        plan = """# Toy plan
+
+### Phase 0 — Lay the ground
+### Phase 2 – Build it (later)
+
+## Day-by-day specs
+
+1. Phase 0: Days 3, 1, 2. **Stop and evaluate.**
+2. Phase 2: Days 4-6. **Stop and evaluate.**
+3. Phase 2: Day 7.
+
+## Course correction after Phase 0
+
+Go on.
+"""
+        self.assertEqual(sd.phases(plan), ["Lay the ground", "", "Build it (later)"])
+        self.assertEqual(sd.stops(plan), [2, 6])  # Day 2's stop, lifted since, is still marked
+        self.assertEqual(sd.run_order(plan, list(range(1, 8)))[1], 6)
+        self.assertEqual((sd.phases("# Plan\n"), sd.stops("# Plan\n")), ([], []))
+
+    def test_the_plan_templates_list_marks_its_stop_once_filled(self):
+        with open(os.path.join(HERE, "..", "templates", "plan.template.md"), encoding="utf-8") as f:
+            plan = f.read()
+        self.assertEqual((sd.phases(plan), sd.stops(plan)), (["<name>", "<name>"], []))  # no day yet
+        filled = plan.replace("Days <NN>, <NN>.", "Days 1, 2.").replace("Days <NN>-<NN>.", "Days 3-5.")
+        self.assertEqual((sd.stops(filled), sd.run_order(filled, [])), ([2], ([1, 2, 3, 4, 5], 2)))
 
     def test_the_run_order_is_the_plans(self):
         order, stop = sd.run_order(self.PLAN, list(range(1, 38)))
