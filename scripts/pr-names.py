@@ -8,8 +8,8 @@ The project file, spec-drift.config.json at the root, may list more areas (`area
 spec-drift.py reads a day's progress from branch names and Jira from the keys in them, so a name
 that disagrees is a wrong state on the dashboard or in Jira, found only after the merge. Three
 escaped that way (docs/paper, the process defects): #237's branch said `track-b`, its title track
-B1, and the dashboard counted all of B done (D22-013); #263's branch and commits said KAN-5, its
-description KAN-6, and neither was the sub-task (D27-062); #321 was opened from
+B1, and the dashboard counted all of B done (D22-013); #263's branch and commits named one Jira key,
+its description another, and neither was the sub-task (D27-062); #321 was opened from
 `claude/focused-bell-qqwqdx`, and Day 28 still showed Track D next (D28-081). The rules:
 
 - the branch is `day-NN/<slug>`, or `<area>/<slug>` for work outside the days (AREAS);

@@ -59,7 +59,7 @@ CITED_PR = re.compile(r"(?<![\w&])#(\d+)\b")
 EVIDENCE_TEST = re.compile(r"\b([A-Z][A-Za-z0-9]*(?:Test|IT|Tests))(?:\.([a-z][A-Za-z0-9_]*))?\b")
 # A break on purpose, in one fixed line (specs/README.md): `broken: <what> → <what it reported>`,
 # on its own line in a PR description or under a ticked criterion; `broken: none → <why>` says
-# there was none. In jobmatch-microservices it replaced three regexes over free text (#310), which
+# there was none. In the project the kit was copied from, it replaced three regexes over free text (#310), which
 # read a break described in other words as none. Nothing earlier was asked for the line, so there
 # it is read from PR #310 on (310 below): a PR before it, or a day none of whose PRs reaches it, is
 # not measured. A day number would not do: Days 39-41 ran before Day 28. A project whose rules ask
@@ -465,7 +465,7 @@ def trajectory(snaps, blobs, order=()):
     def code_counts(sha):
         """A merge's counts need only the names the specs had used by then (later ones are masked
         by born), and a SHA fixes its history, so counts cached under it stay right. kit/ is the
-        starter cleanup's tooling and jobmatch's data, which a copy deletes: not this project's code."""
+        starter cleanup's tooling and the source project's data, which a copy deletes: not this project's code."""
         cached = CACHE.setdefault("code", {}).get(sha)
         if cached is not None:
             return np.array([cached.get(v, 0) for v in vocab], dtype=float)
@@ -744,7 +744,7 @@ def in_evidence_format(crit):
 
 def moves(snaps):
     """The test classes that moved under a new name, and the merge each move completed at, as
-    (index, old, new). A test moved into a service ends in Test, not IT (surefire runs it there),
+    (index, old, new). A test moved into a service ends in Test, not IT (the unit-test run takes it there),
     and is rewritten for that service's harness, too much for git to call it a rename: Day 21
     moved PostingShortlistUnavailableIT to matching-service at 27% alike. So a move is told by
     name: a class leaves the tree, and a class of the same stem arrives in that merge or a later
@@ -1029,8 +1029,8 @@ def hand_offs(days, order, sha, blobs):
     no day ahead to take it and no spec citing it, it is listed with `to` None, as no later day
     picks it up. An item without one is picked up when the receiving spec names its day, or a
     finished day the item names (Day 39 points to Day 38's findings); a code comment, when the
-    spec names its file. A code comment is not handed to the day whose own PR wrote it: infra-ci.yaml's
-    "(Day 35)" was written by Day 35."""
+    spec names its file. A code comment is not handed to the day whose own PR wrote it: a workflow's
+    "(Day 35)" written by Day 35."""
     finished = {d["day"] for d in days if d["status"] in FINISHED}
     text = {d["day"]: blobs.read(sha, d["file"]) for d in days}
     ahead = {d: i for i, d in enumerate(order) if d in text and d not in finished}
@@ -1087,8 +1087,7 @@ def token_usage():
 
 
 def deployment():
-    """The live checks of the one deployment (the project's own; kit/jobmatch/live-checks.py is an example), or
-    None if nothing was deployed."""
+    """The live checks of the one deployment (the project's own), or None if nothing was deployed."""
     path = os.path.join(PAGE, "deployment.json")
     if not os.path.exists(path):
         return None
@@ -1100,7 +1099,7 @@ INFRA_TRIES = 5
 
 
 def infra_summary(run_id):
-    """One infra-ci run's summary (scripts/infra-summary.py), or None if its artifact does not download."""
+    """One infra workflow run's summary (scripts/infra-summary.py), or None if its artifact does not download."""
     with tempfile.TemporaryDirectory() as tmp:
         try:
             run("gh", "run", "download", str(run_id), "-n", "infra-summary", "-D", tmp)

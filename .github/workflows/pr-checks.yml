@@ -23,8 +23,8 @@ name: PR checks
 #    day repeated this by hand, and two dropped the scrape job.
 #
 # 5. The branch, the title, the commits and the Jira keys agree (scripts/pr-names.py). The dashboard
-#    reads a day's progress from branch names and Jira from the keys; in jobmatch-microservices, three PRs that disagreed
-#    showed a wrong state after they merged (a `track-b` branch for track B1, KAN-5 against KAN-6,
+#    reads a day's progress from branch names and Jira from the keys; in the project the kit was copied from, three PRs that
+#    disagreed showed a wrong state after they merged (a `track-b` branch for track B1, one Jira key against another,
 #    a `claude/...` branch).
 #
 # Recovery is automatic for the first two and the fifth's title and description: editing the description fires the `edited`

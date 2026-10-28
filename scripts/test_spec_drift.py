@@ -24,7 +24,7 @@ COMPARE = os.path.join(HERE, "..", "kit", "compare-page.py")
 
 PLAN = "# Plan\n\nThe plan names `FooService` and `bar_table`.\n"
 DAY = "# Day 01\n\nThe day adds `FooService`, then the rest of the day.\n"
-# jobmatch-microservices' project file under neutral names: its two tests renamed to another stem,
+# The source project's file under neutral names: its two tests renamed to another stem,
 # its six directory moves, its Verify base, its four services by package, and its infra workflow.
 PROJECT = dict(
     renamed=[[296, "OrdersUserDeletedConsumerIT", "UserDeletedConsumerTest"],
@@ -210,7 +210,7 @@ class SpecDriftTest(unittest.TestCase):
             self.assertEqual(sd.break_state(body and body + checklist, 310), state, body)
         self.assertEqual(sd.break_state(checklist, 310), "silent")
         self.addCleanup(setattr, sd, "BREAK_LINE_FROM_PR", sd.BREAK_LINE_FROM_PR)
-        sd.BREAK_LINE_FROM_PR = 310  # jobmatch-microservices asked for the line from #310
+        sd.BREAK_LINE_FROM_PR = 310  # the source project asked for the line from #310
         self.assertEqual(sd.break_state("broken: the guard removed → 401\n", 309), "not measured")
 
     def test_a_new_project_reads_the_break_line_from_its_first_pr(self):
@@ -334,7 +334,7 @@ class SpecDriftTest(unittest.TestCase):
         self.assertFalse(sd.code_like("check_c34_"))
         self.assertTrue(sd.code_like("aws_ecs_service"))
         self.repo.merge({"src/Foo.java": "class FooService { FooService f; }\n"})
-        rows = self.repo.merge({"specs/day-02-y.md": "It writes `aws_ecs_*`.\n", "src/Ecs.java": "aws_ecs_service e;\n"}).rows()
+        rows = self.repo.merge({"specs/day-02-y.md": "It writes `aws_ecs_*`.\n", "src/Cloud.java": "aws_ecs_service e;\n"}).rows()
         self.assertEqual((rows[1]["name_coverage"], rows[2]["name_coverage"]), (0.5, 0.5))  # bar_table still missing
 
     def test_a_name_the_code_had_and_lost_is_retired_and_still_a_miss(self):
@@ -472,9 +472,9 @@ class EvidenceTest(unittest.TestCase):
         on = '@EnabledIfSystemProperty(named = "harness.gateway", matches = "true")\n'
         self.repo.merge({"src/FooIT.java": on + "class FooIT { void refuses() {} void saves() {} }\n"})
         self.assertEqual(set(self.state()[1]["tests"].values()), {"skippable"})
-        self.repo.merge({".github/workflows/ci.yml": "run: ./mvnw -B verify -Dharness.gateway=false\n"})
+        self.repo.merge({".github/workflows/ci.yml": "run: ./build verify -Dharness.gateway=false\n"})
         self.assertEqual(set(self.state()[1]["tests"].values()), {"skippable"})
-        self.repo.merge({".github/workflows/ci.yml": "run: ./mvnw -B verify -pl app -am -Dharness.gateway=true\n"})
+        self.repo.merge({".github/workflows/ci.yml": "run: ./build verify -pl app -am -Dharness.gateway=true\n"})
         self.assertEqual(set(self.state()[1]["tests"].values()), {"present"})
         self.repo.merge({"src/FooIT.java": on + "@Disabled class FooIT { void refuses() {} void saves() {} }\n"})
         self.assertEqual(set(self.state()[1]["tests"].values()), {"skippable"})
@@ -578,12 +578,12 @@ class RemovalTest(unittest.TestCase):
             repo.close()
 
     def test_a_path_follows_a_move_and_a_parent_of_it_also_reads_where_it_went(self):
-        moves = [("backend/jobs", "services/job-service"), ("backend", "services/identity-service")]
-        self.assertEqual(sd.follow("backend/jobs/src", moves), ["services/job-service/src"])
-        self.assertEqual(sd.follow("backend/docs", moves), ["services/identity-service/docs"])
+        moves = [("backend/jobs", "services/orders-service"), ("backend", "services/account-service")]
+        self.assertEqual(sd.follow("backend/jobs/src", moves), ["services/orders-service/src"])
+        self.assertEqual(sd.follow("backend/docs", moves), ["services/account-service/docs"])
         self.assertEqual(sd.follow("backend/*/src/main", moves),
-                         ["services/job-service/src/main", "services/identity-service/*/src/main"])
-        self.assertEqual(sd.follow("backend", moves[:1]), ["services/job-service", "backend"])
+                         ["services/orders-service/src/main", "services/account-service/*/src/main"])
+        self.assertEqual(sd.follow("backend", moves[:1]), ["services/orders-service", "backend"])
         self.assertEqual(sd.follow("docker-compose.yml", moves), ["docker-compose.yml"])
 
     def test_the_project_files_moves_follow_moved_docs_on_to_docs_system(self):
@@ -906,7 +906,7 @@ def drawn(rows, days=(), order=(), **more):
 class PageProseTest(unittest.TestCase):
     """The words around the panels: the page explains any project's data, not the one it was built on."""
 
-    # What the prose said of jobmatch: its services and layout, its days, PRs and criteria, its cloud.
+    # What the prose said of the project it was built on: its services and layout, its days, PRs and criteria, its cloud.
     MARKERS = ["monolith", "identity", "job-service", "backend/", "saved_jobs", "SavedJobCounts", "GatewayHarnessIT",
                "infra-ci", "Terraform", "LocalStack", "AWS", "Day 35", "Days 1–4", "Days 38–40", "C35.16", "H28.1",
                "#55", "#298", "#310"]
@@ -917,7 +917,7 @@ class PageProseTest(unittest.TestCase):
         self.assertEqual([m for m in self.MARKERS if m in page], [])
 
     def test_every_script_it_names_is_in_the_repository(self):
-        # The deployment panel named scripts/live-checks.py after it moved to kit/jobmatch/.
+        # The deployment panel named scripts/live-checks.py after it moved out with the source project's data.
         with open(os.path.join(HERE, "..", "docs", "dashboard", "index.html"), encoding="utf-8") as f:
             named = re.findall(r"<code>([\w.-]+/[\w./-]+\.py)</code>", f.read())  # a path, not a name like conftest.py
         self.assertEqual([p for p in named if not os.path.exists(os.path.join(HERE, "..", p))], [])
@@ -996,7 +996,7 @@ class PageTest(unittest.TestCase):
                       "<code>spec-drift.config.json</code>, and the code has none.", panels["moved"])
 
     def test_with_nothing_deployed_the_panel_names_the_file_and_no_script(self):
-        # The live check is the project's own; jobmatch's moved to kit/jobmatch/ (CHANGES item 56).
+        # The live check is the project's own; the source project's moved out with its data.
         error, panels, _ = drawn([page_row(0, None, "origin", 50)], deployment=None)
         self.assertIsNone(error)
         self.assertEqual(panels["deployment-head"], '<p class="load-error">Nothing deployed yet: the panel fills when '
@@ -1014,7 +1014,7 @@ class PageTest(unittest.TestCase):
         self.assertEqual(stopped, ["2"])
 
     def test_the_break_panel_names_the_first_pr_only_when_there_is_one(self):
-        # Two code PRs, one recorded and one silent; jobmatch also had one before its #310.
+        # Two code PRs, one recorded and one silent; the source project also had one before its #310.
         rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
                 for i, pr in enumerate([None, None, 1, 2])]
         pr = lambda n, breaks: dict(number=n, day=None, kind="code", breaks=breaks, pushes=1, failed=0, failed_in=[])
@@ -1028,8 +1028,8 @@ class PageTest(unittest.TestCase):
         self.assertIn("1 code PRs before #310 are not measured.", panels["breaks"])
 
     @unittest.skipUnless(os.path.exists(COMPARE), "kit/ removed")
-    def test_jobmatchs_data_draws_the_boxes_it_drew(self):
-        # kit/compare-page.py: jobmatch's published data through this page, against its saved 53 boxes.
+    def test_the_source_projects_data_draws_the_boxes_it_drew(self):
+        # kit/compare-page.py: the source project's published data through this page, against its saved 53 boxes.
         run = subprocess.run([sys.executable, COMPARE], capture_output=True, encoding="utf-8")
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
@@ -1124,8 +1124,8 @@ Go on.
         plan = "## Day-by-day specs\n\n1. Phase 0: Days 3, 1, 2. **Stop and evaluate.**\n2. Phase 1: Days 4-5.\n"
         self.assertEqual(sd.run_order(plan, [1, 2, 3, 4, 5]), ([3, 1, 2, 4, 5], 2))
 
-    def test_jobmatchs_plan_runs_in_its_order(self):
-        # jobmatch-microservices' list as it ended: phase numbers inside words and after "after".
+    def test_the_source_projects_plan_runs_in_its_order(self):
+        # The source project's list as it ended: phase numbers inside words and after "after".
         plan = """## Day-by-day specs
 
 1. The record fix and the platform step (new day specs, numbered from 38).
@@ -1134,8 +1134,8 @@ Go on.
    (no dual write), 23, 24.
 4. Phase 5: Days 26, 27, 25, 28. **Stop and evaluate.**
 5. The cleanup day (course correction after Phase 5), Day 42; done.
-6. Phase 7 for ECS on Fargate, in this order: Days 32, 33 (the code before ECS), 36 (the services on
-   ECS), 34, 35; done.
+6. Phase 7 for the cloud, in this order: Days 32, 33 (the code before the cloud), 36 (the services in
+   the cloud), 34, 35; done.
 7. Phase 6 (Days 29–31): **cut** after Phase 7 (*Phase 7 outcome*).
 8. The close-out day, Day 43: the end-of-Phase-7 audits' findings; done.
 
@@ -1284,12 +1284,12 @@ The cleanup day first.
     def test_a_branch_that_names_no_day_is_read_by_its_title(self):
         # #321, Day 28's Track D, came from a branch that named no day.
         pr = dict(headRefName="claude/focused-bell-qqwqdx",
-                  title="KAN-82 Day 28 track D: stopping-point review, plan changed after Phase 5")
+                  title="ABC-82 Day 28 track D: stopping-point review, plan changed after Phase 5")
         self.assertEqual(sd.merged_tracks([sd.day_branch(pr)], ["0", "A1", "E", "D"]), ["D"])
         # A day's own branch wins over its title, and a title that names no track changes nothing.
-        own = dict(headRefName="day-28/track-e-KAN-84-identity-healthcheck", title="Day 28 track D: wrong")
+        own = dict(headRefName="day-28/track-e-ABC-84-account-healthcheck", title="Day 28 track D: wrong")
         self.assertEqual(sd.day_branch(own), own["headRefName"])
-        other = dict(headRefName="claude/focused-sagan-96xo1w", title="identity-service README: pull the image")
+        other = dict(headRefName="claude/focused-sagan-96xo1w", title="account-service README: pull the image")
         self.assertEqual(sd.day_branch(other), other["headRefName"])
 
 
