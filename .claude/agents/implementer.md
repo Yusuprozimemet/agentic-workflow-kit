@@ -25,9 +25,10 @@ do not guess which one is right.
   Comments say why, in the repository's plain style. Never name, in a comment, a thing the day's
   grep checks is gone.
 - **Run the tests the brief names**, <!-- PROJECT: from where, and the command that runs named
-  tests -->. Delete <!-- PROJECT: the test report directory --> first and read the reports, not
+  tests -->. Delete <!-- PROJECT: the test report directory; with none, what to read
+  instead, e.g. the runner's "Ran N tests" and "OK" lines --> first and read the reports, not
   the exit code. <!-- PROJECT: any check CI runs that the test command does not, and the
-  command -->.
+  command; with none, delete this sentence -->.
 - If a test fails, fix your change, not the test, unless the brief says the test changes.
 
 ## Never
@@ -50,7 +51,7 @@ Files changed
 - <path>: <what changed, one line>
 
 Tests run
-- <command> → <tests run, failures, errors, from the reports> ; <!-- PROJECT: the extra check -->: <exit code>
+- <command> → <tests run, failures, errors, from the reports> ; <!-- PROJECT: the extra check; with none, delete from the semicolon -->: <exit code>
 
 Departures from the brief: <each one and why, or none>
 Unsure about: <anything you guessed or could not check>

@@ -1100,16 +1100,22 @@ passes none today, and no Decision changes it here. `check-links.py`: 0 of 8 bro
 Each of these has never run in the kit; the pilot runs each once:
 
 - A day end to end on `day-NN/` branches: the spec-change PR, one track PR, the closing PR.
+  **Done** in the pilot's Day 1 (its #1, #4, #5).
 - The plan-auditor (first day of a phase), the spec-auditor, the implementer on a track, the
-  defect-rater on the blind file.
-- `relabel.py blind` and `compare`, with at least one tagged `Defect`.
-- `token-usage.py` on the pilot's own transcripts, and the Tokens panel filling.
+  defect-rater on the blind file. **Done**, Day 1, all four.
+- `relabel.py blind` and `compare`, with at least one tagged `Defect`. **Done**, Day 1: 6
+  Defects, 5 tags changed after the compare (finding 20).
+- `token-usage.py` on the pilot's own transcripts, and the Tokens panel filling. `token-usage.py`
+  **done** (Day 1's close); the panel open until a later step reads it.
 - `break.py` on the pilot's code, its `broken:` line in a track PR, and the page reading it as
-  "recorded" (item 38).
-- A PR over 400 lines failing "Diff stays reviewable", then passing with `Oversized:`.
+  "recorded" (item 38). **Done** (its #4).
+- A PR over 400 lines failing "Diff stays reviewable", then passing with `Oversized:`. Open
+  (its Day 4).
 - The panels a day fills: "Pull requests per day", the gap angle moving, the `new`/`hold` tags
-  and the evidence behind the ticks, a hand-off with an ID picked up by the next day.
-- A plan whose order is not by number, with a stop on a day under 10 (item 39).
+  and the evidence behind the ticks, a hand-off with an ID picked up by the next day. Open
+  (its H1.2 goes to Day 3).
+- A plan whose order is not by number, with a stop on a day under 10 (item 39). Open: in its
+  `plan.md`, not yet reached.
 
 ### 75. What the pilot found
 
@@ -1218,6 +1224,39 @@ line shows the fix at work: the outer run wrote the temp path the inner test pri
 - `broken: test_state() reads no Python test file → AssertionError: {'CliTest': 'missing', 'RuleTest.test_word': 'missing'[87 chars]ing'} != {'CliTest': 'present', 'CliTest.test_counts': 'present[89 chars]ing'}`
 - `broken: hand_offs() takes a Notes item citing its day's ID as a hand-off → AssertionError: Lists differ: [(3, 'H01.2', 'The conditio'), (3, 'H01.2', '**Hand-off**')] != [(3, 'H01.2', '**Hand-off**')]`
 - `broken: trajectory() reads specs/README.md and specs/_template.md as specs → AssertionError: 5 != 2`
+
+**The text** (`dashboard/pilot-findings-docs`):
+
+- **README, starting a project.** The copy is `git archive HEAD | tar -x` into a new folder:
+  copying the folder carried the kit's `.git` (finding 7). The marker list names
+  `scripts/spec-drift.py` (`BREAK_LINE_FROM_PR`, finding 1). A step adds a workflow for the
+  project's own tests, required with the others: the kit ships none (finding 5). Pages comes
+  before the first push, whose Dashboard run otherwise fails at "Publish to Pages" (finding 6).
+  Branch protection comes before Day 1, by the API with the rule in a file, since the settings
+  page offers only checks that have run; "Require a pull request" stays on the settings page
+  (finding 9). "Every service is wired…" passes with nothing to check: left out of the required
+  checks, or deleted, with no services (finding 10).
+- **README, a session's prompt** (O1, O2, O4): the step, the baseline as one command, the token
+  rules and the stop, in a block; lessons in CLAUDE.md's Pitfalls, a run's notes in a memory file
+  read by path; why: about 80 replies a step, the count the lever.
+- **CLAUDE template.** The tracker, report-directory and "applied" placeholders say what to write
+  with none (finding 3; the implementer brief's report directory and extra check too). The break
+  bullet says "a build only with `clean`" and "never started the build" (finding 4, item 65's
+  open bullet, by the maintainer's decision); `break.py`'s Maven rule stays. The implementer
+  section names the stash red-first run and the brief with exact outputs (O3); "One session per
+  step" names reply count (O4). Pitfalls says lessons go there (O1) and starts with the pilot's
+  #3 bullets that are not its own: the CRLF bullet says "may be CRLF; check `git ls-files
+  --eol`" (finding 13); the `git diff` CRLF bullet is left out, `break.py` skips the warning
+  since `dashboard/pilot-findings-scripts` (finding 11); the `PROJECT` marker kept.
+- **The rest.** `made` reads "the day whose work holds the defect, merged or not" in
+  specs/README.md and the rater's brief (finding 20). specs/README.md shows one ticked criterion
+  with its evidence and copied `broken:` line, each with its PR (finding 23). `.gitattributes`'
+  comment names no container directory (finding 17).
+
+Tests: none; the text has no test that reads it. `kit/starter-check.py` 5 of 5 and
+`kit/compare-page.py` 54 of 54, before and after: no box reads these files.
+
+- `broken: none → text only`
 
 ### Open questions
 
