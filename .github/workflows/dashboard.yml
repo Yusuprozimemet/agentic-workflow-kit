@@ -1,7 +1,7 @@
 name: Dashboard
 
-# Rebuilds the migration dashboard after every merge to main and publishes it
-# to GitHub Pages, so anyone can see where the migration stands without an
+# Rebuilds the project dashboard after every merge to main and publishes it
+# to GitHub Pages, so anyone can see where the project stands without an
 # account. The page is docs/dashboard/; scripts/spec-drift.py --build fills in
 # the data from git history and the pull request list.
 #
@@ -12,7 +12,7 @@ name: Dashboard
 on:
   push:
     branches: [main]
-  # infra-ci finishes after the merge's own rebuild, so the page rebuilds again with its summary.
+  # The infra workflow finishes after the merge's own rebuild, so the page rebuilds again with its summary.
   # With no workflow named "Infra checks" in the repository, this trigger never fires.
   workflow_run:
     workflows: ["Infra checks"]
@@ -28,7 +28,7 @@ permissions:
   id-token: write
 
 # Queued, not cancelled: a merge that touches infra starts two runs a few minutes apart (push,
-# then infra-ci's workflow_run), and cancelling the first showed a red X on every such merge.
+# then the infra workflow's workflow_run), and cancelling the first showed a red X on every such merge.
 # Queued, the later one still publishes last, so the page keeps the newer infra summary.
 concurrency:
   group: dashboard

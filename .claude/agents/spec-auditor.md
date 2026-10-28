@@ -18,8 +18,9 @@ earlier days left for this one (check 7).
 ## What to check
 
 1. **Run every check.** Every acceptance criterion's command and the Verify block, on the code as
-   it is, from the directory the spec says. For Maven: delete `*/target/surefire-reports` first,
-   read the reports rather than the exit code, and run `../mvnw -B checkstyle:check` too.
+   it is, from the directory the spec says. For <!-- PROJECT: the build tool -->: delete
+   <!-- PROJECT: the test report directory --> first, read the reports rather than the exit code,
+   and run <!-- PROJECT: the check CI runs that the build does not, e.g. a linter --> too.
    Record exactly what each printed.
 2. **The tags.** Every criterion must be `new` or `hold`. A `new` check must fail today; show the
    failure and the count. A `hold` check must pass today; say how it could be broken on purpose
@@ -35,12 +36,13 @@ earlier days left for this one (check 7).
    change? Then it needs a Track 0 that lands first. Do the tracks depend on each other in an
    order other than the table's? Is the estimate plausible?
 7. **Hand-offs to this day.** Earlier days defer work in their Notes and in test comments, and
-   nothing else carries it forward: Day 13 left the `Secure` cookie flag to Day 16, which never
-   saw it; the Phase 0-1 audit found 8 of 19 such hand-offs dropped, half done or breaking early.
+   nothing else carries it forward: in jobmatch-microservices, Day 13 left the `Secure` cookie
+   flag to Day 16, which never saw it; the Phase 0-1 audit found 8 of 19 such hand-offs dropped,
+   half done or breaking early.
    Find every one that names this day or this phase, in the finished days' specs and in the code:
    ```bash
    grep -rnE "Day 0?NN\b|Phase P\b" specs/day-0*.md specs/day-1*.md ...   # the days before this one
-   grep -rniE "expires on Day|until Day|TODO day-" services frontend scripts --include=*.java --include=*.ts --include=*.py --include=*.yaml
+   grep -rniE "expires on Day|until Day|TODO day-" <!-- PROJECT: source directories --> <!-- PROJECT: --include for each source extension -->
    ```
    For each, say whether this spec covers it (the criterion or In scope line), or it is missing.
    A missing one is a finding: the spec takes it, or it is moved to a named later day, or it is

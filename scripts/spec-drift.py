@@ -110,7 +110,7 @@ VERIFY_BASES = CONFIG["VERIFY_BASES"]
 FOUND_SHOWN = 10
 # "Day 17", "Days 18-19", "Days 19, 21 and 24": the days a sentence names.
 DAY_REF = re.compile(r"\bDays? (\d+)((?:\s*(?:[–-]|,|and|or)\s*\d+)*)")
-# IDs, from Day 28's spec change on (specs/README.md): criterion 3 of Day 28 is C28.3, and the
+# IDs (specs/README.md): criterion 3 of Day 28 is C28.3, and the
 # first hand-off Day 28's Notes leave is H28.1. A spec picks a hand-off up by citing its ID.
 CRITERION_ID = re.compile(r"^C(\d+)\.(\d+)\s+")
 # A spec may cite a range of them, H34.1–H34.3 or H35.2-4: the second end may leave its day out.

@@ -15,7 +15,7 @@ flowchart LR
     PA["plan-auditor<br/>big picture:<br/>plan ↔ specs ↔ code"]
     SA["spec-auditor<br/>one day:<br/>spec ↔ code"]
     I["implementer (Haiku)<br/>code and tests<br/>from a brief"]
-    CI["CI on GitHub<br/>tests, checkstyle,<br/>400-line gate"]
+    CI["CI on GitHub<br/>tests, checks,<br/>400-line gate"]
     D["Dashboard<br/>scripts/spec-drift.py"]
 
     M -- "'start Day N' / 'merged'" --> S
@@ -36,7 +36,19 @@ files or open PRs, which is what keeps them independent from the session that wr
 The implementer writes each track's code from a brief and never commits; the main session reviews
 its diff, runs the checks, breaks the code on purpose, and opens the PR.
 
-![How Claude and its agents run a day, spec first](agent-workflow.png)
+Before every push, the main session makes sure each test can fail; some things stop the work
+instead of being patched:
+
+```mermaid
+flowchart TD
+    T{"A test passes before<br/>and after the change.<br/>Has it ever been seen to fail?"}
+    T -- no --> B["1. break the code on purpose<br/>2. run it, note what it said<br/>3. revert; never merge it"]
+    T -- yes --> C["run the checks CI runs;<br/>read the reports, not exit codes"]
+    B --> C
+    C --> P["commit, then the PR"]
+    P --> W{{"stop: wait for 'merged'"}}
+    X["Stop and ask, do not patch:<br/>a frozen test needs an edit,<br/>anything applied needs an edit,<br/>a criterion cannot be met as written"] --> R(["record the departure;<br/>never deviate silently"])
+```
 
 ## What triggers what
 
@@ -67,7 +79,7 @@ flowchart TD
 | "start Day N", any other day | spec-auditor | findings, then a spec-change PR |
 | "merged" | dashboard refresh, then the next track or the closing PR | a PR, then wait |
 | a phase's last day closes | plan-auditor, phase-end review | a report; nothing starts until the maintainer says so |
-| Phase 7 ends, before `terraform destroy` | the three end-of-phase auditors, independently | three reports for the maintainer; nothing is destroyed until they say so |
+| <!-- PROJECT: the end of the last phase, and what ends it --> | the three end-of-phase auditors, independently | three reports for the maintainer; nothing is destroyed until they say so |
 | any time, by hand | either auditor | for example "use the plan-auditor on Phase 3" |
 
 ## Starting, for someone new
@@ -75,7 +87,7 @@ flowchart TD
 1. Clone the repository and open Claude Code in it. `CLAUDE.md` and the two agents load on
    their own; there is nothing to install for them.
 2. Read `plan.md`, then `specs/README.md`.
-3. Run `python scripts/spec-drift.py --out spec-drift.json`, or open the [dashboard](https://yusuprozimemet.github.io/jobmatch-microservices/), for the
+3. Run `python scripts/spec-drift.py --out spec-drift.json`, or open the dashboard (<!-- PROJECT: GitHub Pages URL -->), for the
    current day and the next step.
 4. Say "start Day N". The session follows the order above and stops at every PR.
 

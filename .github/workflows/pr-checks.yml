@@ -13,9 +13,9 @@ name: PR checks
 #    problem behind unreviewable AI-generated changes, so the limit is a number
 #    rather than an awkward conversation between teammates.
 #
-# 3. The applied migrations and the Day 1-4 tests stay unedited. A migration that
-#    has run is never changed, and the Day 1-4 suite is what shows the monolith
-#    still behaves after a split. Additions and pure renames pass, so a move stays
+# 3. The frozen files stay unedited: the project file's `frozen` patterns, such as
+#    migrations that have run and the tests that show the code still behaves after
+#    a change. Additions and pure renames pass, so a move stays
 #    possible; an edit or a delete fails and names the file (scripts/invariants.py).
 #
 # 4. Every service is wired: built in compose with a healthcheck that allows its start, and
@@ -23,7 +23,7 @@ name: PR checks
 #    day repeated this by hand, and two dropped the scrape job.
 #
 # 5. The branch, the title, the commits and the Jira keys agree (scripts/pr-names.py). The dashboard
-#    reads a day's progress from branch names and Jira from the keys; three PRs that disagreed
+#    reads a day's progress from branch names and Jira from the keys; in jobmatch-microservices, three PRs that disagreed
 #    showed a wrong state after they merged (a `track-b` branch for track B1, KAN-5 against KAN-6,
 #    a `claude/...` branch).
 #
@@ -129,7 +129,7 @@ jobs:
           exit 1
 
   invariants:
-    name: Applied migrations and the Day 1-4 tests stay unedited
+    name: Frozen files stay unedited
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
