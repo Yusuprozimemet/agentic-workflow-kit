@@ -1127,6 +1127,8 @@ class PageTest(unittest.TestCase):
         self.assertEqual((error, logged), (None, []))
         self.assertEqual({k: re.findall(r"NaN|Infinity|undefined", v) for k, v in panels.items() if re.search(r"NaN|Infinity|undefined", v)}, {})
         self.assertEqual(panels["pr-range"], "0 merges")
+        # The headings are claims; with nothing merged they claim nothing.
+        self.assertEqual(re.findall(r"<h3>(No [^<]*)</h3>", panels["findings"]), ["No gap has closed yet", "No day reached yet"])
 
     def test_one_of_a_kind_is_singular(self):
         # "1 days in", "1 spec-change PRs".
