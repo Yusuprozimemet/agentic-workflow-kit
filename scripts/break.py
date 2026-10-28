@@ -1,7 +1,10 @@
 """Break the code on purpose once, run the check, put the code back, and print the `broken:` line.
 
     python scripts/break.py --file <path> --find <text> --replace <text> --what "<what was broken>" \
-        [--cwd <dir>] -- <command> [args...]
+        [--cwd <dir>] [--] <command> [args...]
+
+for example `... --what "the guard removed" python -m unittest tests.test_cli`: everything from the
+command on is the command's, options included.
 
 The break is one exact replacement in one file: --find must occur exactly once. The file's bytes are
 kept in memory and written back as they were, line endings included, whatever the command does; git
@@ -11,7 +14,9 @@ incremental build can skip the broken source and pass. One break at a time: a se
 is active refuses.
 
 It exits 0 only when the check failed with the break in and the file is back as it was, and prints
-the record for the PR (specs/README.md): `broken: <what> → <what the check reported>`.
+the record for the PR (specs/README.md): `broken: <what> → <what the check reported>`. <what> holds
+no arrow: spec-drift.py reads the line up to its first one. A temporary directory in the report is
+written <tmp>, so no local path, a user name in it, reaches the PR.
 
 Each rule here is a defect the paper's record holds (docs/paper, Appendix F): an incremental compile
 that skipped a break (D23-027), breaks run through cmd.exe into WSL's bash that never started Maven
@@ -22,6 +27,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 # The lines a failed check reports, in order of preference: a JUnit or pytest summary, then an
 # assertion, then a failure line. The last match of the first pattern found is the report.
@@ -32,11 +38,26 @@ REPORTED = [re.compile(p) for p in (
     r"(?:FAIL|FAILED|ERROR|BUILD FAILURE)\b.*",
 )]
 LOCK = ".break-active"
+ARROW = re.compile(r"→|->")
+# tempfile's own names (tmp and 8 characters), the whole path up to them; unittest may have cut its start.
+TEMP_NAME = re.compile(r"[^\s'\"()\[\]]*?[\\/]+tmp[a-z0-9_]{8}(?![a-z0-9_])")
+
+
+def untemp(line):
+    """The line with each temporary directory written <tmp>: the local one, as a path or a repr, and
+    tempfile's own names under it. The directory only as a whole name: /tmp is also the start of
+    /tmp2ewplof6."""
+    line = TEMP_NAME.sub("<tmp>", line)
+    for form in {tempfile.gettempdir(), os.path.realpath(tempfile.gettempdir())}:
+        for written in (form, form.replace("\\", "\\\\"), form.replace("\\", "/")):
+            line = re.sub(re.escape(written) + r"(?![\w.~-])", "<tmp>", line)
+    return line
 
 
 def reported(output):
-    """The line a failed check's output is summed up by, or its last non-empty line."""
-    lines = [l.strip() for l in output.splitlines() if l.strip()]
+    """The line a failed check's output is summed up by, or its last non-empty line. git's warnings
+    ("LF will be replaced by CRLF") are not the check's report."""
+    lines = [l.strip() for l in output.splitlines() if l.strip() and not l.startswith("warning: ")]
     for pattern in REPORTED:
         hits = [m.group(0) for l in lines if (m := pattern.search(l))]
         if hits:
@@ -68,10 +89,15 @@ def main(args=None):
     p.add_argument("--replace", required=True)
     p.add_argument("--what", required=True, help="what was broken, for the broken: line")
     p.add_argument("--cwd", default=".")
-    p.add_argument("command", nargs="+")
+    p.add_argument("command", nargs=argparse.REMAINDER, help="the check, with its options; a leading -- is dropped")
     a = p.parse_args(args)
+    a.command = a.command[1:] if a.command[:1] == ["--"] else a.command
+    if not a.command:
+        p.error("the command to run is required")
     sys.stdout.reconfigure(encoding="utf-8")  # the arrow; a Windows console's default is cp1252
 
+    if ARROW.search(a.what):
+        return refuse("--what holds an arrow: spec-drift.py would end <what> there; write it without one")
     if os.path.basename(a.command[0]) in ("mvnw", "mvn") and "clean" not in a.command:
         return refuse("a Maven check must clean, or the broken source may not be recompiled")
     with open(a.file, "rb") as f:
@@ -105,7 +131,7 @@ def main(args=None):
     if run.returncode == 0:
         print(f"The check passed with the break in: it cannot see this break.\n  last line: {reported(output)}")
         return 1
-    print(f"broken: {a.what} → {reported(output)}")
+    print(f"broken: {a.what} → {untemp(reported(output))}")
     return 0
 
 

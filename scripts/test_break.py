@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "break.py")
@@ -33,9 +34,9 @@ class BreakTest(unittest.TestCase):
         with open(self.file, "wb") as f:
             f.write(self.original)
 
-    def run_break(self, find, replace, command=None, extra=()):
+    def run_break(self, find, replace, command=None, extra=(), what="the guard removed", dash=("--",)):
         return subprocess.run([sys.executable, SCRIPT, "--file", self.file, "--find", find, "--replace", replace,
-                               "--what", "the guard removed", *extra, "--", *(command or check(self.file))],
+                               "--what", what, *extra, *dash, *(command or check(self.file))],
                               capture_output=True, text=True, encoding="utf-8")
 
     def contents(self):
@@ -48,6 +49,43 @@ class BreakTest(unittest.TestCase):
         self.assertEqual(run.stdout.strip(), "broken: the guard removed → AssertionError: expected ok but was broken")
         self.assertEqual(self.contents(), self.original)
         self.assertFalse(os.path.exists(LOCK))
+
+    def test_a_command_with_options_needs_no_dashes_before_it(self):
+        run = self.run_break("// ok", "// broken", dash=())
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(run.stdout.strip(), "broken: the guard removed → AssertionError: expected ok but was broken")
+
+    def test_an_arrow_in_what_is_refused_before_anything_changes(self):
+        # spec-drift.py reads <what> up to the first arrow: wordtally PR #1's "if not paths: → if False:".
+        for what in ("if not paths: → if False:", "66 -> 67"):
+            run = self.run_break("// ok", "// broken", what=what)
+            self.assertEqual(run.returncode, 2, what)
+            self.assertIn("--what holds an arrow", run.stderr)
+            self.assertEqual(self.contents(), self.original)
+
+    def test_a_git_warning_is_not_what_the_check_reported(self):
+        # wordtally PR #1: git diff --exit-code on Windows ends with git's CRLF warning on stderr.
+        diff = [sys.executable, "-c", "import sys; print(' 1 file changed, 1 insertion(+)'); "
+                "sys.exit(\"warning: in the working copy of 'a.py', LF will be replaced by CRLF\")"]
+        run = self.run_break("// ok", "// broken", command=diff)
+        self.assertEqual(run.stdout.strip(), "broken: the guard removed → 1 file changed, 1 insertion(+)")
+
+    def test_a_temporary_path_in_the_report_is_written_tmp(self):
+        # wordtally PR #4: unittest's repr of a path under the user's temp directory, its start cut.
+        full = os.path.join(tempfile.gettempdir(), "tmp2ewplof6", "a.txt")
+        said = f"AssertionError: {full!r} != '[27 chars]1\\\\AppData\\\\Local\\\\Temp\\\\tmp2ewplof6\\\\a.txt' in {full}"
+        run = self.run_break("// ok", "// broken", command=[sys.executable, "-c", f"import sys; sys.exit({said!r})"])
+        line = run.stdout.strip()
+        self.assertNotIn(tempfile.gettempdir(), line)
+        self.assertNotIn("tmp2ewplof6", line)
+        self.assertEqual(line.count("<tmp>"), 3, line)
+        # On Linux the directory is /tmp, which a tempfile name under it also starts with (CI on #20).
+        spec = importlib.util.spec_from_file_location("break_script", SCRIPT)
+        script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(script)
+        with mock.patch.object(script.tempfile, "gettempdir", return_value="/tmp"):
+            self.assertEqual(script.untemp("'/tmp/tmp2ewplof6/a.txt' in /tmp/x, not /tmpfoo"),
+                             "'<tmp>/a.txt' in <tmp>/x, not /tmpfoo")
 
     def test_a_check_that_passes_with_the_break_in_is_reported_as_blind(self):
         run = self.run_break("true", "false")

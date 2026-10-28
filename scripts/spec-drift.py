@@ -69,7 +69,8 @@ BREAK_LINE_FROM_PR = 0  # PROJECT: the first PR asked for the broken: line; 0 fo
 # A test CI can skip: switched off, or run only on a condition. A condition on a system property
 # is met when a workflow passes it as true (GatewayHarnessIT, -Dharness.gateway=true), so that
 # test runs. A bare @Disabled stays skippable.
-SKIPPABLE = re.compile(r"@Disabled\b|@(?:Enabled|Disabled)If")
+SKIPPABLE = re.compile(r"@Disabled\b|@(?:Enabled|Disabled)If|@(?:unittest\.|pytest\.mark\.)skip")
+PY_CLASS = re.compile(r"^[ \t]*class[ \t]+(\w+)", re.M)
 ON_PROPERTY = re.compile(r'@EnabledIfSystemProperty\(\s*named\s*=\s*"([^"]+)"\s*,\s*matches\s*=\s*"true"\s*\)')
 CI_PROPERTY = re.compile(r"-D([\w.-]+)=true\b")
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "spec-drift.config.json")
@@ -114,6 +115,7 @@ DAY_REF = re.compile(r"\bDays? (\d+)((?:\s*(?:[–-]|,|and|or)\s*\d+)*)")
 # first hand-off Day 28's Notes leave is H28.1. A spec picks a hand-off up by citing its ID.
 CRITERION_ID = re.compile(r"^C(\d+)\.(\d+)\s+")
 # A spec may cite a range of them, H34.1–H34.3 or H35.2-4: the second end may leave its day out.
+HAND_OFF_LINE = re.compile(r"\s*- \**Hand-off\b")  # a Notes item that is one, not one citing it
 HAND_OFF_RANGE = re.compile(r"\bH(\d+)\.(\d+)(?:\s*[–-]\s*(?:H\1\.)?(\d+)\b)?")
 # A track a PR names ("**E1c** (next, ...)"), not a grep's -A3 or Day 14's A1. A criterion ID
 # (C32.5) is not a track either, so a match followed by ".<digit>" is rejected.
@@ -434,13 +436,17 @@ def ranker(order):
     return lambda d: -1 if not d else pos.get(d, len(pos) + d)
 
 
+# The rules and the template are about specs, not specs: their examples are the source project's names.
+NOT_SPECS = ("specs/README.md", "specs/_template.md")
+
+
 def trajectory(snaps, blobs, order=()):
     """Gap and coverage per merge. Days compare by their place in the run order, so from
     Day 38 the unbuilt Days 17-37 are not reached; with no order, by number."""
     rank = ranker(order)
     for s in snaps:
         names = at_commits("ls-tree", "-r", "--name-only", s["sha"], "--", "plan.md", "specs").split()
-        s["texts"] = {n: blobs.read(s["sha"], n) for n in names if n.endswith(".md")}
+        s["texts"] = {n: blobs.read(s["sha"], n) for n in names if n.endswith(".md") and n not in NOT_SPECS}
     first_seen = {}
     for i, s in enumerate(snaps):
         for t in s["texts"].values():
@@ -780,11 +786,16 @@ def test_state(tests, sha, blobs, moved=None):
     """Where each named test stands at a commit: present, skippable (a class or file CI can skip,
     unless CI meets its condition), or missing. CI runs every test that is present, so a hold
     goes quiet only by its test leaving the tree or being switched off. A class that has left
-    the tree is looked for under the name it moved to by then (moved: old to new)."""
+    the tree is looked for under the name it moved to by then (moved: old to new). A Java or Kotlin
+    class is its file's name; a Python test file holds its classes under other names (CliTest in
+    tests/test_cli.py), so they are read from it."""
     files, ci = collections.defaultdict(list), set()
     for path in (line.split("\t", 1)[1] for line in at_commits("ls-tree", "-r", sha).splitlines()):
         if path.endswith((".java", ".kt")):
             files[os.path.splitext(os.path.basename(path))[0]].append(path)
+        elif path.endswith(".py") and TEST_PATH.search(path):
+            for cls in set(PY_CLASS.findall(blobs.read(sha, path))):
+                files[cls].append(path)
         elif path.startswith(".github/workflows/"):
             ci.update(CI_PROPERTY.findall(blobs.read(sha, path)))
     met = lambda m: "" if m.group(1) in ci else m.group(0)
@@ -1042,6 +1053,8 @@ def hand_offs(days, order, sha, blobs):
         for item in re.split(r"\n(?=\s*- )", section(text[d["day"]], "Notes")):
             named = days_named(item)
             ids = sorted(i for i in hand_off_ids(item) if int(i[1:].split(".")[0]) == d["day"])
+            if ids and not HAND_OFF_LINE.match(item):
+                continue  # cites its day's hand-off, "(H1.2)", and is not one
             if ids:
                 cites = {t for t in text if t != d["day"] and set(ids) & cited[t]}
                 for t in named & set(ahead) - {d["day"]}:
@@ -1213,7 +1226,8 @@ def next_step(days, open_prs, order, stop, lines=None):
 def provenance():
     """What made these numbers: the script's commit, the versions, and the draws behind each band."""
     dirty = bool(run("git", "status", "--porcelain", "--", os.path.abspath(__file__)).strip())
-    return dict(commit=run("git", "rev-parse", "HEAD").strip(), script_edited=dirty,
+    head = subprocess.run(["git", "rev-parse", "--verify", "-q", "HEAD"], capture_output=True, text=True)
+    return dict(commit=head.stdout.strip() or None, script_edited=dirty,  # None before the first commit
                 python=platform.python_version(), numpy=np.__version__,
                 chance_draws=CHANCE_DRAWS)
 

@@ -314,6 +314,26 @@ class SpecDriftTest(unittest.TestCase):
         self.assertRegex(p["python"], r"^3\.\d+\.\d+")
         self.assertIsInstance(p["script_edited"], bool)
 
+    def test_before_the_first_commit_the_data_names_no_commit(self):
+        # wordtally's first run: git rev-parse HEAD exited 128 in a repository with no commit yet.
+        empty = Repo()
+        self.addCleanup(empty.close)
+        script = os.path.join(empty.path, "spec-drift.py")
+        open(script, "w").close()
+        self.addCleanup(setattr, sd, "__file__", sd.__file__)
+        sd.__file__ = script
+        p = empty.inside(lambda blobs: sd.provenance())
+        self.assertEqual((p["commit"], p["script_edited"]), (None, True))
+
+    def test_the_spec_rules_and_template_are_not_specs_for_the_vocabulary(self):
+        # wordtally: 5 of the 8 names "missing" from its code were the source project's examples there.
+        before = self.repo.inside(lambda blobs: sd.trajectory([dict(s) for s in self.repo.snaps], blobs)[2])
+        self.repo.merge({"specs/README.md": "Name `AccountDeletionIT` and `savedCount`.\n",
+                         "specs/_template.md": "- [ ] C28.1 **new** — `SameSite` is set.\n"})
+        rows, _, vocab = self.repo.inside(lambda blobs: sd.trajectory([dict(s) for s in self.repo.snaps], blobs)[:3])
+        self.assertEqual(vocab, before)
+        self.assertEqual(rows[-1]["name_coverage"], rows[0]["name_coverage"])
+
     def test_a_day_that_runs_later_is_not_reached_by_a_higher_number(self):
         self.repo.merge({"specs/day-17-x.md": "Day 17 adds `LaterThing`.\n",
                          "specs/day-38-x.md": "Day 38 adds `PlatformThing`.\n"})
@@ -431,6 +451,19 @@ class EvidenceTest(unittest.TestCase):
         self.repo.git("commit", "-q", "-m", "gone")
         self.repo.snaps.append(dict(self.repo.snaps[-1], sha=self.repo.git("rev-parse", "--short", "HEAD").strip()))
         self.assertEqual(set(self.state()[0]["tests"].values()), {"missing"})
+
+    def test_a_python_test_is_found_by_its_class_in_any_test_file(self):
+        # wordtally: CliTest lives in tests/test_cli.py, and every criterion's tests read "missing".
+        self.repo.merge({"tests/test_cli.py": "import unittest\n\n\nclass CliTest(unittest.TestCase):\n"
+                                              "    def test_counts(self):\n        pass\n",
+                         "tests/test_rule.py": "class RuleTest:\n    @pytest.mark.skipif(True, reason='x')\n"
+                                               "    def test_word(self):\n        pass\n",
+                         "src/helper.py": "class HelperTest:\n    pass\n"})
+        names = {"CliTest", "CliTest.test_counts", "CliTest.test_gone", "RuleTest.test_word", "HelperTest"}
+        state = self.repo.inside(lambda blobs: sd.test_state(names, self.repo.snaps[-1]["sha"], blobs))
+        self.assertEqual(state, {"CliTest": "present", "CliTest.test_counts": "present",
+                                 "CliTest.test_gone": "missing", "RuleTest.test_word": "skippable",
+                                 "HelperTest": "missing"})  # src/helper.py is not a test file
 
     def test_a_test_moved_under_a_new_name_is_followed_from_the_merge_it_arrives(self):
         # Day 17: SavedJobCountsUnavailableIT left in #174, and its Test arrived in #180. A helper
@@ -692,6 +725,21 @@ class HandOffTest(unittest.TestCase):
     def test_a_day_numbered_name_is_not_a_track(self):
         body = 'It read `C32.x` as "C32", a track C32: wrong.'
         self.assertEqual(sd.unopened_tracks([dict(number=1, headRefName="day-32/track-c1-x", body=body)]), [])
+
+    def test_a_notes_item_that_only_cites_its_days_hand_off_is_not_one(self):
+        # wordtally Day 1: a Note ending "(H1.2)" was listed as H1.2 a second time, to no day.
+        repo = Repo().merge({
+            "specs/day-01-a.md": "## Notes\n- The condition is in one place, so Day 03 decides it (H01.2).\n"
+                                 "- **Hand-off** H01.2 → Day 03: the stop decides it.\n",
+            "specs/day-03-c.md": "# Day 03\n\nNothing cited.\n",
+            "src/Foo.java": "// Day 01 wrote this.\n",
+        })
+        days = [dict(day=1, file="specs/day-01-a.md", status="done"), dict(day=3, file="specs/day-03-c.md", status="ready")]
+        try:
+            found = repo.inside(lambda blobs: sd.hand_offs(days, [1, 3], repo.snaps[-1]["sha"], blobs))
+        finally:
+            repo.close()
+        self.assertEqual([(h["to"], h["id"], h["text"][:12]) for h in found], [(3, "H01.2", "**Hand-off**")])
 
     def test_a_hand_off_range_names_every_id_in_it(self):
         self.assertEqual(sd.hand_off_ids("H34.1–H34.3 and H35.2-4, H36.7"),
