@@ -38,6 +38,14 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
     in its description; the closing PR copies it under the criterion it ticks. `spec-drift.py`
     reads no other wording as a break. `scripts/break.py` runs one break and
     prints the line.
+  - A ticked criterion carries its evidence under it, each piece with the PR it landed in; a
+    copied `broken:` line ends with the PR that ran it:
+
+    ```
+    - [x] C01.2 **hold** — <the criterion>
+      Evidence: `CliTest.test_counts` (#4); `python -m unittest discover -s tests` (#4).
+      broken: the total left out → AssertionError: 2 != 3 (#4)
+    ```
   - A grep is broken both ways: once with the thing it looks for put back (it must find it),
     once with a near miss it must not match (a longer name, a fully qualified form, a comment).
     In jobmatch-microservices, two of the paper's escapes were greps that matched too much or
@@ -71,7 +79,7 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
     `implementation` (the spec was right, the code did not do it), `process` (the workflow and
     the record around the code: branch names, Jira keys, a break run wrong, a track announced
     and never opened) or `environment` (tooling, CI, the machine, a library).
-  - `made:` the day whose merged work holds the defect (`Day 21`, or `none` for work outside any
+  - `made:` the day whose work holds the defect, merged or not (`Day 21`, or `none` for work outside any
     day). When it is not this day, the defect is an escape from that day, whatever `found:` says.
 
   One line per problem: the same kind of problem in two PRs is two lines, and a review of seven

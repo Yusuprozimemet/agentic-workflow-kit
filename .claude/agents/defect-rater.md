@@ -34,7 +34,7 @@ For each entry:
     wrong, a track announced and never opened;
   - `environment`: tooling, CI, the machine, a library;
   - `unclear`: the text does not let you choose.
-- `made`, the day whose merged work holds the defect: `this` (the entry's own day), `earlier`
+- `made`, the day whose work holds the defect, merged or not: `this` (the entry's own day), `earlier`
   (an earlier day), `none` (work outside any day), or `unclear`.
 - `mixed`: `true` if the entry holds problems of more than one cause.
 - `confidence`: `high`, `medium` or `low`.

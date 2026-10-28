@@ -8,7 +8,7 @@ land. The spec rules are in [`specs/README.md`](specs/README.md) and the templat
 rules do not state. [`docs/workflow.md`](docs/workflow.md) draws it.
 
 **Source of truth, when they disagree:** the code on `main` for what the system does; the merged
-spec for what a day promised; `plan.md` for the goal. The dashboard, <!-- PROJECT: the tracker, e.g. Jira --> and memory only record
+spec for what a day promised; `plan.md` for the goal. The dashboard, <!-- PROJECT: the tracker, e.g. Jira; with none, drop it and its comma --> and memory only record
 the others: correct them, never the other way round.
 
 ## Starting
@@ -64,6 +64,9 @@ Output that lands in the main session is re-read by every later reply. Keep it s
 
 - <!-- PROJECT: build and test --> and CI logs: filter to the failures and the counts (`grep`, `tail`), or have a
   subagent read them and return the summary. Never print a whole log or report.
+- Replies are the cost, more than their size: batch independent calls into one reply, and
+  checks into one shell command that prints one line per item. Wait for CI with
+  `gh pr checks <n> --watch > <file>`, then print only the final `gh pr checks <n>`.
 - Read the part of a file you need (`offset`/`limit`, `grep -n`), not the whole file, unless the
   step changes all of it. Diffs: `--stat` first, then the files that matter.
 
@@ -101,19 +104,25 @@ reviews the diff, runs the full checks in "Before pushing", breaks the code on p
 and writes the PR. Specs, audits, spec-change PRs and closing PRs stay with the main session. The
 implementer never commits or pushes.
 
+A brief that carries the spec's exact expected outputs lets the implementer finish in one pass.
+To see the new tests fail first without a Track 0 or an extra commit, stash the code change
+(`git stash push -- <the code's directory>`), run the new tests on `main`'s code, compare with
+what the spec says fails today, and `git stash pop`.
+
 ## Before pushing
 
 <!-- PROJECT: build and test commands: anything the tests start that must be built first, and
 every check CI runs that the local build does not -->
-- Delete <!-- PROJECT: test report directory --> first and read the reports, not the exit code. A stale report
-  from an earlier run looks like a pass.
+- Delete <!-- PROJECT: test report directory; with none, what to read instead, e.g. the runner's
+  "Ran N tests" and "OK" lines, and that N is the count the change should give --> first and read
+  the reports, not the exit code. A stale report from an earlier run looks like a pass.
 - A test that passes before and after a change proves nothing until it has been seen to fail.
   Break the code on purpose, run it, record what it reported, revert. The break never merges.
   Record it in one line, `broken: <what> → <what it reported>` (`specs/README.md`): the
   dashboard reads no other wording. `scripts/break.py` does one break this way and prints the
-  line: one exact replacement, the file's bytes put back, the command run without a shell, Maven
-  only with `clean`. Hand-run breaks here have half-applied, skipped the compile, never started
-  Maven, and lost unstaged work.
+  line: one exact replacement, the file's bytes put back, the command run without a shell, a build
+  only with `clean`. Hand-run breaks have half-applied, skipped the compile, never started the
+  build, and lost unstaged work.
 - The PR diff must stay under **400 changed lines** (CI: "Diff stays reviewable"). If it does not,
   split the PR along a line where each part stands alone. An `Oversized:` line in the
   description turns the failure into a warning. <!-- PROJECT: each time Oversized: was used,
@@ -128,7 +137,7 @@ every check CI runs that the local build does not -->
   new or longer wait, poll bound or timeout (`specs/README.md`); what may change around them -->
   That is the signal the spec's premise is wrong.
 - <!-- PROJECT: anything applied that must never be edited (e.g. migrations), and what to do
-  instead -->
+  instead; with none, delete this bullet -->
 - A criterion cannot be met as written. Record the departure; do not deviate silently.
 
 ## Where things live
@@ -141,8 +150,40 @@ and who creates them, the setup scripts -->
 
 ## Pitfalls this repository has already hit
 
-<!-- PROJECT: each pitfall this project has hit, one bullet each: what happened and
-what to do instead. Empty at the start. -->
+What a session learns goes here, not into the next session's prompt: every session reads this
+file. <!-- PROJECT: each pitfall this project has hit, one bullet each: what happened and
+what to do instead. The bullets below came from the kit's first copy; keep those that hold. -->
+
+On Windows, in Git Bash and PowerShell:
+
+- The working tree may be CRLF (`core.autocrlf`): check `git ls-files --eol`, and expect git to
+  rewrite a file it touches (a `git stash pop` does). Exact-string edits from a script fail on
+  CRLF: use the Edit tool, or normalise and write the ending back. A test that writes a file
+  writes bytes: text mode adds a carriage return and changes every count.
+- Long heredocs break in Git Bash, and PowerShell has none. Write commit messages and PR bodies
+  to a scratch file (`git commit -F`, `gh pr create --body-file`); give the maintainer one-line
+  commands, with any JSON in a file (`gh api --input <file>`).
+- The Write tool will not overwrite a file this session has not read, even one a shell made.
+
+Breaks on purpose:
+
+- Name the exact test, and check that the run failed: an error in the setup proves nothing.
+  Clear the language's caches first (Python: `PYTHONDONTWRITEBYTECODE=1`, no `__pycache__`).
+- Run the break, then copy its `broken:` line from what `scripts/break.py` printed. A line
+  written before the run differed from the report.
+
+The dashboard script and the PR checks:
+
+- `scripts/spec-drift.py` reads `main` by name: on a branch it shows `main`. To see a branch's
+  effect, clone into a scratch directory, merge the branch with `--no-ff`, and run there. Pass
+  `--cache <scratch>/c.json` by hand; `--build` and `--out` do not go together. Its output holds
+  an en dash: grep it with `grep -a`.
+- In a spec, put in backticks only identifiers, paths and commands; quote literal output. The gap
+  reads backticked snake_case and camelCase names as code.
+- Before pushing: `PR_BRANCH=<branch> PR_TITLE="<title>" python scripts/pr-names.py main HEAD`,
+  `git diff --numstat main...HEAD`, and `python scripts/check-links.py` on each Markdown file
+  touched. Re-read the PR body's counts and `broken:` lines. Never force-push without the
+  maintainer's OK.
 
 ## Commits and pull requests
 
