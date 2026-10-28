@@ -196,8 +196,10 @@ function oooNote(box) {
   box.insertAdjacentHTML("beforeend", `<p class="axis-note">* Day run out of number order: ${days.map(d => "D" + dd(d)).join(", ")}.</p>`);
 }
 // bands: [{ color, get: r => [lo, hi] }], shaded under the lines.
-function lineChart(box, { H, yMin, yMax, ticks, unit, series, bands, label, strip, digits = 1 }) {
+// empty: what the chart says instead, when no solid line has a point yet.
+function lineChart(box, { H, yMin, yMax, ticks, unit, series, bands, label, strip, digits = 1, empty }) {
   box.innerHTML = "";
+  if (empty && !series.some(s => !s.dash && R.some(r => s.get(r) != null))) { box.innerHTML = `<p class="load-error">${empty}</p>`; return; }
   const svg = el("svg", { viewBox: `0 0 ${LW} ${H}`, role: "img", "aria-label": label }, box);
   const ly = v => LP.t + (1 - (v - yMin) / (yMax - yMin)) * (H - LP.t - LP.b);
   ticks.forEach(t => {
@@ -234,6 +236,7 @@ function lineChart(box, { H, yMin, yMax, ticks, unit, series, bands, label, stri
   });
   series.forEach(s => {
     const pts = R.map((r, i) => [i, s.get(r)]).filter(p => p[1] != null);
+    if (!pts.length) return;
     el("polyline", { points: pts.map(([i, v]) => `${lx(i)},${ly(v)}`).join(" "), fill: "none", stroke: s.color, "stroke-width": s.dash ? 1.5 : 2, "stroke-linejoin": "round", "stroke-linecap": "round", ...(s.dash ? { "stroke-dasharray": "5 4" } : {}) }, svg);
     const v = s.get(R[sel]);
     if (v != null && !s.dash) el("circle", { cx: lx(sel), cy: ly(v), r: 5, fill: s.color, stroke: "var(--surface)", "stroke-width": 2 }, svg);
@@ -281,6 +284,7 @@ function drawLines() {
   lineChart(document.getElementById("moved"), {
     H: 190, yMin: 0, yMax: 100, ticks: steps(0, 100, 4), unit: "%", strip: false,
     label: "Share of the four services' main source lines under services/",
+    empty: "No service code yet: the share counts the Java packages in spec-drift.py's <code>SERVICE</code> map, and the code has none.",
     series: [{ name: "out", color: "var(--close)", get: r => movedShare(r) }],
   });
   lineChart(document.getElementById("churn"), {
@@ -294,6 +298,7 @@ function drawLines() {
   lineChart(document.getElementById("test-ratio"), {
     H: 200, yMin: 0, yMax: ratioMax, ticks: steps(0, ratioMax, ratioMax <= 6 ? ratioMax : 4),
     unit: "×", strip: false, digits: 2,
+    empty: `No ratio yet: it starts once ${RATIO_FROM.toLocaleString("en")} production lines have changed; ${(WORK.get(last).prod || 0).toLocaleString("en")} so far.`,
     label: "Test lines changed so far per production line changed so far",
     series: [
       { name: "one to one", color: "var(--muted)", dash: true, end: "1 : 1", get: () => 1 },
@@ -429,6 +434,7 @@ function drawPerDay() {
   box.innerHTML = "";
   const kinds = ["spec", "code", "close", "other"], H = 240, P = { l: 44, r: 16, t: 22, b: 30 };
   const days = DATA.days.filter(d => d.prs.length).sort((a, b) => rank(a.day) - rank(b.day));
+  if (!days.length) { box.innerHTML = '<p class="load-error">No day has a merged pull request yet: a PR counts for a day when its branch is <code>day-NN/…</code>.</p>'; return; }
   const count = (d, k) => d.prs.filter(p => p.kind === k).length;
   const yMax = Math.max(4, Math.ceil(Math.max(...days.map(d => d.prs.length)) / 4) * 4);
   const ly = v => P.t + (1 - v / yMax) * (H - P.t - P.b);

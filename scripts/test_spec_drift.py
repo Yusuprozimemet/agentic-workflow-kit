@@ -748,6 +748,42 @@ def page(rows, days=(), order=(), current_day=None):
     return out["eyebrow"], stat
 
 
+# Boots the page on a document whose elements keep what is drawn into them, and prints each box's
+# HTML, SVG included, and the error that stopped the page, if one did.
+DRAW = r"""
+const fs = require("fs"), vm = require("vm"), els = {};
+class El {
+  constructor(tag) { this.tag = tag; this.attrs = {}; this.kids = []; this.html = ""; this.style = {}; this.dataset = {}; }
+  setAttribute(k, v) { this.attrs[k] = String(v); }
+  appendChild(c) { this.kids.push(c); return c; }
+  set innerHTML(h) { this.html = String(h); this.kids = []; }
+  get innerHTML() { return this.html + this.kids.map(k => k.out()).join(""); }
+  set textContent(t) { this.innerHTML = t; }
+  get textContent() { return this.html; }
+  insertAdjacentHTML(_, h) { this.kids.push({ out: () => String(h) }); }
+  addEventListener() {} querySelectorAll() { return []; }
+  out() { return `<${this.tag}${Object.entries(this.attrs).map(([k, v]) => ` ${k}="${v}"`).join("")}>${this.innerHTML}</${this.tag}>`; }
+}
+const document = { getElementById: id => els[id] || (els[id] = new El("div")), createElementNS: (_, t) => new El(t),
+  querySelectorAll: () => [] };
+const ctx = vm.createContext({ document, window: {}, matchMedia: () => ({ matches: true }), DATA: JSON.parse(fs.readFileSync(0, "utf8")) });
+let error = null;
+try { vm.runInContext(fs.readFileSync(process.argv[1], "utf8") + "\nboot(DATA);", ctx); } catch (e) { error = e.message; }
+console.log(JSON.stringify({ error, panels: Object.fromEntries(Object.entries(els).map(([k, e]) => [k, e.innerHTML])) }));
+"""
+
+
+def drawn(rows, days=(), order=()):
+    """The error that stopped the page, or None, and the HTML each box holds."""
+    data = dict(now=dict(generated="2026-01-01T00:00", head="abc", last_pr=None, current_day=None,
+                         next_step="x", open_prs=[]), rows=rows, days=list(days), order=list(order),
+                files=[], removals=[], hand_offs=[], tokens=[], verification=[], infra=dict(runs=[], latest=None),
+                deployment=None, conclusion=dict(reads=[], measured=[]), origin_lines=0, vocab_size=0)
+    out = json.loads(subprocess.run(["node", "-e", DRAW, os.path.join(HERE, "..", "docs", "dashboard", "dashboard.js")],
+                                    input=json.dumps(data), capture_output=True, encoding="utf-8", check=True).stdout)
+    return out["error"], out["panels"]
+
+
 @unittest.skipUnless(shutil.which("node"), "needs node")
 class PageTest(unittest.TestCase):
     """The page's own counts, on a new repository: direct commits, flat gaps, days without specs."""
@@ -773,6 +809,20 @@ class PageTest(unittest.TestCase):
                 dict(a_day(29), status="cut")]
         eyebrow, _ = page([page_row(0, None, "origin", 50)], days, [12, 18, 17, 36, 40], current_day=12)
         self.assertIn("· Day 12 of 6 ·", eyebrow)
+
+    def test_a_short_history_draws_every_panel_or_says_why_not(self):
+        # The kit's main: direct commits, then PRs on no day branch; a flat gap, no service code,
+        # 54 test lines and no production lines, and two specs whose days have no PRs.
+        rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
+                for i, pr in enumerate([None, None, 1, 2])]
+        days = [dict(a_day(n), status="ready", phase=1, title="t", prs=[]) for n in (12, 36)]
+        error, panels = drawn(rows, days, [12, 36])
+        self.assertIsNone(error)
+        for box in ("deltas", "churn", "heat"):  # what each merge did to the gap; spec and code; corrections
+            self.assertIn("<svg", panels[box], box)
+        for box, why in (("moved", "No service code yet"), ("test-ratio", "No ratio yet"),
+                         ("perday", "No day has a merged pull request yet")):
+            self.assertIn(f'<p class="load-error">{why}', panels[box], box)
 
 
 def a_day(n, ticked=1, total=1, kinds=(), titles=()):

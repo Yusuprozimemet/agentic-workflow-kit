@@ -324,3 +324,46 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     - `broken: the eyebrow counts every commit after the first as a merged PR, as before → AssertionError: 'between days · 4 merged PRs' != 'between days · 2 merged PRs'`
     - `broken: byKind adds every row after the first, origin included, as before → AssertionError: '–' != '-100%'`
     - `broken: the day total is the days with specs, as before → AssertionError: '· Day 12 of 6 ·' not found in 'jobmatch-microservices · Day 12 of 3 · 0 merged PRs'`
+
+    **The throw, done in `dashboard/charts-on-short-history`.** `lineChart()` labelled each line's
+    end with `pts[pts.length - 1]`, and a series with no point has none: `TypeError: Cannot read
+    properties of undefined (reading '0')` at the label. On the kit's data it was "Service
+    boundaries" (`moved`): `placed` is `{}` on all 14 rows, since no `.java` file is in a package of
+    `SERVICE` (item 17), so the share is null throughout. "Tests per line of code" was next: the
+    ratio is null below 1,000 production lines, and the kit has 1. The throw came in `setSel()`, after
+    the `lines`, `cover` and `evidence-history` charts, so `moved`, `test-ratio`, `churn`, the
+    `placed` line, "What each merge did to the gap" and "Where the corrections landed" were not
+    drawn. In jobmatch's 432 rows every series of every chart has a point. "Pull requests per day"
+    was drawn before the throw, as bare axes: none of the kit's PRs is on a `day-NN/` branch.
+    - `lineChart()` skips a series with no point, as its bands already did.
+    - `lineChart()` takes `empty`, the text it shows in the page's empty-state line
+      (`<p class="load-error">`, as Tokens, Infrastructure and Deployment do) when no solid line
+      has a point. "Service boundaries" and "Tests per line of code" give one.
+    - "Pull requests per day" shows such a line when no day has a PR.
+    On the kit's data the six panels now read: three drawn (gap per merge, spec and code, the
+    corrections) and three empty-state lines (services, the ratio, PRs per day). On jobmatch's live
+    data, before and after, all 53 boxes the page writes hold the same HTML and SVG, byte for byte,
+    with no error (the page run in node on a DOM that keeps what is drawn, the selection at the
+    last merge). `PROJECT` stays open (items 2 and 23).
+    Tests: new `PageTest.test_a_short_history_draws_every_panel_or_says_why_not`, rows and days
+    shaped like the kit's; 75 tests, was 74.
+    - `broken: lineChart draws every series, as before, even one with no point → AssertionError: "Cannot read properties of undefined (reading '0')" is not None`
+    - `broken: lineChart draws bare axes when no solid line has a point → AssertionError: '<p class="load-error">No service code yet' not found in '<svg viewBox="0 0 1000 190" …' : moved`
+    - `broken: the per-day chart draws bare axes when no day has a PR → AssertionError: '<p class="load-error">No day has a merged pull request yet' not found in '<svg viewBox="0 0 1000 240" …' : perday`
+
+26. **Found with item 25's throw fixed; not changed.**
+    - **"Where the corrections landed" labels a commit with no PR `#null`:** its column labels
+      write `"#" + r.pr`, not `prLabel(r)`. The kit's direct commits are columns; jobmatch's only
+      such row is the first, which the heatmap leaves out.
+    - **The `placed` line under "Service boundaries" reads `At #3: ` and stops** when the selected
+      merge has no service code; the empty-state line above it says why. No jobmatch row has an
+      empty `placed` (0 of 432), so a fix would not change its page. Change, if wanted: write
+      nothing when `placed` is empty. Tests: no.
+    - **The page tests do not run on a PR that changes only the page.** "Dashboard metric tests"
+      (`spec-drift-tests.yml`) runs `test_spec_drift.py`, node included on `ubuntu-latest`, only when
+      a PR touches one of the files in its `PATHS`, and `docs/dashboard/dashboard.js` is not one.
+      Change, if wanted: add it to `PATHS`. Tests: no.
+    - **One failing chart still blanks every panel drawn after it.** Each `draw*()` runs in one
+      chain in `boot()` and `setSel()`; isolating each panel would keep a failure to its own box.
+      Not done: it is a change of design, and a `try`/`catch` per panel would also hide errors
+      unless it shows them.
