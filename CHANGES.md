@@ -367,3 +367,13 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
       chain in `boot()` and `setSel()`; isolating each panel would keep a failure to its own box.
       Not done: it is a change of design, and a `try`/`catch` per panel would also hide errors
       unless it shows them.
+
+27. **`.github/workflows/spec-drift-tests.yml`: the page tests now run on a PR that changes only
+    the page** (item 26, third bullet). `docs/dashboard/dashboard.js` is added to `PATHS`, written
+    as the other entries are: a `$`-anchored alternative with its dots escaped. Checked with the
+    job's own `grep -qE`: it matches `docs/dashboard/dashboard.js`, and not `dashboard.css`,
+    `index.html` or `xdocs/dashboard/dashboard.js`. No new step: the node page check is `PageTest`
+    in `test_spec_drift.py`, which the job already runs on `ubuntu-latest`, where node is
+    installed. A PR that changes this workflow runs the tests anyway, so this PR's own run does
+    not show the filter works; the first PR after it that changes only `dashboard.js` does.
+    **Done in `dashboard/panel-isolation`.**
