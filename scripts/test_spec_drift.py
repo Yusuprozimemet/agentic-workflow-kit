@@ -140,6 +140,12 @@ class SpecDriftTest(unittest.TestCase):
         self.repo.merge({"specs/day-01-x.md": DAY + "It calls `BazClient`.\n"})
         self.assertEqual(self.repo.rows()[1]["gap_full"], before)
 
+    def test_a_file_under_kit_is_tooling_and_not_code_the_gap_reads(self):
+        self.repo.merge({"src/Foo.java": "class FooService {}\n"})
+        rows = self.repo.merge({"kit/page/data.json": '{"names": "FooService bar_table bar_table bar_table"}\n'}).rows()
+        self.assertEqual(rows[2]["gap_full"], rows[1]["gap_full"])
+        self.assertEqual(rows[2]["work"], dict(spec=0, context=0, prod=0, test=0, tooling=1))
+
     def test_each_merge_counts_its_own_lines_by_box_and_a_move_only_what_changed(self):
         rows = self.repo.merge({"src/test/FooTest.java": "a\nb\n", "CLAUDE.md": "c\n", "specs/day-01-x.md": DAY + "d\n",
                                 "scripts/x.py": "e\n", "package-lock.json": "{}\n", "src/Big.java": "f\ng\nh\ni\n"}).rows()

@@ -276,6 +276,27 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
       `PHASES` (jobmatch's eight phase names, item 19) and `STOPS` (`[16, 20, 24, 28, 35]`,
       jobmatch's stopping points) are set in the page, not read from `plan.md`.
 
+75. **`scripts/spec-drift.py`: `kit/` read as the project's code.** Found on the kit's published
+    page after Batch 1: #7 moved the name-gap angle from 70.8° to 61.81°, its first move (item 23).
+    `code_counts()` greps every file but `*.md`, `data`, `screenshots`, `docs/dashboard` and
+    `package-lock.json`, so it read `kit/page/jobmatch-data.json`, jobmatch's data, full of
+    jobmatch's spec names, as code. `kit/` is the cleanup's tooling; a copy deletes it (item 72).
+    **Done in `dashboard/kit-out-of-gap`.** Each place `spec-drift.py` reads the tree:
+    - the gap's code side (`code_counts()`): `kit` excluded. On this repository #7's step is now
+      0 (70.8° before and after it), was -8.99; coverage and name coverage at #7 and #8 fall back
+      to #6's. No other row changes.
+    - work kinds (`work_kind()`): `kit/` was `prod`, which feeds "Production code" and the test
+      ratio; it is now `tooling`, as `scripts/` is: #7's 152 prod lines are tooling.
+    - code churn: kept. It counts `scripts/` and `.github/` too; `kit/` is changed code like them.
+    - hand-offs (`git grep` for `Day N`): kept. Only comment lines count; `kit/` has none, nor
+      has `scripts/live-checks.py`, which Batch 7 moves to `kit/jobmatch/`.
+    - service boundaries, test state, criterion scopes, spec files: kept. They read `.java`,
+      `specs/` and `plan.md`, or paths a spec names; none is under `kit/`.
+    The comparison stays 53 of 53: jobmatch's data is precomputed. Tests: new
+    `test_a_file_under_kit_is_tooling_and_not_code_the_gap_reads`; 82 tests, was 81.
+    - `broken: code_counts() greps kit/ as code, as before → AssertionError: 19.35 != 32.25`
+    - `broken: work_kind() puts kit/ in prod, as before → AssertionError: {'spec': 0, 'context': 0, 'prod': 1, 'test': 0, 'tooling': 0} != {'spec': 0, 'context': 0, 'prod': 0, 'test': 0, 'tooling': 1}`
+
 ## Found on GitHub
 
 24. **`scripts/spec-drift.py`: a planned day with no spec crashed the build.** The first push to
@@ -745,6 +766,7 @@ except the differences the PR names.
    **Done** in `dashboard/starter-bugs`, the three bugs (38, 39, 52), plus `token-usage.py` and
    `test_token_usage.py`. Item 45's error line was not in the maintainer's brief for this batch:
    not done, still open.
+   1b. **`kit/` out of the gap** (item 75). **Done** in `dashboard/kit-out-of-gap`.
 2. **Page constants into the data** (46, 47, 48) and the data-only fixes (43, 44). `spec-drift.py`,
    `dashboard.js`, `test_spec_drift.py`.
 3. **The project file** (41, 42, 55's workflow name): `spec-drift.config.json`, `spec-drift.py`,
