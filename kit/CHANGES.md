@@ -452,6 +452,16 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     `plan.md` (a missing file reads as empty): 26 snapshots, 0 days, next step "Every day is done.",
     and the page draws with no error and no failed panel. The templates' move is Batch 7b's.
     `broken: none → a move and four link targets; check-links.py: 0 of 4 broken`
+    **Done** in `dashboard/templates-in`, the second half: `templates/plan.template.md` → `plan.md`
+    by `git mv` (0 lines); `templates/spec.template.md` removed (its sha256 is
+    `specs/_template.md`'s), and `templates/` with it. Its two links resolve at the root (item 7: 2
+    of 2 broken before, 0 of 2 after). `test_spec_drift.py`'s template test reads `plan.md`, and
+    skips once it no longer starts `# <Project> plan`, so a project that fills its plan in does not
+    fail it. `meta.phases` `[]` → `["<name>", "<name>"]`; `meta.stops` stays `[]` and `days` 0,
+    because the list's days are `<NN>`: the roadmap shows its legend only and the next step still
+    says "Every day is done." Filled (Days 1, 2 and 3-5, as the test does), the roadmap draws both
+    `<name>` headings and the stop on Day 2.
+    `broken: the root plan.md's list item lost its stop mark → AssertionError: Tuples differ: ([], ([1, 2, 3, 4, 5], None)) != ([2], ([1, 2, 3, 4, 5], 2))`
 30. **D, root `CLAUDE.md`** (jobmatch's, 28 marker lines). Read by every session as instructions:
     the reason this session had to be told to ignore it. Proposal: move to `kit/jobmatch/`, and
     the template takes its place (item 29).
@@ -461,6 +471,11 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     that reads `kit/jobmatch/` gets jobmatch's rules again. Not changed (the proposal named the path);
     a name Claude Code does not load (for example `CLAUDE.jobmatch.md`) would avoid it.
     `broken: none → a move and five link targets; check-links.py: 0 of 6 broken`
+    **Done** in `dashboard/templates-in`, the second half: `templates/CLAUDE.template.md` →
+    `CLAUDE.md` by `git mv` (0 lines). Its links resolve at the root: 2 of 8 broken, was 8 of 8;
+    the two are item 7's `<!-- PROJECT: GitHub Pages URL -->` targets. Claude Code now loads the
+    template as the root instructions.
+    `broken: none → a move; check-links.py: 2 of 8 broken, item 7's placeholder targets`
 31. **D, `specs/day-12-jwt-issuance.md`, `specs/day-36-ecs-services.md`.** Read by `spec-drift.py`
     as days of this repository: the kit's page lists them as "ready" (item 23). Proposal: move to
     `kit/examples/`, where `spec-drift.py` does not look (it reads `specs/day-*`).
@@ -476,6 +491,11 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     `../specs/…` → `../../specs/…`, the texts kept. `conclusion()` reads a missing notebook as empty
     (`conclusion.reads` and `.measured` → `[]`). The headings-only notebook is Batch 7b's.
     `broken: none → a move and two link targets; check-links.py: 0 of 6 broken`
+    **Done** in `dashboard/templates-in`, the second half: a new `docs/lab-notebook.md` of the three
+    headings, the table's header row (`Question`, `Evidence it will be judged on`) and no rows.
+    `conclusion()` reads `reads` `[]` and `measured` `[]`, as with no file; the plan-auditor's
+    "Results to date" is there.
+    `broken: none → a new data file; conclusion() reads it as it read a missing one`
 33. **D, `docs/audit-findings.md`.** Read by the fourth `CAVEATS` line (item 43), `plan.md` and
     `specs/README.md`'s map (item 63). Proposal: move to `kit/jobmatch/`.
     **Done** in `dashboard/data-out`. `broken: none → a move; no link or script reads its path`
@@ -492,6 +512,9 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     so Batch 7b's `[]` is a new file at a free path. With none, `token_usage()` returns `[]` already
     (`tokens` 135 → 0) and the Tokens panel draws its empty state.
     `broken: none → a move; token_usage() reads a missing file as []`
+    **Done** in `dashboard/templates-in`, the second half: a new `docs/dashboard/token-usage.json`
+    holding `[]`; `tokens` stays `[]` and the Tokens panel its empty state.
+    `broken: none → a new data file; token_usage() reads [] as it read a missing file`
 36. **D, `docs/dashboard/deployment.json`.** `deployment()` returns None when absent, and the panel
     already says "Nothing deployed yet". Proposal: move to `kit/jobmatch/`.
     **Done** in `dashboard/data-out` (`deployment` → null). `broken: none → a move; deployment() reads a missing file as None`
@@ -969,6 +992,14 @@ except the differences the PR names.
    before (the move alone added 17). 53 of 53 boxes the same. 159 tests, was 157; `PageTest` 10
    of 10, was 9. For (b): `docs/workflow.md`'s `CLAUDE.md` and `plan.md` links point at the two
    templates until they move; (b) points them back at `../CLAUDE.md` and `../plan.md`.
+   (b) **Done** in `dashboard/templates-in`, in three commits: the two moves and the removal alone
+   (0 lines for the moves), then the two new files and the readers (`docs/workflow.md`'s two links,
+   README.md's two lines naming `templates/`, the template test's path), then this record, with
+   the `broken:` lines under items 29, 30, 32 and 35. On this repository, `spec-drift.py`'s output
+   with the PR merged differs in `meta.phases` (`[]` → `["<name>", "<name>"]`), beside the merge's
+   own `rows`, `now` and `meta.provenance.commit`. `check-links.py`: no file has more broken links
+   than before (`CLAUDE.md` 8 → 2, `plan.md` 2 → 0). 53 of 53 boxes the same. 159 tests;
+   `PageTest` 10 of 10.
 8. **The starter check and the README** (72, 73).
 
 ### 72. The starter check (step 3)

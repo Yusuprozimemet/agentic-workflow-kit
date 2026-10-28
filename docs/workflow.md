@@ -1,9 +1,9 @@
 # How the work runs
 
-The rules are in [`CLAUDE.md`](../templates/CLAUDE.template.md) and [`specs/README.md`](../specs/README.md). This page
+The rules are in [`CLAUDE.md`](../CLAUDE.md) and [`specs/README.md`](../specs/README.md). This page
 draws them: who does what, what triggers what, and how to start.
 
-Three layers have to agree. [`plan.md`](../templates/plan.template.md) is the goal, and changes rarely. The day specs
+Three layers have to agree. [`plan.md`](../plan.md) is the goal, and changes rarely. The day specs
 in [`specs/`](../specs/) are the steps. The code is where the steps land.
 
 ## Who does what
