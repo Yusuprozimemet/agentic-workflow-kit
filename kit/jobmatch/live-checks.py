@@ -3,7 +3,7 @@ and the redirect, the task ports closed to the internet, and a new user's path t
 Every check runs even after one fails; a check that needs an earlier result records a skip.
 Google sign-in (C35.17) is checked by hand, and C35.18-C35.20 are not this script's.
 
-    python scripts/live-checks.py --host <ALB DNS name or domain> [--insecure]
+    python kit/jobmatch/live-checks.py --host <ALB DNS name or domain> [--insecure]
                                   [--out docs/dashboard/deployment.json]
                                   [--task-ip IP ...] [--ports 3000,8080,8081,9090]
 

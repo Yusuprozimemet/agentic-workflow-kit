@@ -859,12 +859,12 @@ function drawInfra() {
     `<a class="run-sq" href="${esc(r.url)}" style="background:${tone(r.conclusion)}" title="${esc(`${r.sha} ${r.date} ${r.conclusion || "running"}`)}"></a>`).join("");
 }
 
-// The live checks of the one deployment (scripts/live-checks.py), each with the time it ran.
+// The live checks of the one deployment (the project's own; kit/jobmatch/live-checks.py is an example), each with the time it ran.
 function drawDeployment() {
   const D = DATA.deployment, C = D ? D.checks : [];
   const tone = ok => ok ? "var(--close)" : "var(--fail)";
   if (!D) {
-    document.getElementById("deployment-head").innerHTML = '<p class="load-error">Nothing deployed yet: the panel fills when scripts/live-checks.py has written docs/dashboard/deployment.json.</p>';
+    document.getElementById("deployment-head").innerHTML = '<p class="load-error">Nothing deployed yet: the panel fills when a live check has written docs/dashboard/deployment.json.</p>';
     document.getElementById("deployment-checks").innerHTML = "";
     return;
   }

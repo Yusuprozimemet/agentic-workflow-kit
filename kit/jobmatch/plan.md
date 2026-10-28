@@ -29,7 +29,7 @@ plan: the migration has ended (*Epilogue*, below).
 
 ## Epilogue
 
-Day 43 closed every row of [`docs/audit-findings.md`](docs/audit-findings.md): fixed in a track,
+Day 43 closed every row of [`docs/audit-findings.md`](audit-findings.md): fixed in a track,
 a known limit with its reason, the maintainer's own action, or rejected by the maintainer.
 identity-service took the other services' shape (one `pom.xml`, one `src/`,
 `identityservice.IdentityServiceApplication`), with the contract suite and V1–V16 moved as pure
@@ -71,7 +71,7 @@ from a fresh context. The maintainer chose:
   stay, marked cut, so history and links hold. Mail on AWS was Phase 6's (`mailer`); the deployed
   identity-service had no mail settings, a known limit.
 - **One close-out day, the last** (numbered after the last day). The audits' findings are its
-  backlog: [`docs/audit-findings.md`](docs/audit-findings.md) lists every one with its outcome,
+  backlog: [`docs/audit-findings.md`](audit-findings.md) lists every one with its outcome,
   either fixed in a track, a known limit with its reason, the maintainer's own action, or rejected
   by the maintainer. The day fixes what is fixable without an account; the plan-auditor then reads
   the whole plan, and checks that every row is closed or accepted.
@@ -450,7 +450,7 @@ the end, after the close-out day: 1.35× over 39 days (*Epilogue*).
 ## Day-by-day specs
 
 All seven phases, the platform step, the cleanup day and the close-out day are broken into 42
-day specs in [`specs/`](specs/). Read [`specs/README.md`](specs/README.md) for the workflow.
+day specs in [`specs/`](../../specs/). Read [`specs/README.md`](../../specs/README.md) for the workflow.
 
 Days 1-28, 32-36 and 38-43 (Phases 0-5 and 7, the platform step, the cleanup day and the
 close-out day) are done. Days 29-31 (Phase 6) are cut: Azure drafts written before the course

@@ -916,6 +916,13 @@ class PageProseTest(unittest.TestCase):
             page = f.read()
         self.assertEqual([m for m in self.MARKERS if m in page], [])
 
+    def test_every_script_it_names_is_in_the_repository(self):
+        # The deployment panel named scripts/live-checks.py after it moved to kit/jobmatch/.
+        with open(os.path.join(HERE, "..", "docs", "dashboard", "index.html"), encoding="utf-8") as f:
+            named = re.findall(r"<code>([\w.-]+/[\w./-]+\.py)</code>", f.read())  # a path, not a name like conftest.py
+        self.assertEqual([p for p in named if not os.path.exists(os.path.join(HERE, "..", p))], [])
+        self.assertIn("scripts/token-usage.py", named)  # the pattern still finds what the prose names
+
 
 @unittest.skipUnless(shutil.which("node"), "needs node")
 class PageTest(unittest.TestCase):
@@ -987,6 +994,14 @@ class PageTest(unittest.TestCase):
         _, panels, _ = drawn([page_row(0, None, "origin", 50)])
         self.assertIn("No service code yet: the share counts the packages under <code>services</code> in "
                       "<code>spec-drift.config.json</code>, and the code has none.", panels["moved"])
+
+    def test_with_nothing_deployed_the_panel_names_the_file_and_no_script(self):
+        # The live check is the project's own; jobmatch's moved to kit/jobmatch/ (CHANGES item 56).
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], deployment=None)
+        self.assertIsNone(error)
+        self.assertEqual(panels["deployment-head"], '<p class="load-error">Nothing deployed yet: the panel fills when '
+                                                    'a live check has written docs/dashboard/deployment.json.</p>')
+        self.assertEqual(panels["deployment-checks"], "")
 
     def test_the_name_phases_and_stops_come_from_the_data(self):
         days = [dict(a_day(n), status="ready", phase=p, title="t", prs=[]) for n, p in ((1, 0), (2, 0), (3, 1))]
