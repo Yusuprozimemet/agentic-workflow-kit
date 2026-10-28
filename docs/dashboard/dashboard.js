@@ -296,7 +296,7 @@ function drawLines() {
   });
   lineChart(document.getElementById("moved"), {
     H: 190, yMin: 0, yMax: 100, ticks: steps(0, 100, 4), unit: "%", strip: false,
-    label: "Share of the four services' main source lines under services/",
+    label: "Share of the services' main source lines in their own directories",
     empty: "No service code yet: the share counts the packages under <code>services</code> in <code>spec-drift.config.json</code>, and the code has none.",
     series: [{ name: "out", color: "var(--close)", get: r => movedShare(r) }],
   });

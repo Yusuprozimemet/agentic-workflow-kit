@@ -1077,6 +1077,8 @@ class PageTest(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(panels["placed"].split(": ", 1)[1],
                          "<b>billing</b> in place (120 lines) · <b>orders</b> 40 lines out, 30 still in place</p>")
+        self.assertEqual(re.search(r'aria-label="([^"]*)"', panels["moved"]).group(1),
+                         "Share of the services' main source lines in their own directories")
         self.assertIn("Starting point: the code and the plan written for it.", panels["readout"])
         self.assertIn('<tr title="Spec written before the evidence format">', panels["evidence"])
         self.assertEqual(panels["infra-head"], '<p class="load-error">No infra summary on main yet: '
