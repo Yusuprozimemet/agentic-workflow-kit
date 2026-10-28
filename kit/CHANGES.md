@@ -1024,6 +1024,8 @@ except the differences the PR names.
    files, each in (b)'s exemptions, and `README.md`'s 4, which (b) rewrites. 53 of 53 boxes the
    same; 159 tests.
    - `broken: service-wiring checks no scrape target → AssertionError: 0 != 1 : 0 misses over 1 services` (the renamed fixture still fails on a miss)
+   (b) **Done** in `dashboard/starter-check`, items 72 and 73, with the `broken:` lines under
+   them. 53 of 53 boxes the same; 160 tests, was 159; `PageTest` 11 of 11, was 10.
 
 ### 72. The starter check (step 3)
 
@@ -1049,6 +1051,28 @@ scripts above. The README tells the person copying to delete `kit/` (one `rm -r 
 marker search leaves it out. Excluding them would lose the record of what changed; keeping
 them at the root would put jobmatch's history in every project.
 
+**Done** in `dashboard/starter-check`, as Batch 8's Decision set it: `kit/starter-check.py`, not a
+shell script, the same on Windows and in Actions. It makes HEAD without `kit/` into a fresh
+repository (`git archive`, `git init -b main`, one commit) and runs steps 2-5 there; it prints a
+line per step and exits 1 on the first that fails, its last line naming it. Step 2 checks only that
+no `specs/day-*` is left: `plan.md` is the template since Batch 7b. Step 3 runs the copy's
+`spec-drift.py --build` with `--cache` in its temporary folder; stderr must be the one `NO_REMOTE`
+print (gh's reason in its brackets: one line with no remote, several with no token). With no infra
+workflow `infra()` asks gh nothing, and `verification()` reads no runs as none. Step 4 is
+`drawn(page=)` (a keyword: the page's inlined `dashboard.js` draws its `window.SPEC_DRIFT` line,
+JSON reading fill()'s `<\/` as `/`; the fixture data moved into `page_data()`), with the new
+`PageTest.test_a_built_page_draws_the_data_inlined_in_it`. Step 5 is the list above, `git grep
+-niE`, with Batch 8's exemptions in `EXEMPT`, path by path with a reason each, and
+`PageProseTest.MARKERS` by the lines of its assignment (read with `ast`). On this repository: 43
+files, 47 boxes drawn, no hit; before the README's rewrite, step 5 named `README.md` (4 lines).
+The job, "The starter names no project" in `spec-drift-tests.yml`, runs on every PR, outside the
+`changes` job's `PATHS` and the gate's `needs`: not required until the branch rules name it. Its
+step is skipped when `kit/starter-check.py` is absent, or a project copied from the kit would fail
+it on every PR.
+- `broken: the starter check no longer exempts scripts/break.py → 5. failed: 4 lines in 1 files name the source project: scripts/break.py`
+- `broken: the starter check exempts none of PageProseTest.MARKERS's lines → 5. failed: 2 lines in 1 files name the source project: scripts/test_spec_drift.py`
+- `broken: drawn(page=) reads the page's script but draws its fixture data, not the page's → AssertionError: Tuples differ: ("Cannot read properties of undefined (rea[48 chars], []) != (None, {'tip': '', 'stats': '\n  <div clas[20074 chars], [])`
+
 ### 73. What the README tells the person copying
 
 - Copy the folder, `rm -r kit`, `git init -b main` (the branch must be `main`, item 45).
@@ -1062,6 +1086,14 @@ them at the root would put jobmatch's history in every project.
 - Locally: Python with `numpy`, `node` for the page tests, `gh` logged in.
 - Keep the project in a folder whose name does not start another's (item 52), until that is
   fixed.
+
+**Done** in `dashboard/starter-check`: `README.md` rewritten for the person copying, the bullets
+above as steps, the five required checks by their current names, and `kit/` described as this
+repository's record, its source-project folder named without its name (the marker search reads
+the README). The last bullet is dropped: item 52's fix holds (`TranscriptsTest` passes). `JIRA_KEY`
+is an instruction (add `JIRA_KEY: ${{ vars.JIRA_KEY }}` to "Compare the names"): `pr-checks.yml`
+passes none today, and no Decision changes it here. `check-links.py`: 0 of 8 broken, was 0 of 9.
+- `broken: none → text only; the starter check's step 5 reads it, and named it (4 lines) before the rewrite`
 
 ### 74. What the pilot (step 4) must exercise
 
