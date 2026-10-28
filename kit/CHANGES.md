@@ -1292,6 +1292,38 @@ tests call, so `break.py` ran on itself without its lock in the way.
 - `broken: not_run() finds nothing → AssertionError: None != '<3>WSL (9) ERROR: CreateProcessCommon:55[51 chars]tory'`
 - `broken: caught() judges by the exit code with --expect-stdout → AssertionError: True is not false`
 
+**Days 2-5, the text** (`dashboard/pilot-days-docs`). E-K, findings 33-39 in the pilot notes,
+from the same Notes and PR #20.
+
+- **E, new tests seen red first, as a rule** (Day 4 and Day 5 Notes, finding 33). CLAUDE.md's
+  stash method was prose: tracks #15 and #18 recorded their breaks but not their new tests
+  failing on the code before the day, and each close ran it (`found: close`, twice). Now
+  specs/README.md's `new` bullet asks the track PR for it and the close's Evidence for "seen red
+  first on `<sha>`'s code" (the template's `new` line shows it), CLAUDE.md "The implementer"
+  says every track PR shows it, and the PR template has a self-check line.
+- **F, re-count the implementer's numbers** (Day 4 Notes, finding 34). Its report said a list
+  held 40 words; it held 45, caught in review. CLAUDE.md "The implementer" says to re-count; the
+  implementer's report gets a "Numbers" line and the PR template a self-check line.
+- **G, the two tags with an example each** (Day 2 and Day 3 Notes, finding 35). A catch in the
+  spec-change PR is `found: spec-change PR`, not `self`; the implementer's own draft is `made:
+  Day NN`, not `none`. Days 1 and 3 wrote both wrong and Day 2 the first; the rater corrected
+  each. In specs/README.md, after the three fields.
+- **H, `diff --strip-trailing-cr`** (Day 2, C2.4 and its Defect, finding 36). `git show`'s LF
+  lines against the CRLF tree counted 109 removed. Added to the CLAUDE template's CRLF Pitfall.
+- **I, a check that bites on one system only** (Day 2 and Day 4 Notes, finding 37): the
+  criterion says a local run there guards it, not CI. specs/README.md.
+- **J, a diff base is a fixed SHA** (Day 2 Defect, Day 3 Notes, finding 38): `main` is the
+  change once the track merges. specs/README.md, and the template's Verify placeholder.
+- **K, parsed JSON; one Defect line per problem** (Day 5 and Day 2 Notes, finding 39). A Windows
+  path in JSON is escaped, so Day 5 compared parsed objects: specs/README.md and a Windows
+  Pitfall. Day 2 wrote the auditor's three findings as one line and split them at the close:
+  specs/README.md's "one line per problem" names that case.
+
+Tests: none; no test reads these files. `kit/starter-check.py` 5 of 5 and `kit/compare-page.py`
+54 of 54, before and after.
+
+- `broken: none → text only`
+
 ### Open questions
 
 All decided by the maintainer in the Batch 0 PR, each under its item: 47, 48, 49, 52, 55,

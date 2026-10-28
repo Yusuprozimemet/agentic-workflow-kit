@@ -105,9 +105,13 @@ and writes the PR. Specs, audits, spec-change PRs and closing PRs stay with the 
 implementer never commits or pushes.
 
 A brief that carries the spec's exact expected outputs lets the implementer finish in one pass.
-To see the new tests fail first without a Track 0 or an extra commit, stash the code change
-(`git stash push -- <the code's directory>`), run the new tests on `main`'s code, compare with
-what the spec says fails today, and `git stash pop`.
+Every track PR shows its new tests failing first (`specs/README.md`); without a Track 0 or an
+extra commit, stash the code change (`git stash push -- <the code's directory>`), run the new
+tests on `main`'s code, compare with what the spec says fails today, `git stash pop`, and put
+what they reported in the PR.
+
+Re-count any number the implementer reports (lines, tests, entries in a file) before it goes in
+a PR: in wordtally, Day 4's report said a list held 40 words; it held 45.
 
 ## Before pushing
 
@@ -159,7 +163,9 @@ On Windows, in Git Bash and PowerShell:
 - The working tree may be CRLF (`core.autocrlf`): check `git ls-files --eol`, and expect git to
   rewrite a file it touches (a `git stash pop` does). Exact-string edits from a script fail on
   CRLF: use the Edit tool, or normalise and write the ending back. A test that writes a file
-  writes bytes: text mode adds a carriage return and changes every count.
+  writes bytes: text mode adds a carriage return and changes every count. `git show <sha>:<file>`
+  prints LF: diffed against the CRLF tree, every line differs, so use `diff --strip-trailing-cr`.
+- A path in JSON has its backslashes escaped: compare the parsed object, not the string.
 - Long heredocs break in Git Bash, and PowerShell has none. Write commit messages and PR bodies
   to a scratch file (`git commit -F`, `gh pr create --body-file`); give the maintainer one-line
   commands, with any JSON in a file (`gh api --input <file>`).
