@@ -15,8 +15,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "service-wiring.py")
 
 COMPOSE = """services:
-  job-service:
-    build: ./services/job-service
+  account-service:
+    build: ./services/account-service
     healthcheck:
       test: ["CMD", "true"]
       start_period: 120s
@@ -24,9 +24,9 @@ COMPOSE = """services:
     image: postgres:16
 """
 PROMETHEUS = """scrape_configs:
-  - job_name: jobmatch-job-service
+  - job_name: example-account-service
     static_configs:
-      - targets: ["job-service:9090"]
+      - targets: ["account-service:9090"]
 """
 APPLICATION = "management:\n  server:\n    port: ${MANAGEMENT_PORT:9090}\n"
 
@@ -35,8 +35,8 @@ class ServiceWiringTest(unittest.TestCase):
     def tree(self, compose=COMPOSE, prometheus=PROMETHEUS, application=APPLICATION, extra=None):
         root = tempfile.mkdtemp()
         files = {"docker-compose.yml": compose, "observability/prometheus.yml": prometheus,
-                 "services/job-service/Dockerfile": "FROM eclipse-temurin:21\n",
-                 "services/job-service/src/main/resources/application.yaml": application, **(extra or {})}
+                 "services/account-service/Dockerfile": "FROM eclipse-temurin:21\n",
+                 "services/account-service/src/main/resources/application.yaml": application, **(extra or {})}
         for path, text in files.items():
             os.makedirs(os.path.dirname(os.path.join(root, path)), exist_ok=True)
             with open(os.path.join(root, path), "w", encoding="utf-8") as f:
@@ -54,7 +54,7 @@ class ServiceWiringTest(unittest.TestCase):
 
     def test_a_service_with_no_scrape_target_is_a_miss(self):
         # D22-012 and D28-075: the new service's scrape job was never added.
-        self.assertMiss(self.tree(prometheus="scrape_configs: []\n"), "no target job-service:9090")
+        self.assertMiss(self.tree(prometheus="scrape_configs: []\n"), "no target account-service:9090")
 
     def test_a_short_or_missing_start_period_is_a_miss(self):
         # D28-077: 30 s, against a 39 s start.
@@ -68,10 +68,10 @@ class ServiceWiringTest(unittest.TestCase):
         self.assertMiss(self.tree(compose=COMPOSE.replace('test: ["CMD", "true"]', "disable: true")), "has no healthcheck")
 
     def test_a_service_compose_does_not_build_is_a_miss(self):
-        self.assertMiss(self.tree(compose=COMPOSE.replace("./services/job-service", "./services/other")),
-                        "no service in docker-compose.yml is built from services/job-service")
+        self.assertMiss(self.tree(compose=COMPOSE.replace("./services/account-service", "./services/other")),
+                        "no service in docker-compose.yml is built from services/account-service")
         # A build given as a context is the same build.
-        context = COMPOSE.replace("build: ./services/job-service", "build:\n      context: ./services/job-service")
+        context = COMPOSE.replace("build: ./services/account-service", "build:\n      context: ./services/account-service")
         self.assertEqual(self.tree(compose=context).returncode, 0)
 
     def test_an_actuator_on_another_port_is_a_miss(self):

@@ -58,7 +58,7 @@ def services(root):
 
 
 def built_from(entry):
-    """The directory a compose service is built from, normalised (`services/job-service`)."""
+    """The directory a compose service is built from, normalised (`services/account-service`)."""
     build = entry.get("build")
     context = build.get("context") if isinstance(build, dict) else build
     return os.path.normpath(context).replace(os.sep, "/") if context else None
