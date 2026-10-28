@@ -267,3 +267,22 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
       kind `origin` (line 399), and the eyebrow counts `N - 1` snapshots as merged PRs: "1 merged
       PRs" with none.
     - **Empty panels:** with no PRs, "Share of the gap closed by the spec" shows `NaN%`.
+
+## Found on GitHub
+
+24. **`scripts/spec-drift.py`: a planned day with no spec crashed the build.** The first push to
+    `main` failed Dashboard's "Build the page": `KeyError: 18` in `next_step()`
+    (`by_day[d]["status"]`). The kit's `plan.md` is jobmatch's; its run order lists Days 17-43 and
+    only Days 12 and 36 have specs, so a planned day had no `by_day` entry. It reproduced locally,
+    with the remote and without; the Batch 5 scratch run used a toy plan whose days all had specs.
+    Any new project hits it: plan.md lists days before their specs are written. `settle()` had the
+    same lookup for the first unfinished day; in the kit Day 12 comes first, so it did not crash
+    there. Tests: no.
+    **Done in `dashboard/planned-day-without-spec`:** `settle()` stops at a planned day not in
+    `by_day`, as at a placeholder, so no day is active and the page shows "between days".
+    `next_step()` counts it unfinished; when it is next, the step reads `Day NN: write its day spec
+    (plan.md lists it, specs/ has none)`. Other days unchanged. New test
+    `test_a_planned_day_without_a_spec_is_next_to_write`. A planned day skipped for good still
+    reads as next until plan.md drops it or marks it **cut**.
+    - `broken: next_step() looks up every planned day in by_day, as before → FAILED (errors=1)`
+    - `broken: settle() looks up the first unfinished planned day in by_day, as before → FAILED (errors=1)`
