@@ -1168,6 +1168,52 @@ step 4 cannot be broken against a fixed HEAD: its red run is the one on `main` a
 - `broken: the share heading claims with no gap closed → AssertionError: Lists differ: ['No day reached yet'] != ['No gap has closed yet', 'No day reached yet']`
 - `broken: many() plural for one → AssertionError: Lists differ: ['1 spec-change PRs', '1 code PRs', '1 days', '1 spec-change PRs', '1 code PRs'] != []`
 
+**The scripts** (`dashboard/pilot-findings-scripts`):
+
+- **`break.py`, finding 11: git's warning is not the report.** A `git diff --exit-code` check on
+  Windows ends with "warning: in the working copy of …, LF will be replaced by CRLF" on stderr,
+  and that was the line reported. `reported()` skips lines starting `warning: `.
+- **Finding 14: options in the command.** `-- python -m unittest …` needed the `--`, and the
+  help showed only `command [command ...]`. The command is `argparse.REMAINDER`: everything from
+  its first word on is the command's; a leading `--` is dropped, so the old calls still work. The
+  docstring shows a call.
+- **Finding 15: an arrow in `--what`.** `BREAK_LINE` reads `<what>` up to the first arrow, so
+  "if not paths: → if False:" was cut on the page (wordtally PR #1 recorded two such lines before
+  break.py was ever the cause). `break.py` refuses `→` or `->` in `--what` before it changes anything.
+- **Finding 16: no local path in the line.** A report quoting a temporary file carried
+  `…\\AppData\\Local\\Temp\\tmp…` into the PR. `untemp()` writes the temp directory (as a path,
+  a repr, or with `/`) and any of tempfile's `tmp` + 8 names, the path before it, as `<tmp>`.
+- **`spec-drift.py`, finding 2: before the first commit.** `provenance()` ran `git rev-parse HEAD`
+  with `check=True`, which exits 128 in a repository with no commit; its commit is now None.
+- **Finding 19: Python tests** (the maintainer's decision: Python support in `test_state`). It
+  found a test only in a `.java`/`.kt` file named after its class, so every `CliTest.test_…` in
+  `tests/test_cli.py` read "missing" and fell out of a finished day's evidence. A `.py` file on
+  `TEST_PATH` now holds each class it defines (`PY_CLASS`); `@unittest.skip…` and
+  `@pytest.mark.skip…` make it skippable, as `@Disabled` does a Java class.
+- **Finding 24: a Note citing its hand-off.** Any Notes item with the day's ID was read as a
+  hand-off, so wordtally's "… (H1.2)." listed H1.2 a second time. An item with its day's ID is a
+  hand-off only when it is a `Hand-off` line (`HAND_OFF_LINE`, the form specs/README.md and the
+  template give); one that only cites it is passed over.
+- **Finding 27: the rules are not a spec** (the maintainer's decision: out of the vocabulary). 5
+  of the 8 spec names wordtally's code "missed" were the source project's examples in
+  specs/README.md and specs/_template.md. `trajectory()` leaves both out (`NOT_SPECS`).
+
+Tests: 4 in `test_break.py` and 4 in `test_spec_drift.py`, each failing on `main` first (on
+`main`'s spec-drift.py the provenance test errors, the other three fail). `kit/compare-page.py`:
+54 of 54 boxes the same, before and after; the source project's data has no Python test, no
+citing Note and no specs/README.md, so no box moves. break.py's own breaks ran on a copy of it in
+a scratch folder: the break's lock would have refused every run of the file under it. The fourth
+line shows the fix at work: the outer run wrote the temp path the inner test printed as `<tmp>`.
+
+- `broken: break.py's reported() reads git's warning lines again → AssertionError: "broken: the guard removed → warning: in [51 chars]CRLF" != 'broken: the guard removed → 1 file chang[14 chars]n(+)'`
+- `broken: break.py's command back to nargs="+" → AssertionError: expected ok but was broken') if 'broken' in t else print('1 passed')`
+- `broken: break.py's arrow refusal switched off → AssertionError: 0 != 2 : if not paths: → if False:`
+- `broken: break.py's untemp() left out of the line → AssertionError: '<tmp>' unexpectedly found in "broken: the guard removed → AssertionError: '<tmp>\\\\a.txt' != '[27 chars]<tmp>\\\\a.txt' in <tmp>\\a.txt"`
+- `broken: provenance() runs git rev-parse HEAD with check=True again → FAILED (errors=1)`
+- `broken: test_state() reads no Python test file → AssertionError: {'CliTest': 'missing', 'RuleTest.test_word': 'missing'[87 chars]ing'} != {'CliTest': 'present', 'CliTest.test_counts': 'present[89 chars]ing'}`
+- `broken: hand_offs() takes a Notes item citing its day's ID as a hand-off → AssertionError: Lists differ: [(3, 'H01.2', 'The conditio'), (3, 'H01.2', '**Hand-off**')] != [(3, 'H01.2', '**Hand-off**')]`
+- `broken: trajectory() reads specs/README.md and specs/_template.md as specs → AssertionError: 5 != 2`
+
 ### Open questions
 
 All decided by the maintainer in the Batch 0 PR, each under its item: 47, 48, 49, 52, 55,
