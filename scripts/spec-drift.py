@@ -21,9 +21,15 @@ but the code keeps counts against it). Names kept: that other direction alone, h
 specs once used and have dropped that the code still has. Names retired: of the names the specs
 use that the code lacks, those it had at an earlier merge.
 
-Boundaries: for plan.md's four services, how much of their main source has left the monolith for
-services/, and how many imports still cross from one service's packages into another's. Both are
-read from the tree, like the gap; neither depends on what a day ticked.
+Boundaries: for the services the project file names, how much of their main source has left the
+monolith for services/, and how many imports still cross from one service's packages into
+another's. Both are read from the tree, like the gap; neither depends on what a day ticked.
+
+The project file, spec-drift.config.json at the root, holds what git cannot tell about this
+repository, every field optional: tests renamed to another stem and directories moved, by PR
+(`renamed`, `moved`: [pr, old, new]), the directories a Verify block may cd into (`verify_bases`),
+the packages each service takes under `package_root` (`services`), and the infra workflow's file
+(`infra_workflow`; none, and gh is not asked for its runs).
 """
 import argparse
 import collections
@@ -66,22 +72,40 @@ BREAK_LINE_FROM_PR = 0  # PROJECT: the first PR asked for the broken: line; 0 fo
 SKIPPABLE = re.compile(r"@Disabled\b|@(?:Enabled|Disabled)If")
 ON_PROPERTY = re.compile(r'@EnabledIfSystemProperty\(\s*named\s*=\s*"([^"]+)"\s*,\s*matches\s*=\s*"true"\s*\)')
 CI_PROPERTY = re.compile(r"-D([\w.-]+)=true\b")
+CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "spec-drift.config.json")
+
+
+def project_config(path=CONFIG_FILE):
+    """The project file's values by the names this script reads them under; with no file, or no
+    field, nothing is renamed, moved or a service's, Verify reads from the root, and no infra."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            c = json.load(f)
+    except FileNotFoundError:
+        c = {}
+    root = c.get("package_root", "")
+    return dict(RENAMED={n: (old, new) for n, old, new in c.get("renamed", [])},
+                MOVED=[tuple(m) for m in c.get("moved", [])],
+                VERIFY_BASES=(*c.get("verify_bases", []), ""),
+                SERVICE=c.get("services", {}),
+                OWN_PACKAGE=re.compile(rf"(?:^|/)src/main/java/{re.escape(root.replace('.', '/'))}/([a-z]+)/"),
+                IMPORT=re.compile(rf"^import\s+(?:static\s+)?{re.escape(root)}\.([a-z]+)\.", re.M),
+                INFRA_WORKFLOW=c.get("infra_workflow", ""))
+
+
+CONFIG = project_config()
 # Tests that moved to a class of another stem, which moves() cannot tell by name: the PR that
 # completed the move, and (old, new). Both kept every test method's name.
-RENAMED = {296: ("ApplicationsUserDeletedConsumerIT", "UserDeletedConsumerTest"),  # Day 25 E1a
-           298: ("CircuitBreakerIT", "PostingLookupBreakerTest")}  # Day 25 E1b
+RENAMED = CONFIG["RENAMED"]
 # A removal check: a grep a criterion says prints nothing ("`grep ...` returns nothing", "gives 0"),
 # or a Verify line that echoes when it does (`grep ... || echo "clean"`).
 GREP_SAYS_NOTHING = re.compile(r"`(grep [^`]+)`[^.]{0,40}?\b(?:returns|prints|finds|gives) (?:nothing|0)\b")
 GREP_OR_ECHO = re.compile(r"^(grep\s.+?)\s*\|\|\s*echo\b", re.M)
 # Directories that moved, by the merge that moved them, in order. A removal check's paths follow
-# them: Day 08's grep of backend/jobs/src/ reads job-service's code once #174 has moved it there.
-MOVED = [(174, "backend/jobs", "services/job-service"),  # Day 17 D1
-         (224, "backend/matching", "services/matching-service"),  # Day 21 E1a
-         (296, "backend/applications", "services/application-service"),  # Day 25 E1a
-         (315, "backend", "services/identity-service"),  # Day 28 A1
-         (416, "services/identity-service/docs", "docs/system"),  # Day 43 D1
-         (419, "services/identity-service/app", "services/identity-service")]  # Day 43 F2
+# them: a grep of core/stock/src/ reads stock-service's code once the PR that moved it has merged.
+MOVED = CONFIG["MOVED"]
+# Where a Verify block's paths are read from, the root last: the one under which they find most.
+VERIFY_BASES = CONFIG["VERIFY_BASES"]
 # The most lines of one check's finds on main that the page lists.
 FOUND_SHOWN = 10
 # "Day 17", "Days 18-19", "Days 19, 21 and 24": the days a sentence names.
@@ -103,13 +127,12 @@ CLEANUP = "cleanup"
 # The close-out day after Phase 7 (plan.md, "Phase 7 outcome"), numbered after the last day too.
 CLOSEOUT = "close-out"
 PLACEHOLDERS = (PLATFORM, CLEANUP, CLOSEOUT)
-# plan.md's target services ("Target repo structure"), by the monolith packages each one takes.
-# shared, config and the gateway are no service's, so depending on them crosses nothing.
-SERVICE = dict(auth="identity", user="identity", profile="identity", identity="identity",
-               jobs="jobs", mart="jobs", savedjobs="applications", applications="applications",
-               matching="matching")
-OWN_PACKAGE = re.compile(r"(?:^|/)src/main/java/nl/hackyourfuture/project/backend/([a-z]+)/")
-IMPORT = re.compile(r"^import\s+(?:static\s+)?nl\.hackyourfuture\.project\.backend\.([a-z]+)\.", re.M)
+# The target services, by the monolith packages each one takes under the package root. A package
+# no service takes is no service's, so depending on it crosses nothing.
+SERVICE = CONFIG["SERVICE"]
+OWN_PACKAGE = CONFIG["OWN_PACKAGE"]
+IMPORT = CONFIG["IMPORT"]
+INFRA_WORKFLOW = CONFIG["INFRA_WORKFLOW"]
 FINISHED = ("done", "closed")
 CHANCE_DRAWS = 1000
 # The most gh is asked for: a list that comes back this long may have been cut, and nothing else says so.
@@ -507,7 +530,7 @@ def trajectory(snaps, blobs, order=()):
 
 
 def boundaries(rows, snaps, blobs):
-    """At each merge, for plan.md's four services: the lines of main source still in the monolith
+    """At each merge, for the project file's services: the lines of main source still in the monolith
     and in the service's own directory under services/, and the imports where one service's
     package reaches into another's ("matching>identity"). Tests are left out, as a test may
     assemble modules; a fully qualified name used without an import is not seen."""
@@ -932,11 +955,11 @@ def follow(scope, moves):
     return out
 
 
-def removal_history(days, snaps, blobs, moved=MOVED):
+def removal_history(days, snaps, blobs, moved=None):
     """Each finished day's removal checks, run at every merge from the day's end: the files each
-    reads, the lines it finds, and on the last merge which lines. Paths are read from backend/,
-    where most Verify blocks cd, or from the root when more of them exist there (Day 16 names
-    backend/docs/), and follow the directories that moved. A check that reads no files prints
+    reads, the lines it finds, and on the last merge which lines. Paths are read from the Verify
+    base under which more of them exist, the first on a tie, and follow the directories that moved
+    (MOVED, unless given). A check that reads no files prints
     nothing too, so the files are counted. Blobs are counted once, by id."""
     checks = [dict(day=d["day"], cmd=cmd, since=d["ended_at"], rule=grep_rule(cmd), hits=[], files=[], found=[])
               for d in days if "ended_at" in d for cmd in d["removal_checks"]]
@@ -947,14 +970,14 @@ def removal_history(days, snaps, blobs, moved=MOVED):
         live = [c for c in checks if c["since"] <= i]
         if not live:
             continue
-        moves = [(old, new) for n, old, new in moved if pr_at.get(n, len(snaps)) <= i]
+        moves = [(old, new) for n, old, new in (MOVED if moved is None else moved) if pr_at.get(n, len(snaps)) <= i]
         scopes_from = lambda b, paths: [f for p in paths for f in follow(posixpath.normpath(posixpath.join(b, p)), moves)]
         tree = [(meta.split()[2], path) for meta, path in (line.split("\t", 1) for line in
                 at_commits("ls-tree", "-r", s["sha"]).splitlines()) if meta.split()[1] == "blob"]
         for c in live:
             rx, paths, include = c["rule"]
             if "base" not in c:
-                c["base"] = max(("backend", ""), key=lambda b: sum(
+                c["base"] = max(VERIFY_BASES, key=lambda b: sum(
                     any(in_scope(f, sc) for _, f in tree) for sc in scopes_from(b, paths)))
             scopes = scopes_from(c["base"], paths)
             n = files = 0
@@ -1087,11 +1110,13 @@ def infra_summary(run_id):
             return None
 
 
-def infra():
-    """infra-ci's runs on main, and the summary of the newest completed run whose artifact downloads
-    (artifacts expire, so an old run may have none)."""
+def infra(workflow):
+    """The infra workflow's runs on main, and the summary of the newest completed run whose artifact
+    downloads (artifacts expire, so an old run may have none). With no workflow, none: gh is not asked."""
+    if not workflow:
+        return dict(runs=[], latest=None)
     try:
-        listed = json.loads(run("gh", "run", "list", "--workflow", "infra-ci.yaml", "--branch", "main",
+        listed = json.loads(run("gh", "run", "list", "--workflow", workflow, "--branch", "main",
                                 "--event", "push", "--limit", "30",
                                 "--json", "databaseId,headSha,conclusion,createdAt,url"))
     except subprocess.CalledProcessError:
@@ -1249,7 +1274,7 @@ def main():
                                hand_offs=hand_offs(days, order, snaps[-1]["sha"], blobs),
                                vocab_size=vocab, tokens=token_usage(),
                                verification=verification(prs, runs),
-                               infra=infra(),
+                               infra=infra(INFRA_WORKFLOW),
                                deployment=deployment(),
                                conclusion=conclusion(blobs.read(snaps[-1]["sha"], "docs/lab-notebook.md")),
                                meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance(),
