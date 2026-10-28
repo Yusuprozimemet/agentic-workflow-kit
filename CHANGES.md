@@ -367,3 +367,30 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
       chain in `boot()` and `setSel()`; isolating each panel would keep a failure to its own box.
       Not done: it is a change of design, and a `try`/`catch` per panel would also hide errors
       unless it shows them.
+
+27. **`.github/workflows/spec-drift-tests.yml`: the page tests now run on a PR that changes only
+    the page** (item 26, third bullet). `docs/dashboard/dashboard.js` is added to `PATHS`, written
+    as the other entries are: a `$`-anchored alternative with its dots escaped. Checked with the
+    job's own `grep -qE`: it matches `docs/dashboard/dashboard.js`, and not `dashboard.css`,
+    `index.html` or `xdocs/dashboard/dashboard.js`. No new step: the node page check is `PageTest`
+    in `test_spec_drift.py`, which the job already runs on `ubuntu-latest`, where node is
+    installed. A PR that changes this workflow runs the tests anyway, so this PR's own run does
+    not show the filter works; the first PR after it that changes only `dashboard.js` does.
+    **Done in `dashboard/panel-isolation`.**
+
+28. **`docs/dashboard/dashboard.js`: each panel draws on its own** (item 26, fourth bullet). The
+    two places the panels are called in order, the end of `boot()` and `setSel()`, call each
+    `draw*()` through `panel(id, draw)`. When one throws, `panel()` sends the error to
+    `console.error` and writes `This panel failed: <message>` into the panel's first box, in the
+    page's empty-state line (`class="load-error"`; a `<caption>` when the box is a table, `tbl`),
+    and the panels after it still draw. A panel is one `draw*()`, as the calls already split them:
+    a throw in one of `drawLines()`'s seven charts replaces its first box, `lines`. The chart
+    functions are not changed.
+    On jobmatch's live data, before and after, all 53 boxes hold the same HTML and SVG, byte for
+    byte, with no error and nothing logged.
+    Tests: `DRAW` gives the page a `console` that records what `console.error` gets, and `drawn()`
+    returns it and takes fields that replace the data's; new
+    `PageTest.test_a_panel_that_throws_says_so_and_the_panels_after_it_still_draw`, verification
+    that is not a list; 76 tests, was 75.
+    - `broken: panel() draws without catching, so a throw stops the page, as before → AssertionError: 'V.filter is not a function' is not None`
+    **Done in `dashboard/panel-isolation`.**

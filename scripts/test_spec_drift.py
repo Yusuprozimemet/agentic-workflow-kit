@@ -749,9 +749,9 @@ def page(rows, days=(), order=(), current_day=None):
 
 
 # Boots the page on a document whose elements keep what is drawn into them, and prints each box's
-# HTML, SVG included, and the error that stopped the page, if one did.
+# HTML, SVG included, the error that stopped the page, if one did, and what went to console.error.
 DRAW = r"""
-const fs = require("fs"), vm = require("vm"), els = {};
+const fs = require("fs"), vm = require("vm"), els = {}, logged = [];
 class El {
   constructor(tag) { this.tag = tag; this.attrs = {}; this.kids = []; this.html = ""; this.style = {}; this.dataset = {}; }
   setAttribute(k, v) { this.attrs[k] = String(v); }
@@ -766,22 +766,25 @@ class El {
 }
 const document = { getElementById: id => els[id] || (els[id] = new El("div")), createElementNS: (_, t) => new El(t),
   querySelectorAll: () => [] };
-const ctx = vm.createContext({ document, window: {}, matchMedia: () => ({ matches: true }), DATA: JSON.parse(fs.readFileSync(0, "utf8")) });
+const ctx = vm.createContext({ document, window: {}, matchMedia: () => ({ matches: true }), DATA: JSON.parse(fs.readFileSync(0, "utf8")),
+  console: { error: e => logged.push(String(e && e.message || e)) } });
 let error = null;
 try { vm.runInContext(fs.readFileSync(process.argv[1], "utf8") + "\nboot(DATA);", ctx); } catch (e) { error = e.message; }
-console.log(JSON.stringify({ error, panels: Object.fromEntries(Object.entries(els).map(([k, e]) => [k, e.innerHTML])) }));
+console.log(JSON.stringify({ error, logged, panels: Object.fromEntries(Object.entries(els).map(([k, e]) => [k, e.innerHTML])) }));
 """
 
 
-def drawn(rows, days=(), order=()):
-    """The error that stopped the page, or None, and the HTML each box holds."""
+def drawn(rows, days=(), order=(), **more):
+    """The error that stopped the page, or None, the HTML each box holds, and what was logged as an
+    error; `more` replaces fields of the data."""
     data = dict(now=dict(generated="2026-01-01T00:00", head="abc", last_pr=None, current_day=None,
                          next_step="x", open_prs=[]), rows=rows, days=list(days), order=list(order),
                 files=[], removals=[], hand_offs=[], tokens=[], verification=[], infra=dict(runs=[], latest=None),
                 deployment=None, conclusion=dict(reads=[], measured=[]), origin_lines=0, vocab_size=0)
+    data.update(more)
     out = json.loads(subprocess.run(["node", "-e", DRAW, os.path.join(HERE, "..", "docs", "dashboard", "dashboard.js")],
                                     input=json.dumps(data), capture_output=True, encoding="utf-8", check=True).stdout)
-    return out["error"], out["panels"]
+    return out["error"], out["panels"], out["logged"]
 
 
 @unittest.skipUnless(shutil.which("node"), "needs node")
@@ -816,13 +819,26 @@ class PageTest(unittest.TestCase):
         rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
                 for i, pr in enumerate([None, None, 1, 2])]
         days = [dict(a_day(n), status="ready", phase=1, title="t", prs=[]) for n in (12, 36)]
-        error, panels = drawn(rows, days, [12, 36])
+        error, panels, _ = drawn(rows, days, [12, 36])
         self.assertIsNone(error)
         for box in ("deltas", "churn", "heat"):  # what each merge did to the gap; spec and code; corrections
             self.assertIn("<svg", panels[box], box)
         for box, why in (("moved", "No service code yet"), ("test-ratio", "No ratio yet"),
                          ("perday", "No day has a merged pull request yet")):
             self.assertIn(f'<p class="load-error">{why}', panels[box], box)
+
+    def test_a_panel_that_throws_says_so_and_the_panels_after_it_still_draw(self):
+        # Verification that is not a list: its panel, fourth of boot()'s twelve, throws.
+        rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
+                for i, pr in enumerate([None, None, 1, 2])]
+        days = [dict(a_day(n), status="ready", phase=1, title="t", prs=[]) for n in (12, 36)]
+        error, panels, logged = drawn(rows, days, [12, 36], verification={"kind": "code"})
+        self.assertIsNone(error)
+        self.assertEqual(panels["breaks"], '<p class="load-error">This panel failed: V.filter is not a function</p>')
+        self.assertEqual(logged, ["V.filter is not a function"])
+        for box in ("infra-head", "token-bars", "findings", "tbl", "deltas", "heat"):  # after it in boot(), then setSel()
+            self.assertTrue(panels[box], box)
+            self.assertNotIn("This panel failed", panels[box], box)
 
 
 def a_day(n, ticked=1, total=1, kinds=(), titles=()):

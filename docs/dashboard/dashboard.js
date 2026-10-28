@@ -573,9 +573,18 @@ function drawScrubNow() {
     <span class="t">${prLabel(s)} · ${esc(s.title)}</span>
     <span class="num" style="color:var(--ink-2)">gap ${fmt(s.gap_full)}°</span>`;
 }
+// Each panel draws on its own: one that throws says so in its first box and the console, and the
+// panels after it still draw.
+function panel(id, draw) {
+  try { draw(); } catch (e) {
+    console.error(e);
+    const box = document.getElementById(id), tag = box.tagName === "TABLE" ? "caption" : "p";
+    box.innerHTML = `<${tag} class="load-error">This panel failed: ${esc(e && e.message || e)}</${tag}>`;
+  }
+}
 function setSel(i) {
   sel = i; scrub.value = i;
-  drawScrubNow(); drawReadout(); drawLines(); drawDeltas(); drawHeat();
+  panel("scrub-now", drawScrubNow); panel("readout", drawReadout); panel("lines", drawLines); panel("deltas", drawDeltas); panel("heat", drawHeat);
   document.querySelectorAll("#tbl tr[data-i]").forEach(tr => tr.classList.toggle("sel", +tr.dataset.i === sel));
 }
 
@@ -862,7 +871,10 @@ function drawDeployment() {
   document.getElementById("deployment-checks").innerHTML = `<table><thead><tr><th>Criterion</th><th>Check</th><th>Result</th><th>Detail</th><th>Checked at</th></tr></thead><tbody>${C.map(c => `<tr><td>${esc(c.criterion)}</td><td>${esc(c.name)}</td><td><span class="chip" style="color:${tone(c.ok)}">${c.ok ? "pass" : "fail"}</span></td><td>${esc(c.detail)}</td><td>${esc(c.at)}</td></tr>`).join("")}</tbody></table>`;
 }
 
-drawNow(); drawWork(); drawPerDay(); drawVerification(); drawInfra(); drawDeployment(); drawTokens(); drawEvidence(); drawHandOffs(); drawConclusion(); drawFindings(); drawTable(); setSel(sel);
+panel("today", drawNow); panel("work-bar", drawWork); panel("perday", drawPerDay); panel("breaks", drawVerification);
+panel("infra-head", drawInfra); panel("deployment-head", drawDeployment); panel("token-bars", drawTokens);
+panel("evidence-gaps", drawEvidence); panel("hand-offs", drawHandOffs); panel("read", drawConclusion);
+panel("findings", drawFindings); panel("tbl", drawTable); setSel(sel);
 }
 
 function start() {
