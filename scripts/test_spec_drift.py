@@ -24,6 +24,31 @@ COMPARE = os.path.join(HERE, "..", "kit", "compare-page.py")
 
 PLAN = "# Plan\n\nThe plan names `FooService` and `bar_table`.\n"
 DAY = "# Day 01\n\nThe day adds `FooService`, then the rest of the day.\n"
+# jobmatch-microservices' project file under neutral names: its two tests renamed to another stem,
+# its six directory moves, its Verify base, its four services by package, and its infra workflow.
+PROJECT = dict(
+    renamed=[[296, "OrdersUserDeletedConsumerIT", "UserDeletedConsumerTest"],
+             [298, "CircuitBreakerIT", "StockLookupBreakerTest"]],
+    moved=[[174, "core/stock", "services/stock-service"], [224, "core/pricing", "services/pricing-service"],
+           [296, "core/orders", "services/order-service"], [315, "core", "services/account-service"],
+           [416, "services/account-service/docs", "docs/system"],
+           [419, "services/account-service/app", "services/account-service"]],
+    verify_bases=["core"], package_root="org.example.shop",
+    services=dict(auth="account", user="account", profile="account", account="account", stock="stock",
+                  catalog="stock", saved="orders", orders="orders", pricing="pricing"),
+    infra_workflow="infra.yaml")
+
+
+def use_project(test, fields):
+    """fields as the project file, read as spec-drift.py reads its own, until the test ends."""
+    folder = tempfile.mkdtemp(prefix="spec-drift-config-")
+    test.addCleanup(shutil.rmtree, folder, True)
+    path = os.path.join(folder, "spec-drift.config.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(fields, f)
+    for name, value in sd.project_config(path).items():
+        test.addCleanup(setattr, sd, name, getattr(sd, name))
+        setattr(sd, name, value)
 
 
 class Repo:
@@ -227,6 +252,7 @@ class SpecDriftTest(unittest.TestCase):
     def test_an_infra_run_whose_artifact_does_not_download_is_skipped(self):
         def fake(*args):
             if args[2] == "list":
+                self.assertEqual(args[4], "infra.yaml")
                 return json.dumps([dict(databaseId=2, headSha="b" * 40, conclusion="failure",
                                         createdAt="2026-10-08T10:00:00Z", url="u2"),
                                    dict(databaseId=1, headSha="a" * 40, conclusion="success",
@@ -239,7 +265,7 @@ class SpecDriftTest(unittest.TestCase):
         real = sd.run
         try:
             sd.run = fake
-            got = sd.infra()
+            got = sd.infra("infra.yaml")
         finally:
             sd.run = real
         self.assertEqual([r["sha"] for r in got["runs"]], ["bbbbbbb", "aaaaaaa"])
@@ -438,12 +464,9 @@ class EvidenceTest(unittest.TestCase):
         self.repo.git("rm", "-q", "src/FooIT.java")
         self.repo.merge({"svc/BarTest.java": "class BarTest { void refuses() {} void saves() {} }\n"})
         self.assertEqual(set(self.state()[1]["tests"].values()), {"missing"})
-        renamed, sd.RENAMED = sd.RENAMED, {2: ("FooIT", "BarTest")}
-        try:
-            self.assertEqual(self.repo.inside(lambda blobs: sd.moves(self.repo.snaps)), [(2, "FooIT", "BarTest")])
-            self.assertEqual(self.state()[1]["tests"], {"FooIT": "present", "FooIT.saves": "present"})
-        finally:
-            sd.RENAMED = renamed
+        use_project(self, dict(renamed=[[2, "FooIT", "BarTest"]]))
+        self.assertEqual(self.repo.inside(lambda blobs: sd.moves(self.repo.snaps)), [(2, "FooIT", "BarTest")])
+        self.assertEqual(self.state()[1]["tests"], {"FooIT": "present", "FooIT.saves": "present"})
 
     def test_a_test_run_on_a_system_property_is_run_when_ci_passes_it_and_disabled_is_not(self):
         on = '@EnabledIfSystemProperty(named = "harness.gateway", matches = "true")\n'
@@ -511,7 +534,7 @@ REMOVALS = """## Acceptance criteria
 
 ## Verify
 ```bash
-cd backend
+cd core
 grep -rn "TODO day-01" */src/ || echo "clean"
 grep -rn "kept" app/ | wc -l
 ```
@@ -523,6 +546,9 @@ grep -rn "kept" app/ | wc -l
 
 class RemovalTest(unittest.TestCase):
     """A day's greps that must print nothing, run at every merge from the day's end."""
+
+    def setUp(self):
+        use_project(self, PROJECT)
 
     def test_the_checks_are_the_criteria_and_verify_greps_that_expect_nothing(self):
         self.assertEqual(sd.removal_checks(REMOVALS), ['grep -rn "OldThing\\|old_table" --include=*.java .',
@@ -536,18 +562,18 @@ class RemovalTest(unittest.TestCase):
         self.assertIsNone(sd.grep_rule('grep -rn "x" a/ | grep -v b'))
 
     def test_a_check_counts_lines_in_its_scope_from_the_day_it_ended(self):
-        repo = Repo().merge({"backend/app/A.java": "OldThing a;\nold_table b;\n", "backend/app/B.txt": "OldThing\n",
-                             "other/C.java": "OldThing c;\n", "backend/app/src/D.java": "",
-                             "backend/pom.txt": "TODO day-01\n"})
-        repo.merge({"backend/app/A.java": "class A {}\n"})
-        repo.merge({"backend/app/A.java": "class A { OldThing back; }\n", "backend/app/src/D.java": "// TODO day-01\n"})
+        repo = Repo().merge({"core/app/A.java": "OldThing a;\nold_table b;\n", "core/app/B.txt": "OldThing\n",
+                             "other/C.java": "OldThing c;\n", "core/app/src/D.java": "",
+                             "core/pom.txt": "TODO day-01\n"})
+        repo.merge({"core/app/A.java": "class A {}\n"})
+        repo.merge({"core/app/A.java": "class A { OldThing back; }\n", "core/app/src/D.java": "// TODO day-01\n"})
         def run(ended_at):
             days = [dict(day=1, ended_at=ended_at, removal_checks=sd.removal_checks(REMOVALS))]
             return [(c["base"], c["hits"]) for c in repo.inside(lambda blobs: sd.removal_history(days, repo.snaps, blobs))]
         try:
-            # B.txt is not *.java, other/ is not under backend/, and pom.txt is not under */src/.
-            self.assertEqual(run(0), [("backend", [2, 0, 1]), ("backend", [0, 0, 1])])
-            self.assertEqual(run(1), [("backend", [0, 1]), ("backend", [0, 1])])
+            # B.txt is not *.java, other/ is not under core/, and pom.txt is not under */src/.
+            self.assertEqual(run(0), [("core", [2, 0, 1]), ("core", [0, 0, 1])])
+            self.assertEqual(run(1), [("core", [0, 1]), ("core", [0, 1])])
         finally:
             repo.close()
 
@@ -560,32 +586,32 @@ class RemovalTest(unittest.TestCase):
         self.assertEqual(sd.follow("backend", moves[:1]), ["services/job-service", "backend"])
         self.assertEqual(sd.follow("docker-compose.yml", moves), ["docker-compose.yml"])
 
-    def test_the_day_43_move_of_identity_docs_follows_them_to_docs_system(self):
+    def test_the_project_files_moves_follow_moved_docs_on_to_docs_system(self):
         moves = [(old, new) for _, old, new in sd.MOVED]
-        self.assertEqual(sd.follow("backend/docs", moves), ["docs/system"])
-        self.assertEqual(sd.follow("backend/docs/api.md", moves), ["docs/system/api.md"])
+        self.assertEqual(sd.follow("core/docs", moves), ["docs/system"])
+        self.assertEqual(sd.follow("core/docs/api.md", moves), ["docs/system/api.md"])
 
-    def test_the_day_43_lift_of_identity_app_follows_it_to_the_service_root(self):
+    def test_the_project_files_moves_follow_a_lifted_app_to_the_service_root(self):
         moves = [(old, new) for _, old, new in sd.MOVED]
-        self.assertEqual(sd.follow("backend/app/src/main/java", moves), ["services/identity-service/src/main/java"])
-        self.assertEqual(sd.follow("services/identity-service/app/src", moves), ["services/identity-service/src"])
+        self.assertEqual(sd.follow("core/app/src/main/java", moves), ["services/account-service/src/main/java"])
+        self.assertEqual(sd.follow("services/account-service/app/src", moves), ["services/account-service/src"])
 
     def test_a_check_reads_moved_code_counts_its_files_and_lists_its_lines_on_the_last_merge(self):
-        repo = Repo().merge({"backend/jobs/src/A.java": "class A {}\n", "backend/app/src/B.java": "class B {}\n"})
-        repo.merge({"backend/jobs/src/A.java": None, "services/job-service/src/A.java": "// TODO day-01 here\n"})
-        repo.merge({"backend/app/src/B.java": None, "services/job-service/src/A.java": "class A {}\n"})
+        repo = Repo().merge({"core/stock/src/A.java": "class A {}\n", "core/app/src/B.java": "class B {}\n"})
+        repo.merge({"core/stock/src/A.java": None, "services/stock-service/src/A.java": "// TODO day-01 here\n"})
+        repo.merge({"core/app/src/B.java": None, "services/stock-service/src/A.java": "class A {}\n"})
         def run(moved):
             days = [dict(day=1, ended_at=0, removal_checks=sd.removal_checks(REMOVALS))]
             return repo.inside(lambda blobs: sd.removal_history(days, repo.snaps, blobs, moved))[1]
         try:
-            # Merge 2's tree has no backend/ left: unfollowed, the check reads nothing and passes.
+            # Merge 2's tree has no core/ left: unfollowed, the check reads nothing and passes.
             still = run([])
             self.assertEqual((still["files"], still["hits"]), ([2, 1, 0], [0, 0, 0]))
-            followed = run([(1, "backend/jobs", "services/job-service")])
+            followed = run([(1, "core/stock", "services/stock-service")])
             self.assertEqual((followed["files"], followed["hits"], followed["found"]), ([2, 2, 1], [0, 1, 0], []))
-            repo.merge({"services/job-service/src/A.java": "x\n// TODO day-01 again\n"})
-            self.assertEqual(run([(1, "backend/jobs", "services/job-service")])["found"],
-                             [dict(path="services/job-service/src/A.java", line=2, text="// TODO day-01 again")])
+            repo.merge({"services/stock-service/src/A.java": "x\n// TODO day-01 again\n"})
+            self.assertEqual(run([(1, "core/stock", "services/stock-service")])["found"],
+                             [dict(path="services/stock-service/src/A.java", line=2, text="// TODO day-01 again")])
         finally:
             repo.close()
 
@@ -701,6 +727,60 @@ class HandOffTest(unittest.TestCase):
         finally:
             repo.close()
         self.assertEqual([(h["to"], h["source"]) for h in found], [(3, "src/Foo.java:2")])
+
+
+class ProjectFileTest(unittest.TestCase):
+    """spec-drift.config.json: what git cannot tell about a repository, empty in a new one."""
+
+    def test_with_no_file_or_no_field_nothing_is_set_and_verify_reads_the_root(self):
+        for fields in (None, {}):
+            folder = tempfile.mkdtemp(prefix="spec-drift-config-")
+            self.addCleanup(shutil.rmtree, folder, True)
+            path = os.path.join(folder, "spec-drift.config.json")
+            if fields is not None:
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(fields, f)
+            c = sd.project_config(path)
+            self.assertEqual((c["RENAMED"], c["MOVED"], c["VERIFY_BASES"], c["SERVICE"], c["INFRA_WORKFLOW"]),
+                             ({}, [], ("",), {}, ""))
+
+    def test_renames_moves_and_verify_bases_are_the_files(self):
+        use_project(self, PROJECT)
+        self.assertEqual(sd.RENAMED, {296: ("OrdersUserDeletedConsumerIT", "UserDeletedConsumerTest"),
+                                      298: ("CircuitBreakerIT", "StockLookupBreakerTest")})
+        self.assertEqual(len(sd.MOVED), 6)
+        self.assertEqual(sd.MOVED[3], (315, "core", "services/account-service"))
+        self.assertEqual(sd.VERIFY_BASES, ("core", ""))
+
+    def test_boundaries_place_and_cross_the_files_services_under_its_package_root(self):
+        root = "src/main/java/org/example/shop"
+        repo = Repo().merge({
+            f"core/{root}/orders/Order.java": "import org.example.shop.auth.User;\n"
+                                               "import org.example.shop.util.Text;\nclass Order {}\n",
+            f"core/{root}/util/Text.java": "class Text {}\n",
+            f"services/stock-service/{root}/catalog/Item.java": "import static org.example.shop.orders.Order.x;\n"
+                                                                 "class Item {}\n",
+            f"core/src/test/java/org/example/shop/orders/OrderTest.java": "import org.example.shop.auth.User;\n"})
+        self.addCleanup(repo.close)
+        def boundaries():
+            rows = [{}]
+            repo.inside(lambda blobs: sd.boundaries(rows, repo.snaps, blobs))
+            return rows[0]["placed"], rows[0]["crossings"]
+        use_project(self, PROJECT)
+        self.assertEqual(boundaries(), ({"orders": [3, 0], "stock": [0, 2]}, {"orders>account": 1, "stock>orders": 1}))
+        use_project(self, {})
+        self.assertEqual(boundaries(), ({}, {}))
+
+    def test_the_infra_workflow_is_the_files_and_with_none_gh_is_not_asked(self):
+        asked, real = [], sd.run
+        self.addCleanup(setattr, sd, "run", real)
+        sd.run = lambda *args: asked.append(args) or "[]"
+        use_project(self, PROJECT)
+        sd.infra(sd.INFRA_WORKFLOW)
+        self.assertEqual([a[:5] for a in asked], [("gh", "run", "list", "--workflow", "infra.yaml")])
+        use_project(self, {})
+        asked.clear()
+        self.assertEqual((sd.infra(sd.INFRA_WORKFLOW), asked), (dict(runs=[], latest=None), []))
 
 
 class OwnerAndCaveatTest(unittest.TestCase):

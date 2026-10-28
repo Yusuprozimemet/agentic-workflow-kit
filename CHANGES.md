@@ -519,11 +519,21 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     `max(("backend", ""), …)`. Proposal: one project file, `spec-drift.config.json` at the root,
     empty in the kit (`renamed`, `moved`, `verify_bases`); jobmatch's rows become test fixtures
     under neutral names. Data only. Tests: `sd.MOVED` (2 uses), `sd.RENAMED` (3).
+    **Done in Batch 3** (`dashboard/project-file`): `project_config()` reads the file; `renamed` and
+    `moved` are lists of `[pr, old, new]`; `verify_bases` lists the bases before the root, which is
+    always last (`VERIFY_BASES`, `("",)` when empty); `removal_history()` reads `MOVED` when called,
+    not when defined. jobmatch's rows are `PROJECT` in `test_spec_drift.py`, under neutral names
+    (`backend` → `core`, the services → `account`, `stock`, `orders`, `pricing`); `RemovalTest`
+    reads it. `broken: project_config() reads "move", not the file's "moved" → AssertionError: 0 != 6`
 42. **C, `spec-drift.py` lines 106-111, the docstring's lines 24-26: the service map** (item 17):
     `SERVICE`, `OWN_PACKAGE`, `IMPORT` on `nl.hackyourfuture.project.backend`, and `.java` only.
     Proposal: in the item 41 file (`services`: package → service; the package root); with none,
     the "Service boundaries" panel shows its empty state (item 25 already draws one). 53 boxes:
     kept (the live data carries the counts already made).
+    **Done in Batch 3:** `services` (package → service) and `package_root` (dotted), two top-level
+    fields, the simplest shape; `OWN_PACKAGE` and `IMPORT` are built from the root. `.java` only is
+    kept. With none, `placed` and `crossings` are empty, as on this repository before.
+    `broken: project_config() drops the file's services → AssertionError: Tuples differ: ({}, {}) != ({'orders': [3, 0], 'stock': [0, 2]}, {'orders>account': 1, 'stock>orders': 1})`
 43. **C, `spec-drift.py` lines 126-127: a caveat citing jobmatch's audit** ("0.871 … 0.433 …
     AR-8"). Proposal: keep the first clause, drop the measurement and the reference. Data only.
     **Done** in `dashboard/constants-into-data`: "Name coverage counts test and tooling files as
@@ -632,6 +642,10 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     file name in the item 41 file (none: `infra()` not called); neutral panel text (item 50).
     Removing it would drop a panel (the 53 boxes fall) and one of the 8 suites.
     **Decision (maintainer, Batch 0 PR):** keep, off when its inputs are absent.
+    **The workflow name done in Batch 3:** `infra_workflow` in the project file; `infra(workflow)`
+    returns no runs and asks gh nothing when it is empty. The check is inside `infra()`, not around
+    its call in `main()`, so a test can see it; the effect is the same. The panel text: Batch 5.
+    `broken: infra() asks gh when the project file names no workflow → AssertionError: Tuples differ: ({'ru[22 chars]e}, [('gh', 'run', 'list', '--workflow', '', '[108 chars]l')]) != ({'ru[22 chars]e}, [])`
 56. **F, the deployment panel and `scripts/live-checks.py`.** The panel is off without
     `deployment.json` (item 36). `live-checks.py` checks jobmatch's Day 35 criteria (C35.16-17)
     on a host; no workflow runs it, and no test covers it. Proposal: keep the panel, off; move
@@ -801,6 +815,10 @@ except the differences the PR names.
    and 35 no longer stops, the legend's "Stop and evaluate". 88 tests, was 82.
 3. **The project file** (41, 42, 55's workflow name): `spec-drift.config.json`, `spec-drift.py`,
    `test_spec_drift.py`.
+   **Done** in `dashboard/project-file`, with the three `broken:` lines under the items. The kit's
+   file sets every field empty. On this repository, `spec-drift.py`'s output before and after
+   differs in `now.generated` and `meta.provenance.script_edited` only. 53 of 53 boxes the same.
+   92 tests, was 88.
 4. **The checks' inputs** (51, 57): `pr-names.py`, `invariants.py`, their tests, `pr-checks.yml`.
 5. **The page's words** (40's texts, 49, 50): `dashboard.js`, `index.html`, `spec-drift.py`'s
    `next_step()`. 53 boxes: a stated diff on items 49's boxes, if allowed.
