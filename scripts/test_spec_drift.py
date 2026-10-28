@@ -810,6 +810,18 @@ Days keep their numbers; they run in this order:
         days = sd.settle([a_day(17), a_day(18, kinds=["code"])], [18, 17])
         self.assertEqual([d["status"] for d in days], ["provisional", "active"])  # 17 waits for 18
 
+    def test_a_planned_day_without_a_spec_is_next_to_write(self):
+        plan = "## Day-by-day specs\n\n1. Phase 1: Days 10-12.\n"
+        order, _ = sd.run_order(plan, [10, 12])
+        self.assertEqual(order, [10, 11, 12])  # plan.md lists Day 11; specs/ has no file for it
+        days = sd.settle([a_day(10), a_day(12)], order)
+        self.assertEqual(sd.next_step(days, [], order, None),
+                         "Day 10: read the spec against the code, then the spec-change PR")  # as before
+        days = sd.settle([a_day(10, kinds=["close"]), a_day(12)], order)
+        self.assertEqual([d["status"] for d in days], ["done", "provisional"])  # none active: between days
+        self.assertEqual(sd.next_step(days, [], order, None),
+                         "Day 11: write its day spec (plan.md lists it, specs/ has none)")
+
     def test_a_finished_day_with_boxes_open_is_closed_not_done(self):
         days = sd.settle([a_day(1, ticked=0, total=7), a_day(2), a_day(3, kinds=["code"])], [1, 2, 3])
         self.assertEqual([d["status"] for d in days], ["closed", "done", "active"])

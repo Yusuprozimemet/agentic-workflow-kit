@@ -604,7 +604,7 @@ def settle(days, order):
             d["status"] = "ready"
     by_day = {d["day"]: d for d in days}
     for d in order:
-        if d in PLACEHOLDERS:
+        if d in PLACEHOLDERS or d not in by_day:  # not written yet: no day to mark
             break
         if by_day[d]["status"] not in FINISHED:
             by_day[d]["status"] = "active"
@@ -1121,7 +1121,7 @@ def next_step(days, open_prs, order, stop):
     if open_prs:
         return "Waiting on " + ", ".join(f"#{p['number']} {p['title']}" for p in open_prs)
     by_day = {d["day"]: d for d in days}
-    left = [d for d in order if d in PLACEHOLDERS or by_day[d]["status"] not in FINISHED]
+    left = [d for d in order if d in PLACEHOLDERS or d not in by_day or by_day[d]["status"] not in FINISHED]
     if not left:
         return "Every day is done."
     if left[0] == PLATFORM:
@@ -1132,6 +1132,8 @@ def next_step(days, open_prs, order, stop):
         return f"The close-out day: write its day spec, Day {unwritten(days, order)['day']:02d} (plan.md, Phase 7 outcome)"
     if stop is not None and order.index(left[0]) > order.index(stop):
         return f"Day {stop:02d} is done: stop and evaluate before going on (plan.md)"
+    if left[0] not in by_day:
+        return f"Day {left[0]:02d}: write its day spec (plan.md lists it, specs/ has none)"
     day = by_day[left[0]]
     if not any(p["kind"] == "spec" for p in day["prs"]):
         return f"Day {day['day']:02d}: read the spec against the code, then the spec-change PR"
