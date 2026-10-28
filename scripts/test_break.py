@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "break.py")
@@ -78,6 +79,13 @@ class BreakTest(unittest.TestCase):
         self.assertNotIn(tempfile.gettempdir(), line)
         self.assertNotIn("tmp2ewplof6", line)
         self.assertEqual(line.count("<tmp>"), 3, line)
+        # On Linux the directory is /tmp, which a tempfile name under it also starts with (CI on #20).
+        spec = importlib.util.spec_from_file_location("break_script", SCRIPT)
+        script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(script)
+        with mock.patch.object(script.tempfile, "gettempdir", return_value="/tmp"):
+            self.assertEqual(script.untemp("'/tmp/tmp2ewplof6/a.txt' in /tmp/x, not /tmpfoo"),
+                             "'<tmp>/a.txt' in <tmp>/x, not /tmpfoo")
 
     def test_a_check_that_passes_with_the_break_in_is_reported_as_blind(self):
         run = self.run_break("true", "false")

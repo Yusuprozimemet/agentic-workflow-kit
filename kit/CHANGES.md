@@ -1182,7 +1182,11 @@ step 4 cannot be broken against a fixed HEAD: its red run is the one on `main` a
   break.py was ever the cause). `break.py` refuses `→` or `->` in `--what` before it changes anything.
 - **Finding 16: no local path in the line.** A report quoting a temporary file carried
   `…\\AppData\\Local\\Temp\\tmp…` into the PR. `untemp()` writes the temp directory (as a path,
-  a repr, or with `/`) and any of tempfile's `tmp` + 8 names, the path before it, as `<tmp>`.
+  a repr, or with `/`) and any of tempfile's `tmp` + 8 names, the path before it, as `<tmp>`. The
+  names go first, and the directory only as a whole name: on Linux it is `/tmp`, which
+  `/tmp2ewplof6` also starts with. The first push replaced it as a substring and drew
+  `<tmp><tmp>2ewplof6`; CI on #20 failed on it, Windows (whose temp path occurs once) could not.
+  The test now also calls `untemp()` with the directory patched to `/tmp`.
 - **`spec-drift.py`, finding 2: before the first commit.** `provenance()` ran `git rev-parse HEAD`
   with `check=True`, which exits 128 in a repository with no commit; its commit is now None.
 - **Finding 19: Python tests** (the maintainer's decision: Python support in `test_state`). It
@@ -1209,6 +1213,7 @@ line shows the fix at work: the outer run wrote the temp path the inner test pri
 - `broken: break.py's command back to nargs="+" → AssertionError: expected ok but was broken') if 'broken' in t else print('1 passed')`
 - `broken: break.py's arrow refusal switched off → AssertionError: 0 != 2 : if not paths: → if False:`
 - `broken: break.py's untemp() left out of the line → AssertionError: '<tmp>' unexpectedly found in "broken: the guard removed → AssertionError: '<tmp>\\\\a.txt' != '[27 chars]<tmp>\\\\a.txt' in <tmp>\\a.txt"`
+- `broken: untemp() replaces the temp directory inside a longer name → AssertionError: "'<tmp>/a.txt' in <tmp>/x, not <tmp>foo" != "'<tmp>/a.txt' in <tmp>/x, not /tmpfoo"`
 - `broken: provenance() runs git rev-parse HEAD with check=True again → FAILED (errors=1)`
 - `broken: test_state() reads no Python test file → AssertionError: {'CliTest': 'missing', 'RuleTest.test_word': 'missing'[87 chars]ing'} != {'CliTest': 'present', 'CliTest.test_counts': 'present[89 chars]ing'}`
 - `broken: hand_offs() takes a Notes item citing its day's ID as a hand-off → AssertionError: Lists differ: [(3, 'H01.2', 'The conditio'), (3, 'H01.2', '**Hand-off**')] != [(3, 'H01.2', '**Hand-off**')]`

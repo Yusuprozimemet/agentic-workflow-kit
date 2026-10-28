@@ -45,11 +45,13 @@ TEMP_NAME = re.compile(r"[^\s'\"()\[\]]*?[\\/]+tmp[a-z0-9_]{8}(?![a-z0-9_])")
 
 def untemp(line):
     """The line with each temporary directory written <tmp>: the local one, as a path or a repr, and
-    tempfile's own names under it."""
+    tempfile's own names under it. The directory only as a whole name: /tmp is also the start of
+    /tmp2ewplof6."""
+    line = TEMP_NAME.sub("<tmp>", line)
     for form in {tempfile.gettempdir(), os.path.realpath(tempfile.gettempdir())}:
         for written in (form, form.replace("\\", "\\\\"), form.replace("\\", "/")):
-            line = line.replace(written, "<tmp>")
-    return TEMP_NAME.sub("<tmp>", line)
+            line = re.sub(re.escape(written) + r"(?![\w.~-])", "<tmp>", line)
+    return line
 
 
 def reported(output):
