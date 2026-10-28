@@ -24,22 +24,22 @@ do not guess which one is right.
 - **Write code that reads like the code around it:** its comment density, naming and idiom.
   Comments say why, in the repository's plain style. Never name, in a comment, a thing the day's
   grep checks is gone.
-- **Run the tests the brief names**, from `services/identity-service/` (`../../mvnw -B test -Dtest='...'
-  -Dsurefire.failIfNoSpecifiedTests=false`) or with `-f services/api-gateway/pom.xml` for the
-  gateway. Delete `*/target/surefire-reports` first and read the reports, not the exit code.
-  Run `../../mvnw -B checkstyle:check` too: `verify` does not run it, and CI does.
+- **Run the tests the brief names**, <!-- PROJECT: from where, and the command that runs named
+  tests -->. Delete <!-- PROJECT: the test report directory --> first and read the reports, not
+  the exit code. <!-- PROJECT: any check CI runs that the test command does not, and the
+  command -->.
 - If a test fails, fix your change, not the test, unless the brief says the test changes.
 
 ## Never
 
-- Edit anything in `src/test/.../contract/` or the Day 01 harness self-tests, or any applied
-  migration (`db/migration` V1–V16, or a module migration already on `main`). If the work seems
+- Edit anything in <!-- PROJECT: the frozen tests' path -->, or <!-- PROJECT: anything applied
+  that is never edited, e.g. migrations -->. If the work seems
   to need it, stop and report: that is the signal the spec's premise is wrong.
 - Commit, push, open a pull request, or change branches.
 - Run `docker compose down -v` without `-p <your own project>`: it deletes the maintainer's
   database.
 - Write a shell script from Windows Python in text mode: `*.sh` must stay LF.
-- Put an apostrophe in a Flyway baseline description.
+- <!-- PROJECT: a pitfall of this project's tools, one line each -->
 
 ## Report
 
@@ -50,7 +50,7 @@ Files changed
 - <path>: <what changed, one line>
 
 Tests run
-- <command> → <tests run, failures, errors, from the reports> ; checkstyle: <exit code>
+- <command> → <tests run, failures, errors, from the reports> ; <!-- PROJECT: the extra check -->: <exit code>
 
 Departures from the brief: <each one and why, or none>
 Unsure about: <anything you guessed or could not check>

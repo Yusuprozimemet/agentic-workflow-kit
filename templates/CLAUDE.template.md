@@ -8,7 +8,7 @@ land. The spec rules are in [`specs/README.md`](specs/README.md) and the templat
 rules do not state. [`docs/workflow.md`](docs/workflow.md) draws it.
 
 **Source of truth, when they disagree:** the code on `main` for what the system does; the merged
-spec for what a day promised; `plan.md` for the goal. The dashboard, Jira and memory only record
+spec for what a day promised; `plan.md` for the goal. The dashboard, <!-- PROJECT: the tracker, e.g. Jira --> and memory only record
 the others: correct them, never the other way round.
 
 ## Starting
@@ -53,8 +53,8 @@ the PR.
 
 ## One session per step
 
-Every reply re-reads the whole conversation, and that re-reading is most of what the migration
-costs: up to Day 17, 64% of the main sessions' context tokens were read after a session had
+Every reply re-reads the whole conversation, and that re-reading is most of what the project
+costs: in jobmatch-microservices, up to Day 17, 64% of the main sessions' context tokens were read after a session had
 passed 300k (the Tokens panel on the dashboard, "context per reply"). So a step starts in a fresh
 session: after reporting the next step in step 5, suggest the maintainer start a new session for
 it (or `/compact` if they keep this one). Nothing is lost: the spec, `spec-drift.json`, this file
@@ -62,7 +62,7 @@ and memory carry what the next step needs.
 
 Output that lands in the main session is re-read by every later reply. Keep it small:
 
-- Maven, surefire and CI logs: filter to the failures and the counts (`grep`, `tail`), or have a
+- <!-- PROJECT: build and test --> and CI logs: filter to the failures and the counts (`grep`, `tail`), or have a
   subagent read them and return the summary. Never print a whole log or report.
 - Read the part of a file you need (`offset`/`limit`, `grep -n`), not the whole file, unless the
   step changes all of it. Diffs: `--stat` first, then the files that matter.
@@ -79,22 +79,22 @@ own specs: in this repository that session has read past its own errors more tha
 | every day, before the spec-change PR | spec-auditor | Is every claim and check in this day's spec true, and can each check fail? |
 | a phase's last day has closed | plan-auditor | What did the phase change that the next one must know? |
 | a stopping point `plan.md` names, before going on | plan-auditor, on the whole plan | Is `plan.md` still the right plan, and what has piled up that no day owns? |
-| the end of Phase 7, before `terraform destroy` | security-ops-auditor, agentic-engineering-auditor, architecture-auditor | Can the workflow take more autonomy safely; what does it show about agents; do its gates hold? |
+| <!-- PROJECT: the end of the last phase, and what ends it --> | security-ops-auditor, agentic-engineering-auditor, architecture-auditor | Can the workflow take more autonomy safely; what does it show about agents; do its gates hold? |
 | every close, after the Notes are written | defect-rater, on `relabel.py`'s blind file | Does a reader who did not write the day tag its defects the same way? |
 | any time, by hand | either | "use the plan-auditor on Phase 3" |
 
 Both check hand-offs: what earlier days' Notes and test comments defer to a later day. Nothing
 else carries them forward, and that is where most gaps have come from.
 
-The three end-of-phase auditors run once, on Opus, while the deployment is up, beside the
-plan-auditor on Phase 7 and on the whole plan. Each runs from a fresh context and reads none of
+The three end-of-phase auditors run once, on Opus, at <!-- PROJECT: the end of the last
+phase, and what ends it -->, beside the plan-auditor on the last phase and on the whole plan. Each runs from a fresh context and reads none of
 the others' reports: their disagreement is part of the result.
 
 Their findings are advice to the maintainer. What becomes a PR is the maintainer's call.
 
 ## The implementer
 
-`.claude/agents/implementer.md`, on Haiku 5.5 (Haiku 4.5 up to Day 33): the maintainer's
+`.claude/agents/implementer.md`, on <!-- PROJECT: the implementer's model -->: the maintainer's
 choice, so that code is written by a smaller model and everything else stays with the main session. For each track, the main session
 writes the brief (files, changes, tests), sends it, and then does what the implementer does not:
 reviews the diff, runs the full checks in "Before pushing", breaks the code on purpose, commits,
@@ -135,7 +135,7 @@ every check CI runs that the local build does not -->
 
 <!-- PROJECT: where the data lives: migrations (where, applied as whom), database roles
 and who creates them, the setup scripts -->
-- **Measurement:** `python scripts/spec-drift.py --out spec-drift.json` rebuilds the migration
+- **Measurement:** `python scripts/spec-drift.py --out spec-drift.json` rebuilds the project
   dashboard's data from git and GitHub; `--build` writes the page (`docs/dashboard/`) with it.
   Every merge to `main` republishes it to [GitHub Pages](<!-- PROJECT: GitHub Pages URL -->).
 

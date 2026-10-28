@@ -220,6 +220,7 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
 
     Change: each becomes a placeholder or a general phrase. Item 6's agents go with the Phase 7
     row. Tests: no.
+    **Done** in `dashboard/process-text` (item 65), except the break bullet's "Maven", still open there.
 
 ## Gaps the templates do not cover
 
@@ -707,6 +708,8 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     **Decision (maintainer, Batch 0 PR):** keep it in `pr-checks.yml`, off when there are no services.
 59. **F, `.gitattributes` lines 5-7: `mvnw` line endings.** Harmless without `mvnw`. Proposal:
     drop the three lines; keep `*.sh` LF.
+    **Done** in `dashboard/process-text`: the three lines and the blank line before them dropped;
+    `*.sh` LF kept. `broken: none → a checkout rule for files the kit does not have; nothing reads it`
 60. **F, `break.py` lines 9, 17, 49-54, 75-76: the Maven rules** (`mvnw` as `mvnw.cmd` on Windows; a
     Maven command must `clean`). Inert for other commands. Proposal: keep; they are general
     lessons about stale builds that only fire on Maven.
@@ -732,6 +735,8 @@ placeholder cannot carry it without rewording, the item says so.
     - Line 43: `grep -rniE "expires on Day|until Day|TODO day-" services frontend scripts
       --include=*.java --include=*.ts --include=*.py --include=*.yaml` → `… <!-- PROJECT: source
       directories --> <!-- PROJECT: --include for each source extension -->`.
+    **Done** in `dashboard/process-text`, as proposed and decided. The prefix follows a colon, so
+    it reads "in jobmatch-microservices,", lower case. `broken: none → text only`
 62. **B, `.claude/agents/implementer.md`.**
     - Lines 27-30: "Run the tests the brief names, from `services/identity-service/`
       (`../../mvnw -B test -Dtest='...' -Dsurefire.failIfNoSpecifiedTests=false`) or with `-f
@@ -749,6 +754,8 @@ placeholder cannot carry it without rewording, the item says so.
     - Line 53: "; checkstyle: <exit code>" → "; <!-- PROJECT: the extra check -->: <exit code>".
     - `plan-auditor.md` line 35 ("roles and migrations") is a general list: no change.
       `defect-rater.md`: no hit.
+    **Done** in `dashboard/process-text`, as proposed; the pitfall placeholder stays a list item.
+    `broken: none → text only`
 63. **B, `specs/README.md`: jobmatch evidence inside the rules.** Lines 22-24 (Phases 0-1's
     three kinds of checks that checked nothing, Days 02, 08, 09), 29-30 (Day 08's query count),
     37 ("from #310 on", item 38), 41 and 44 (the paper's escapes, D22-017, D23-028), 46-57 (Day
@@ -762,9 +769,16 @@ placeholder cannot carry it without rewording, the item says so.
     rule (46-57) also needs `contract/` → `<!-- PROJECT: the frozen tests' path -->`.
     **Decision (maintainer, Batch 0 PR):** the evidence is kept, prefixed "In jobmatch-microservices,", nothing else changed
     (as item 61); the "from Day 21 on" and "from Day 28 on" clauses are cut.
+    **Done** in `dashboard/process-text`: nine evidence passages prefixed ("in" mid-sentence), the
+    two clauses cut, both `contract/` → the placeholder. Also cut, as date clauses of the same
+    kind: "(from #310 on)" (item 38) and "Specs before Day 28 keep their form". Kept: the last
+    rule's "Specs written before the `new`/`hold` rule" (a rule for older specs, no jobmatch
+    date). Extra: `spec-drift.py`'s comment "IDs, from Day 28's spec change on" → "IDs".
+    `broken: none → text and one comment`
 64. **B, `specs/README.md` lines 103-134: "Map to plan.md", "Provisional specs", "Stopping
     points".** jobmatch's data, whole. Proposal: each section's heading kept with a one-line
     `<!-- PROJECT: … -->` (the table's header row kept: Days | Phase | Outcome | Status).
+    **Done** in `dashboard/process-text`, as proposed. `broken: none → text only`
 65. **B, `templates/CLAUDE.template.md`** (item 20, still open), plus:
     - Line 11: "The dashboard, Jira and memory only record the others" → "The dashboard,
       <!-- PROJECT: the tracker, e.g. Jira --> and memory only record the others".
@@ -781,9 +795,16 @@ placeholder cannot carry it without rewording, the item says so.
       model -->".
     - Lines 114-116: "Maven only with `clean`", "never started Maven" describe what `break.py`
       does (item 60): keep, or "a build only with `clean`". Open.
+    **Done** in `dashboard/process-text`, with item 20. Line 3 already held a placeholder, so two
+    "the migration" changed. Lines 89-91 read "at `<!-- PROJECT: the end of the last phase, and
+    what ends it -->`, beside the plan-auditor on the last phase and on the whole plan" (wording
+    chosen here). Lines 114-116 kept, undecided. `broken: none → text only`
 66. **B, `docs/workflow.md`.** Line 18 (CI node "tests, checkstyle,") → "tests, <!-- PROJECT:
     checks -->,"; line 70 ("Phase 7 ends, before `terraform destroy`") as item 65; line 78 (the
     jobmatch Pages URL) → `<!-- PROJECT: GitHub Pages URL -->`.
+    **Done** in `dashboard/process-text`, with two departures. A comment cannot go in a Mermaid
+    label, so line 18 reads "tests, checks,". The URL placeholder sits beside "dashboard", not in
+    a link: `check-links.py` read `[dashboard](<!-- … -->)` as a broken link. `broken: none → text only`
 67. **B, `docs/agent-workflow.svg` and `.png`.** The drawing says "checkstyle," "verify +
     checkstyle; read reports, not exit codes", "a Day 1–4 contract test needs an edit". **A
     placeholder cannot go in a picture.** Proposal: neutral words in the SVG ("the checks CI
@@ -792,17 +813,32 @@ placeholder cannot carry it without rewording, the item says so.
     **Decision (maintainer, Batch 0 PR):** find out how the PNG was made (its git log, any source file next to it, the
     docs that mention it). If it cannot be made again, a Mermaid diagram in Markdown replaces it.
     Decided in Batch 6.
+    **Done** in `dashboard/process-text`. The PNG was Inkscape's export of the SVG (jobmatch
+    4caddd5 added both, "and a PNG render"; its `tEXt` chunk reads `Software: www.inkscape.org`,
+    at the SVG's 1400×970). Inkscape and the drawing's font, Architects Daughter, are not on this
+    machine, so (maintainer, Batch 6) both files are removed and a Mermaid flowchart takes the
+    image's place in `docs/workflow.md`: what the two diagrams there did not draw, the before-push
+    break loop and "Stop and ask, do not patch". The SVG's 288 lines put the PR over 400; the
+    maintainer chose `Oversized:` over a split. `broken: none → a picture's words; nothing reads them`
 68. **B, `.github/pull_request_template.md`, "Contract impact".** "Does this change a mart the
     backend reads, or the shape of an endpoint? … tag the backend reviewer" is jobmatch's (a dbt
     mart). The heading is required by the template check. Proposal: keep the heading and "Say
     "None" if not"; the question → `<!-- PROJECT: what a contract is here, and who reviews a
     change to it -->`.
+    **Done** in `dashboard/process-text`: the section's comment is the placeholder and "Say "None"
+    if not."; the heading and "None" kept. `broken: none → the template check reads the heading only`
 69. **B, `.github/workflows/`: comments and one job name.** `pr-checks.yml` lines 16-17 ("the Day
     1-4 tests"), 27 (KAN-5, KAN-6), 132 (job name "Applied migrations and the Day 1-4 tests stay
     unedited"); `spec-drift-tests.yml` lines 7-8; `dashboard.yml` lines 3-4 ("the migration
     dashboard", "where the migration stands"), 15 and 31 (infra-ci). Proposal: comments to neutral
     words; the job name to "Frozen files stay unedited" (item 57). A job name is what branch
     protection requires, so the README names the new one (item 73).
+    **Done** in `dashboard/process-text`, the rename included (maintainer, Batch 6: they swap the
+    required check before the merge). Line 27's KAN example is evidence: prefixed "in
+    jobmatch-microservices,". Job 5's name, "Branch, title, commits and Jira keys agree", kept.
+    New `JobNameTest.test_the_job_that_runs_it_is_named_for_frozen_files` in
+    `test_invariants.py`: the job that runs `invariants.py` is named "Frozen files stay unedited".
+    `broken: pr-checks.yml job 3 named as in jobmatch → AssertionError: Lists differ: ['Applied migrations and the Day 1-4 tests stay unedited'] != ['Frozen files stay unedited']`
 70. **B, the three end-of-phase auditors** (`security-ops-`, `architecture-`,
     `agentic-engineering-auditor.md`). Their frame is jobmatch's ending: "Run once at the end of
     Phase 7, before terraform destroy", "the end of the whole migration", "A monolith migrated to
@@ -815,6 +851,11 @@ placeholder cannot carry it without rewording, the item says so.
     (lines 27-37, 48-51) are jobmatch's system, not a fact:** open: a placeholder list, or keep
     them as marked examples.
     **Decision (maintainer, Batch 0 PR):** a placeholder list, with jobmatch's list as an example in the comment.
+    **Done** in `dashboard/process-text`, as proposed and decided. Wording chosen here: "while the
+    deployment, if any, is still up"; "never apply or destroy infrastructure" for Terraform's two
+    commands; "Do not touch the cloud account, if any" (architecture). Extras of the same kind,
+    each a placeholder with jobmatch's as the example: security-ops' `aws sts` credential and
+    `DEPLOY_ENABLED`, and architecture's gate and boundary lists. `broken: none → text only`
 71. **B, `README.md`.** Says the kit is jobmatch's copy and points at jobmatch's references.
     Proposal: rewritten in Batch 8 for the person copying it (item 73).
 
@@ -876,6 +917,9 @@ except the differences the PR names.
 6. **Process text** (61-70, 59): the agents, `specs/README.md`, `docs/workflow.md`, the SVG and
    PNG, the PR template, the workflow comments, `templates/CLAUDE.template.md`, `.gitattributes`.
    Needs the decisions on items 61, 63, 65, 70 first.
+   **Done** in `dashboard/process-text`, with item 20 and the `broken:` lines under the items.
+   Labelled `Oversized:` (the SVG's removal; the maintainer's choice over a split). 53 of 53
+   boxes the same. 157 tests, was 156.
 7. **The data out, the templates in,** in two PRs, because `git diff --numstat` counts a moved
    file as 0 lines only when its path is free: (a) `git mv` of items 29-37 and 56's script to
    `kit/jobmatch/`, `kit/examples/`, `kit/lessons/`, plus SOURCE.md and CHANGES.md to `kit/`;

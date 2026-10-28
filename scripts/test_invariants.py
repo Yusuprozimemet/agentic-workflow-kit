@@ -2,12 +2,14 @@
 
 Each test builds a scratch git repository with a base commit holding the project file's `frozen`
 patterns, one applied migration, a contract test, the two harness self-tests and an unprotected file,
-changes it on a branch, and runs scripts/invariants.py over the branch as a subprocess.
+changes it on a branch, and runs scripts/invariants.py over the branch as a subprocess. One more
+reads .github/workflows/pr-checks.yml: the job that runs it keeps the name branch protection requires.
 
     python scripts/test_invariants.py
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -15,6 +17,7 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "invariants.py")
+WORKFLOW = os.path.join(HERE, "..", ".github", "workflows", "pr-checks.yml")
 
 SERVICE = "services/account-service"
 TESTS = SERVICE + "/src/test/java/com/example/core"
@@ -163,6 +166,16 @@ class InvariantsTest(unittest.TestCase):
         result = self.run_script()
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("OK", result.stdout)
+
+
+class JobNameTest(unittest.TestCase):
+    def test_the_job_that_runs_it_is_named_for_frozen_files(self):
+        # Branch protection requires the check by this name, so a rename is a settings change too.
+        with open(WORKFLOW, encoding="utf-8") as f:
+            jobs = re.split(r"\n  (?=[\w-]+:\n)", f.read().split("\njobs:\n", 1)[1])
+        names = [re.search(r"^    name: (.+)$", job, re.M).group(1).strip()
+                 for job in jobs if "scripts/invariants.py" in job]
+        self.assertEqual(names, ["Frozen files stay unedited"])
 
 
 if __name__ == "__main__":

@@ -11,9 +11,8 @@
 
 ## Contract impact
 
-<!-- Does this change a mart the backend reads, or the shape of an endpoint?
-     Say "None" if not. If yes, name the table or column and tag the backend
-     reviewer: a rename or a type change breaks them quietly. -->
+<!-- PROJECT: what a contract is here, and who reviews a change to it.
+     Say "None" if not. -->
 
 None
 

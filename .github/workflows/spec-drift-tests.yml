@@ -4,8 +4,8 @@ name: Dashboard metric tests
 # should. scripts/test_spec_drift.py builds small repositories and checks that
 # they do; this runs it on every pull request that touches the script. It also runs
 # scripts/test_token_usage.py, which checks the token counts the dashboard reads, and
-# scripts/test_invariants.py, which checks the rule that keeps applied migrations and
-# the Day 1-4 tests unedited, and scripts/test_break.py, which checks that a break on purpose
+# scripts/test_invariants.py, which checks the rule that keeps the frozen
+# files unedited, and scripts/test_break.py, which checks that a break on purpose
 # puts the code back as it was, and scripts/test_relabel.py, which checks that the close's blind
 # relabel hides a defect's tags and finds where the rater disagrees.
 
