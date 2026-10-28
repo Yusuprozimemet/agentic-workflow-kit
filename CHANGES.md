@@ -394,3 +394,377 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     that is not a list; 76 tests, was 75.
     - `broken: panel() draws without catching, so a throw stops the page, as before → AssertionError: 'V.filter is not a function' is not None`
     **Done in `dashboard/panel-isolation`.**
+
+## Starter cleanup (proposed)
+
+The goal is now a clean starter: copy the folder, fill in the placeholders, start Day 1. This
+section is the inventory for it; nothing here is applied. Plan: (1) this inventory, (2) cleanup
+batches, (3) a starter check, (4) a pilot on a toy project.
+
+Baseline at `8ba8631`: the 8 suites pass, 133 tests (break 7, infra_summary 8, invariants 8,
+pr_names 15, service_wiring 7, token_usage 4, relabel 8, spec_drift 76); the node page check
+(`PageTest`, inside `test_spec_drift.py`) 5 of 5.
+
+Kinds: **D** jobmatch's data, **C** a jobmatch value in code, **F** a feature only a jobmatch-like
+project uses, **B** a jobmatch fact inside process text. "53 boxes" is the check the last PRs
+used: jobmatch's live data, from its Pages page, run through the page in node, every box the
+same HTML and SVG byte for byte. Files with no jobmatch markers: the PR template (but see item
+68), `specs/_template.md`, `templates/plan.template.md`, `templates/spec.template.md`,
+`check-links.py`, `dashboard.css`, `test_token_usage.py`, `test_infra_summary.py`.
+
+Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break the pilot.
+
+### D: jobmatch's data
+
+29. **D, `plan.md`** (471 lines). Read by `spec-drift.py` (run order, stop, phase of each day, a
+    spec-change PR's kind), the plan- and spec-auditor, and the page's roadmap. No test reads it
+    (Batch 2). Proposal: move it to `kit/jobmatch/plan.md`; `templates/plan.template.md` becomes
+    the root `plan.md` by `git mv`. The same for `templates/CLAUDE.template.md` (item 30).
+    `templates/spec.template.md` is byte-identical to `specs/_template.md`: delete it, and
+    `templates/` goes. Open: does `spec-drift.py --build` run with no `plan.md`, for the merge
+    between the two moves (Batch 7)? Check it in Batch 7a.
+30. **D, root `CLAUDE.md`** (jobmatch's, 28 marker lines). Read by every session as instructions:
+    the reason this session had to be told to ignore it. Proposal: move to `kit/jobmatch/`, and
+    the template takes its place (item 29).
+31. **D, `specs/day-12-jwt-issuance.md`, `specs/day-36-ecs-services.md`.** Read by `spec-drift.py`
+    as days of this repository: the kit's page lists them as "ready" (item 23). Proposal: move to
+    `kit/examples/`, where `spec-drift.py` does not look (it reads `specs/day-*`).
+32. **D, `docs/lab-notebook.md`** (1,118 lines). Read by `spec-drift.py`'s `conclusion()` (the
+    `**Read … end of Phase N.**` paragraphs and the "What is being measured" table, on the page)
+    and the plan-auditor ("Results to date"). Proposal: move to `kit/jobmatch/`; a new
+    `docs/lab-notebook.md` of headings only: `## Results to date`, `## What is being measured`
+    with an empty two-column table, `## Retrospective`. The headings are what the readers need.
+33. **D, `docs/audit-findings.md`.** Read by the fourth `CAVEATS` line (item 43), `plan.md` and
+    `specs/README.md`'s map (item 63). Proposal: move to `kit/jobmatch/`.
+34. **D, `docs/defects.md`.** SOURCE.md flags it P, but it is jobmatch's list of defects, Days
+    1-43 (395 marker lines of 456). Read only by the lab notebook. Proposal: move to
+    `kit/jobmatch/`; correct its SOURCE.md flag to J.
+35. **D, `docs/dashboard/token-usage.json`.** Read by `spec-drift.py`'s `tokens()` and the Tokens
+    panel; `test_spec_drift.py` names its path only as a file the work kinds leave out. Proposal:
+    replace with `[]`, which is what `token-usage.py` writes with no transcripts. The starter check
+    shows whether the panel's empty state holds.
+36. **D, `docs/dashboard/deployment.json`.** `deployment()` returns None when absent, and the panel
+    already says "Nothing deployed yet". Proposal: move to `kit/jobmatch/`.
+37. **D, `lessons/`** (9 files, the maintainer's jobmatch memory). Read by nothing but README.md.
+    Six are process lessons with jobmatch's evidence; `checks-before-push.md` is half Maven.
+    Proposal: move to `kit/lessons/`. A new project starts with no lessons; its own memory
+    collects them.
+
+### C: jobmatch values in code
+
+38. **C, `spec-drift.py` line 61, `BREAK_LINE_FROM_PR = 310`. A kit bug.** `break_state()` returns
+    "not measured" for any PR numbered under 310, so a new project's `broken:` lines are not read
+    until its PR #310 (checked: `break_state('broken: x → y', 7)` is `not measured`). The page
+    repeats the number: `dashboard.js` lines 479-483 ("Since #310", "before #310 are not
+    measured") and `index.html` line 115. Proposal: the cutoff goes in the data
+    (`meta.break_line_from_pr`), 0 in the kit (every PR measured), and the page writes the "before
+    #N" sentence only when it is above 0. 53 boxes: kept, by giving the live data the field with
+    310. Tests: `test_spec_drift.py` uses 310 in its PR fixtures; they get the field set.
+39. **C, `spec-drift.py` lines 543 and 547: a number under 10 is "a phase number". A kit bug.**
+    `run_order()` drops every number below 10 from plan.md's "Day-by-day specs" list, so Days 1-9
+    can be neither ordered nor stopped at (checked: `1. Phase 0: Days 3, 1, 2. **Stop and
+    evaluate.**` gives `[1, 2, 3, …]` and no stop). The pilot's two or three days would hit it.
+    Proposal: drop only the number after `Phase`; read every other number as a day. jobmatch's
+    plan gives the same order (a test pins it with the Batch 2 fixture plus a Day 1-9 case).
+    Data only: 53 boxes kept.
+40. **C, `spec-drift.py` lines 97-103 and 1127-1132: the three unnumbered days** (item 18).
+    `PLATFORM`, `CLEANUP`, `CLOSEOUT` are found by the phrases `numbered from`, `numbered after
+    the last` and `close-out` in plan.md; `next_step()` then says "numbered from 38 (plan.md,
+    Course correction after Phase 2)", "Course correction after Phase 5", "Phase 7 outcome".
+    Proposal: keep the mechanism; `next_step()` quotes the plan's own line instead of jobmatch's
+    section names; the plan template documents the list's grammar (`Phase N:`, `**cut**`,
+    `**Stop and evaluate.**`, `numbered from N`, `numbered after the last`). Data only.
+41. **C, `spec-drift.py` lines 70-83, 927: jobmatch's directory history** (item 16): `RENAMED`
+    (#296, #298), `MOVED` (six moves by PR number, `backend/…` → `services/…`), the Verify base
+    `max(("backend", ""), …)`. Proposal: one project file, `spec-drift.config.json` at the root,
+    empty in the kit (`renamed`, `moved`, `verify_bases`); jobmatch's rows become test fixtures
+    under neutral names. Data only. Tests: `sd.MOVED` (2 uses), `sd.RENAMED` (3).
+42. **C, `spec-drift.py` lines 106-111, the docstring's lines 24-26: the service map** (item 17):
+    `SERVICE`, `OWN_PACKAGE`, `IMPORT` on `nl.hackyourfuture.project.backend`, and `.java` only.
+    Proposal: in the item 41 file (`services`: package → service; the package root); with none,
+    the "Service boundaries" panel shows its empty state (item 25 already draws one). 53 boxes:
+    kept (the live data carries the counts already made).
+43. **C, `spec-drift.py` lines 126-127: a caveat citing jobmatch's audit** ("0.871 … 0.433 …
+    AR-8"). Proposal: keep the first clause, drop the measurement and the reference. Data only.
+44. **C, `spec-drift.py` lines 328 and 400: two jobmatch habits.** `kind()` counts any
+    `day-01/` or `day-02/` branch as code (jobmatch's first days had no track names), and a
+    commit with no PR is titled `Initial commit: monolith + migration plan`. Proposal: drop the
+    `day-0[12]` clause; use the commit's subject. Data only.
+45. **C, `spec-drift.py` lines 395 and 1064: the branch `main`** (item 23). Proposal: keep `main`
+    (the CI, branch rules and CLAUDE.md all say it), and fail with one line saying the branch
+    must be `main` instead of git's exit 128. README tells the copier `git init -b main`.
+46. **C, `dashboard.js` line 592, `PROJECT = "jobmatch-microservices"`** (item 2). Proposal:
+    `spec-drift.py` writes `meta.project`, the repository name from `gh repo view`, or the
+    folder's name with no remote; the page reads it. 53 boxes: kept, the live data given
+    `project`.
+47. **C, `dashboard.js` lines 594-595, `PHASES`** (item 19). Proposal: `spec-drift.py` reads the
+    `### Phase N — <name>` headings into `meta.phases`. On jobmatch's own plan the names differ
+    from the constant in four phases (1 adds "(no network yet)", 5 "+ events", 6 lacks "(cut)",
+    7 is "ECS on Fargate"), so the 53 boxes hold only with the constant's names given to the live
+    data; the comparison says so.
+48. **C, `dashboard.js` line 596, `STOPS = [16, 20, 24, 28, 35]`.** jobmatch's phase-end tags;
+    its plan names one stop (Day 28). Proposal: `meta.stops`, the days plan.md's list marks
+    **Stop and evaluate** plus those under its "Stopping points" heading (the template's). 53
+    boxes: kept with the five given to the live data. Open: should a stop be what the plan says,
+    or every phase's last day, as the constant was?
+49. **C, `dashboard.js`: jobmatch text inside boxes.** Line 156 ("the monolith and the plan
+    written for it"), 287 ("the Java packages in spec-drift.py's `SERVICE` map"), 310 ("still in
+    the monolith"), 479-483 (#310, item 38), 687 ("before the evidence format (#55)"), 846
+    ("infra-ci … touches infra/"). Proposal: neutral words, or the value from the data. **This
+    cannot keep the 53 boxes byte for byte** where the words change in a box jobmatch's data
+    fills (156, 310, 687). Open: allow a stated diff, those boxes only, listed in the PR?
+50. **C, `index.html`: jobmatch prose around the panels.** Lines 79 (four services, the monolith),
+    94 (Days 1–4, the 1,000-line start), 115 (#310), 137 (infra-ci, Terraform, AWS, LocalStack,
+    Days 32 and 36), 150 (Day 35, C35.16-17), 181 (`backend/`, job-service), 189 (Day 17,
+    H28.1, Day 25's E1c, #298), 210 ("saved_jobs leaving jobs/", Maven-free but jobmatch's
+    example). Proposal: neutral words. This text is outside the 53 boxes, so they hold; the
+    starter check's marker search is what checks it. Open: is the 1,000-line start in line 94 a
+    constant in `dashboard.js` too? Check in the batch.
+51. **C, `pr-names.py` line 30 and 33-34: `KAN` and `AREAS`.** `JIRA_KEY` defaults to jobmatch's
+    `KAN` (item 13); `AREAS` lists jobmatch's areas (`paper`, `trial`, `security`,
+    `dependabot`). Proposal: no default key (unset is "no tracker": no key is checked); `AREAS`
+    keeps the generic ones (`workflow`, `tooling`, `dashboard`, `docs`, `specs`, `plan`, `ci`),
+    and the item 41 file may add more. Tests: `test_pr_names.py` names `KAN` in 45 lines; they
+    set `JIRA_KEY=KAN` instead of relying on the default. `pr-checks.yml`'s job title "Branch,
+    title, commits and Jira keys agree" stays (a required check's name; item 69).
+52. **C, `token-usage.py` lines 36-38: transcripts found by path.** The folder name is derived
+    from the repository's own path, so a copy in another folder finds its own transcripts
+    (checked: this folder gives `c--users-hackyourfuture-yusup-agentic-workflow-kit`, and
+    `~/.claude/projects` has it in two cases, which the lower-cased compare covers). But the
+    match is a prefix (`startswith`), to take in worktree folders: a sibling named with this
+    one's name and more, such as `agentic-workflow-kit-pilot`, is counted as this project's too.
+    Proposal: match the exact name, or the name followed by `--` (a worktree). The pilot must not
+    sit in a folder whose name starts with the kit's until then. Tests: `test_token_usage.py`
+    calls `count()`, not `transcripts()`; add one.
+53. **C, paths and names that locate this repository.** Checked: `spec-drift.py` takes owner and
+    repo from `gh repo view`, and every `gh` call follows the remote; `.spec-drift-cache.json` is
+    next to the script (`CACHE_FILE`) and ignored by git; the Pages workflow deploys to whatever
+    repo it runs in. Written in: the Pages URL in root `CLAUDE.md` (item 30), `docs/workflow.md`
+    line 78 (item 66), `lessons/spec-first-workflow.md` (item 37); the memory path
+    `~/.claude/projects/*jobmatch-microservices*/memory/` in
+    `agentic-engineering-auditor.md` line 35 (item 70). Proposal: each a placeholder, below.
+54. **C, the tests' fixtures.** `test_spec_drift.py` (96 marker lines), `test_relabel.py` (13),
+    `test_break.py` (4), `test_invariants.py` (10), `test_service_wiring.py` (10),
+    `test_pr_names.py` (45) use jobmatch names as sample values (`identity-service`, `KAN-5`,
+    `#310`). Proposal: each batch that changes a script makes its test's values neutral; the
+    marker search (step 3) reads the tests too, so none is left.
+
+### F: features for a jobmatch-like project
+
+55. **F, the infra panel:** `spec-drift.py`'s `infra()` (`gh run list --workflow infra-ci.yaml`),
+    `infra-summary.py` and its test, `dashboard.yml`'s `workflow_run` on "Infra checks", the
+    "Infrastructure, as CI last checked it" panel. Already off when absent: `infra()` returns no
+    runs, the panel says "No infra-ci summary on main yet". Proposal: keep, off; the workflow's
+    file name in the item 41 file (none: `infra()` not called); neutral panel text (item 50).
+    Removing it would drop a panel (the 53 boxes fall) and one of the 8 suites.
+56. **F, the deployment panel and `scripts/live-checks.py`.** The panel is off without
+    `deployment.json` (item 36). `live-checks.py` checks jobmatch's Day 35 criteria (C35.16-17)
+    on a host; no workflow runs it, and no test covers it. Proposal: keep the panel, off; move
+    `live-checks.py` to `kit/jobmatch/` as an example a project rewrites.
+57. **F, `invariants.py` and `pr-checks.yml` job 3** (item 12, part done). The frozen paths are
+    jobmatch's (`IDENTITY_TESTS`, `services/.+/db/…V*__*.sql`); the step is skipped with no
+    `services/`. Proposal: the frozen patterns in the item 41 file (`frozen`: contract tests,
+    applied migrations); none set, the step prints "nothing frozen" and passes, in place of the
+    `services/**` condition. Tests: `test_invariants.py` passes the patterns in.
+58. **F, `service-wiring.py` and `pr-checks.yml` job 4** (item 11, done as skip). Compose and
+    Prometheus wiring for `services/*`. Proposal: keep, off as it is; its job name stays
+    generic enough. Open: remove it from the default `pr-checks.yml` instead?
+59. **F, `.gitattributes` lines 5-7: `mvnw` line endings.** Harmless without `mvnw`. Proposal:
+    drop the three lines; keep `*.sh` LF.
+60. **F, `break.py` lines 9, 17, 49-54, 75-76: the Maven rules** (`mvnw` as `mvnw.cmd` on Windows; a
+    Maven command must `clean`). Inert for other commands. Proposal: keep; they are general
+    lessons about stale builds that only fire on Maven.
+
+### B: jobmatch facts inside process text
+
+The process text stays word for word; only the fact becomes `<!-- PROJECT: … -->`. Where a
+placeholder cannot carry it without rewording, the item says so.
+
+61. **B, `.claude/agents/spec-auditor.md`.**
+    - Lines 21-22: "For Maven: delete `*/target/surefire-reports` first, read the reports rather
+      than the exit code, and run `../mvnw -B checkstyle:check` too." → "For
+      <!-- PROJECT: the build tool -->: delete <!-- PROJECT: the test report directory --> first,
+      read the reports rather than the exit code, and run <!-- PROJECT: the check CI runs that the
+      build does not, e.g. a linter --> too."
+    - Lines 38-39: "Day 13 left the `Secure` cookie flag to Day 16, which never saw it; the Phase
+      0-1 audit found 8 of 19 such hand-offs dropped, half done or breaking early." This is
+      evidence, not a fact a project fills in. **A placeholder cannot fix it.** Open: keep it as
+      jobmatch's evidence ("In the project this kit came from, …", a rewording), or cut the
+      clause.
+    - Line 43: `grep -rniE "expires on Day|until Day|TODO day-" services frontend scripts
+      --include=*.java --include=*.ts --include=*.py --include=*.yaml` → `… <!-- PROJECT: source
+      directories --> <!-- PROJECT: --include for each source extension -->`.
+62. **B, `.claude/agents/implementer.md`.**
+    - Lines 27-30: "Run the tests the brief names, from `services/identity-service/`
+      (`../../mvnw -B test -Dtest='...' -Dsurefire.failIfNoSpecifiedTests=false`) or with `-f
+      services/api-gateway/pom.xml` for the gateway. Delete `*/target/surefire-reports` first …
+      Run `../../mvnw -B checkstyle:check` too: `verify` does not run it, and CI does." → "Run the
+      tests the brief names, <!-- PROJECT: from where, and the command that runs named tests -->.
+      Delete <!-- PROJECT: the test report directory --> first and read the reports, not the exit
+      code. <!-- PROJECT: any check CI runs that the test command does not, and the command -->."
+    - Lines 35-36: "anything in `src/test/.../contract/` or the Day 01 harness self-tests, or any
+      applied migration (`db/migration` V1–V16, or a module migration already on `main`)" →
+      "anything in <!-- PROJECT: the frozen tests' path -->, or <!-- PROJECT: anything applied
+      that is never edited, e.g. migrations -->".
+    - Line 42: "Put an apostrophe in a Flyway baseline description." → `<!-- PROJECT: a pitfall
+      of this project's tools, one line each -->`.
+    - Line 53: "; checkstyle: <exit code>" → "; <!-- PROJECT: the extra check -->: <exit code>".
+    - `plan-auditor.md` line 35 ("roles and migrations") is a general list: no change.
+      `defect-rater.md`: no hit.
+63. **B, `specs/README.md`: jobmatch evidence inside the rules.** Lines 22-24 (Phases 0-1's
+    three kinds of checks that checked nothing, Days 02, 08, 09), 29-30 (Day 08's query count),
+    37 ("from #310 on", item 38), 41 and 44 (the paper's escapes, D22-017, D23-028), 46-57 (Day
+    25's `AccountDeletionIT`, #441, `SavedCountAfterDeletionIT`), 59 ("from Day 21 on"), 72-76
+    (the paper's §5.3, `docs/paper/success-criteria.md`, H1–H3), 80 (Days 21–28, 11 of 82), 84-89
+    ("from Day 28's spec change on", "Specs before Day 28 keep their form"). **Most cannot be
+    fixed by a placeholder:** they are evidence for a rule, and the dates ("from Day 21 on") are
+    when jobmatch adopted it; for a new project each rule holds from Day 1, so the date is cut,
+    not filled. Proposal: cut the date clauses (a starter has no "before"); for the evidence,
+    open (as item 61). The process sentences around them stay word for word. The contract-test
+    rule (46-57) also needs `contract/` → `<!-- PROJECT: the frozen tests' path -->`.
+64. **B, `specs/README.md` lines 103-134: "Map to plan.md", "Provisional specs", "Stopping
+    points".** jobmatch's data, whole. Proposal: each section's heading kept with a one-line
+    `<!-- PROJECT: … -->` (the table's header row kept: Days | Phase | Outcome | Status).
+65. **B, `templates/CLAUDE.template.md`** (item 20, still open), plus:
+    - Line 11: "The dashboard, Jira and memory only record the others" → "The dashboard,
+      <!-- PROJECT: the tracker, e.g. Jira --> and memory only record the others".
+    - Lines 3, 56, 138: "the migration" → "the project" (a reword of one word each).
+    - Line 57: "up to Day 17, 64% of the main sessions' context tokens were read after a session
+      had passed 300k" is evidence (open, as item 61).
+    - Line 65: "Maven, surefire and CI logs" → "<!-- PROJECT: build and test --> and CI logs".
+    - Line 82 and 89-91: "the end of Phase 7, before `terraform destroy`", "while the deployment is
+      up, beside the plan-auditor on Phase 7" → "<!-- PROJECT: the end of the last phase, and
+      what ends it -->" (item 70).
+    - Line 97: "on Haiku 5.5 (Haiku 4.5 up to Day 33)" → "on <!-- PROJECT: the implementer's
+      model -->".
+    - Lines 114-116: "Maven only with `clean`", "never started Maven" describe what `break.py`
+      does (item 60): keep, or "a build only with `clean`". Open.
+66. **B, `docs/workflow.md`.** Line 18 (CI node "tests, checkstyle,") → "tests, <!-- PROJECT:
+    checks -->,"; line 70 ("Phase 7 ends, before `terraform destroy`") as item 65; line 78 (the
+    jobmatch Pages URL) → `<!-- PROJECT: GitHub Pages URL -->`.
+67. **B, `docs/agent-workflow.svg` and `.png`.** The drawing says "checkstyle," "verify +
+    checkstyle; read reports, not exit codes", "a Day 1–4 contract test needs an edit". **A
+    placeholder cannot go in a picture.** Proposal: neutral words in the SVG ("the checks CI
+    runs", "a frozen test needs an edit"), and the PNG made again from it. Open: how the PNG was
+    made in jobmatch.
+68. **B, `.github/pull_request_template.md`, "Contract impact".** "Does this change a mart the
+    backend reads, or the shape of an endpoint? … tag the backend reviewer" is jobmatch's (a dbt
+    mart). The heading is required by the template check. Proposal: keep the heading and "Say
+    "None" if not"; the question → `<!-- PROJECT: what a contract is here, and who reviews a
+    change to it -->`.
+69. **B, `.github/workflows/`: comments and one job name.** `pr-checks.yml` lines 16-17 ("the Day
+    1-4 tests"), 27 (KAN-5, KAN-6), 132 (job name "Applied migrations and the Day 1-4 tests stay
+    unedited"); `spec-drift-tests.yml` lines 7-8; `dashboard.yml` lines 3-4 ("the migration
+    dashboard", "where the migration stands"), 15 and 31 (infra-ci). Proposal: comments to neutral
+    words; the job name to "Frozen files stay unedited" (item 57). A job name is what branch
+    protection requires, so the README names the new one (item 73).
+70. **B, the three end-of-phase auditors** (`security-ops-`, `architecture-`,
+    `agentic-engineering-auditor.md`). Their frame is jobmatch's ending: "Run once at the end of
+    Phase 7, before terraform destroy", "the end of the whole migration", "A monolith migrated to
+    microservices", the AWS and Terraform checks, the marked example paths (item 6). Proposal:
+    "the end of Phase 7, before terraform destroy" → "<!-- PROJECT: the end of the last phase,
+    and what ends it -->"; "the whole migration" → "the whole project"; line 23 of
+    agentic-engineering → `<!-- PROJECT: what the project is -->`; line 35's memory path →
+    `~/.claude/projects/<this project's folder>/memory/`; the AWS read-only rules kept as
+    "on the cloud account, if any". **The security-ops Infrastructure and Application lists
+    (lines 27-37, 48-51) are jobmatch's system, not a fact:** open: a placeholder list, or keep
+    them as marked examples.
+71. **B, `README.md`.** Says the kit is jobmatch's copy and points at jobmatch's references.
+    Proposal: rewritten in Batch 8 for the person copying it (item 73).
+
+### Batches
+
+One PR each, under 400 changed lines, in this order. Each keeps the 8 suites and the node page
+check green, and runs the 53-box comparison; where it cannot hold byte for byte, the item says so.
+
+0. **The comparison, as a script.** It is run by hand today and not committed. `kit/compare-page.py`:
+   fetch the jobmatch page (or read a saved copy), take its embedded data, add the fields later
+   batches move into the data (`project`, `phases`, `stops`, `break_line_from_pr`: jobmatch's
+   values), draw the page in node with the `DRAW` stub from `test_spec_drift.py`, and print the
+   boxes that differ from a saved run. Files: `kit/compare-page.py`.
+1. **The two kit bugs** (38, 39) and item 45's error line. `spec-drift.py`, `dashboard.js`,
+   `index.html` line 115, `test_spec_drift.py`.
+2. **Page constants into the data** (46, 47, 48) and the data-only fixes (43, 44). `spec-drift.py`,
+   `dashboard.js`, `test_spec_drift.py`.
+3. **The project file** (41, 42, 55's workflow name): `spec-drift.config.json`, `spec-drift.py`,
+   `test_spec_drift.py`.
+4. **The checks' inputs** (51, 57): `pr-names.py`, `invariants.py`, their tests, `pr-checks.yml`.
+5. **The page's words** (40's texts, 49, 50): `dashboard.js`, `index.html`, `spec-drift.py`'s
+   `next_step()`. 53 boxes: a stated diff on items 49's boxes, if allowed.
+6. **Process text** (61-70, 59): the agents, `specs/README.md`, `docs/workflow.md`, the SVG and
+   PNG, the PR template, the workflow comments, `templates/CLAUDE.template.md`, `.gitattributes`.
+   Needs the decisions on items 61, 63, 65, 70 first.
+7. **The data out, the templates in,** in two PRs, because `git diff --numstat` counts a moved
+   file as 0 lines only when its path is free: (a) `git mv` of items 29-37 and 56's script to
+   `kit/jobmatch/`, `kit/examples/`, `kit/lessons/`, plus SOURCE.md and CHANGES.md to `kit/`;
+   (b) `git mv` of the templates to `plan.md` and `CLAUDE.md`, the empty notebook and
+   `token-usage.json` (item 35), and `templates/` removed.
+8. **The starter check and the README** (72, 73).
+
+### 72. The starter check (step 3)
+
+A script, `kit/starter-check.sh`, and a job in `spec-drift-tests.yml` that runs it on every PR:
+
+1. `git archive HEAD | tar -x` into a fresh folder, without `kit/`; `git init -b main`; one commit.
+2. No `specs/day-*`; `plan.md` is the template (after Batch 7b it already is).
+3. `python scripts/spec-drift.py --build` with no remote: it must write the page, and stderr hold
+   only the `NO_REMOTE` line. In Actions, `gh` has no token and no remote, so this is the path a
+   new project takes too.
+4. The node page check on that page: every panel draws or shows its empty state, nothing goes to
+   `console.error`, and no box reads "This panel failed". This needs `PageTest`'s `drawn()` to take
+   a page path; small change in Batch 8.
+5. A marker search over the copy: `git grep -niE` for `jobmatch`, `hackyourfuture`, `KAN-[0-9]`,
+   `identity-service`, `job-service`, `api-gateway`, `mvnw`, `checkstyle`, `surefire`, `flyway`,
+   `terraform`, `localstack`, `infra-ci`, `eu-west-1`, `\bECS\b`. It finds nothing. Left out, for
+   false hits: `Day \d+` and `#\d+` (the rules' examples and the branch grammar), `migration` (a
+   general word), `gateway`, `AWS`, `Java` (`TEST_PATH` names `.java`), `V1`. `Maven` is left out
+   while item 60's rules stay in `break.py`; `mvnw` and `checkstyle` are not.
+
+SOURCE.md and CHANGES.md: **move to `kit/`** with the lessons, jobmatch's examples and the two
+scripts above. The README tells the person copying to delete `kit/` (one `rm -r kit`); the
+marker search leaves it out. Excluding them would lose the record of what changed; keeping
+them at the root would put jobmatch's history in every project.
+
+### 73. What the README tells the person copying
+
+- Copy the folder, `rm -r kit`, `git init -b main` (the branch must be `main`, item 45).
+- Fill every `<!-- PROJECT: … -->`: `git grep -n "PROJECT:"` lists them (CLAUDE.md, plan.md, the
+  agents, `specs/README.md`, the PR template, `docs/workflow.md`), and `spec-drift.config.json`.
+- Optional: `JIRA_KEY` as a repository variable, passed in `pr-checks.yml` (item 51).
+- GitHub: Pages with source "GitHub Actions"; a public repository, or a paid plan for Pages and
+  branch protection on a private one; branch protection on `main` requiring the checks by name
+  ("Description uses the template", "Diff stays reviewable", the names check, "Frozen files stay
+  unedited", "Dashboard metric tests gate") and a pull request before merge.
+- Locally: Python with `numpy`, `node` for the page tests, `gh` logged in.
+- Keep the project in a folder whose name does not start another's (item 52), until that is
+  fixed.
+
+### 74. What the pilot (step 4) must exercise
+
+Each of these has never run in the kit; the pilot runs each once:
+
+- A day end to end on `day-NN/` branches: the spec-change PR, one track PR, the closing PR.
+- The plan-auditor (first day of a phase), the spec-auditor, the implementer on a track, the
+  defect-rater on the blind file.
+- `relabel.py blind` and `compare`, with at least one tagged `Defect`.
+- `token-usage.py` on the pilot's own transcripts, and the Tokens panel filling.
+- `break.py` on the pilot's code, its `broken:` line in a track PR, and the page reading it as
+  "recorded" (item 38).
+- A PR over 400 lines failing "Diff stays reviewable", then passing with `Oversized:`.
+- The panels a day fills: "Pull requests per day", the gap angle moving, the `new`/`hold` tags
+  and the evidence behind the ticks, a hand-off with an ID picked up by the next day.
+- A plan whose order is not by number, with a stop on a day under 10 (item 39).
+
+### Open questions
+
+- Items 61, 63, 65: jobmatch's evidence inside the rules: keep it, marked as jobmatch's, or cut
+  it? A placeholder cannot carry it.
+- Item 70: the security-ops lists of jobmatch's system: a placeholder list, or marked examples?
+- Item 49: may Batch 5 change named boxes on jobmatch's data, with the diff stated?
+- Item 47: the comparison gives jobmatch's data the constant's phase names, not what its plan's
+  headings say; acceptable?
+- Item 48: a stop is what the plan marks, or every phase's last day?
+- Item 58: keep `service-wiring.py` off in `pr-checks.yml`, or take it out?
+- Item 67: how was `agent-workflow.png` made?
+- Items 55, 56: keep the infra and deployment panels (off), as proposed, or remove them, which
+  loses the 53-box comparison and one suite?
