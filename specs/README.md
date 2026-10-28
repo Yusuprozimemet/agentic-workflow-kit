@@ -25,6 +25,10 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
   (Days 08 and 09).
   - `new` is behaviour that does not exist yet. The check must fail on today's code, and the
     spec says how ("the grep finds two"). A `new` check that passes before the work is wrong.
+    The track PR that adds its test runs it on the code before the day (the code change
+    stashed, CLAUDE.md "The implementer") and says what it reported, "FAILED (failures=2)";
+    the closing PR copies it into the Evidence as "seen red first on `<sha>`'s code". In
+    wordtally, Days 4 and 5 recorded their breaks but not this, and each close had to run it.
   - `hold` must stay true through the change: contract tests passing unedited, a statement
     count. It passes before and after, so passing says nothing. Break the code on purpose once,
     watch the check fail, record what it reported, and revert. In jobmatch-microservices, Day
@@ -50,6 +54,14 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
     once with a near miss it must not match (a longer name, a fully qualified form, a comment).
     In jobmatch-microservices, two of the paper's escapes were greps that matched too much or
     too little (D22-017, D23-028).
+  - A check that diffs against a base names a fixed SHA, `main` before the day, never `main`:
+    once the track merges, `main` is the change, the diff is empty, and the check ticks itself.
+    In wordtally, Days 2 and 3 both wrote `main` first.
+  - A check of JSON output compares the parsed object, not the string: on Windows a path in it
+    has its backslashes escaped (wordtally, Day 5).
+  - A check whose break bites on one system only (a carriage return on Windows) says so, and
+    that a local run there guards it, not CI: CI's Linux run passes either way. In wordtally,
+    Days 2 and 4 had one each.
   - The closing PR copies breaks; it does not run the first one. A criterion whose only
     `broken:` lines the close itself ran was a check no track had shown can fail: record it as a
     `Defect` (`found: close`). In jobmatch-microservices, four of the paper's six spec escapes
@@ -82,8 +94,18 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
   - `made:` the day whose work holds the defect, merged or not (`Day 21`, or `none` for work outside any
     day). When it is not this day, the defect is an escape from that day, whatever `found:` says.
 
-  One line per problem: the same kind of problem in two PRs is two lines, and a review of seven
-  drafts is as many lines as it finds problems. In jobmatch-microservices, the paper had to
+  Two tags are easy to get wrong; in wordtally, Days 1 and 3 got both wrong and Day 2 the
+  first, and the blind rater's pass corrected each:
+  - A defect caught in the spec-change PR, before any code, is `found: spec-change PR`, even
+    when the session that wrote the spec caught it itself: a break run with the wrong `bash`
+    and run again before the PR opened. `self` is for the implementer or the main session
+    catching its own code before merge.
+  - A defect in the implementer's draft, caught by its own test run before it reported, is
+    `made: Day NN`, this day, not `none`: the draft is the day's work, merged or not.
+
+  One line per problem: the same kind of problem in two PRs is two lines, a review of seven
+  drafts is as many lines as it finds problems, and an auditor's three findings are three lines
+  (wordtally, Day 2, wrote them as one). In jobmatch-microservices, the paper had to
   decide all three of these after the data (its §5.3); deciding them on the day is cheaper. A
   track whose code the main session rewrote beyond review fixes gets a `Rewrite` line. In
   jobmatch-microservices, these are the counts `docs/paper/success-criteria.md` judges H1–H3 by; its

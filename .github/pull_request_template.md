@@ -30,5 +30,8 @@ None
 - [ ] Tests pass locally
 - [ ] No secrets, tokens, or connection strings in the diff
 - [ ] This pull request does one thing
+- [ ] Track PRs only: each new test was run on the code before the change, and "Why this
+      approach" says how it failed
+- [ ] Every number in this description was counted from the diff or a run, not copied
 - [ ] Spec changes only: every acceptance criterion is tagged `new` or `hold`, and each check
       has been seen to fail (see `specs/README.md`)

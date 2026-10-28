@@ -54,5 +54,6 @@ Tests run
 - <command> → <tests run, failures, errors, from the reports> ; <!-- PROJECT: the extra check; with none, delete from the semicolon -->: <exit code>
 
 Departures from the brief: <each one and why, or none>
+Numbers: every count above (tests, lines, entries) read from the file or the run, not estimated
 Unsure about: <anything you guessed or could not check>
 ```
