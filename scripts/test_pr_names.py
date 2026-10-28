@@ -127,6 +127,11 @@ class KeyTest(unittest.TestCase):
         self.assertEqual([], xyz.problems(*self.MISMATCH))
         self.assertEqual([], problems(*self.CLOSE))
 
+    def test_compare_the_names_reads_jira_key_from_the_repository_variable(self):
+        with open(os.path.join(HERE, "..", ".github", "workflows", "pr-checks.yml"), encoding="utf-8") as f:
+            step = f.read().split("- name: Compare the names", 1)[1].split("run:", 1)[0]
+        self.assertIn("JIRA_KEY: ${{ vars.JIRA_KEY }}", step)
+
 
 class AreasTest(unittest.TestCase):
     """AREAS: the generic ones, then the ones the project file adds (`areas`)."""
