@@ -460,6 +460,16 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     (`meta.break_line_from_pr`), 0 in the kit (every PR measured), and the page writes the "before
     #N" sentence only when it is above 0. 53 boxes: kept, by giving the live data the field with
     310. Tests: `test_spec_drift.py` uses 310 in its PR fixtures; they get the field set.
+    **Done** in `dashboard/starter-bugs`. 310 is when jobmatch's rules began to ask for the line:
+    its #310 (`4d81fbd`, "one fixed line for break evidence, in place of three regexes") replaced
+    regexes over free text, and PRs before it were never asked. The cutoff stays one marked value,
+    `BREAK_LINE_FROM_PR = 0  # PROJECT: …`, written to `meta.break_line_from_pr`, until Batch 3's
+    project file takes it; jobmatch keeps its results by setting 310 there. The page writes "Since
+    #N" and the "before #N" line only when the field is above 0; `index.html` line 115 no longer
+    names #310. The comparison gives jobmatch's data 310 and holds 53 of 53; without the field,
+    only `breaks` differs. Tests: the one 310-dependent assertion sets 310 itself; new
+    `test_a_new_project_reads_the_break_line_from_its_first_pr` and
+    `PageTest.test_the_break_panel_names_the_first_pr_only_when_there_is_one`.
 39. **C, `spec-drift.py` lines 543 and 547: a number under 10 is "a phase number". A kit bug.**
     `run_order()` drops every number below 10 from plan.md's "Day-by-day specs" list, so Days 1-9
     can be neither ordered nor stopped at (checked: `1. Phase 0: Days 3, 1, 2. **Stop and
@@ -467,6 +477,14 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     Proposal: drop only the number after `Phase`; read every other number as a day. jobmatch's
     plan gives the same order (a test pins it with the Batch 2 fixture plus a Day 1-9 case).
     Data only: 53 boxes kept.
+    **Done** in `dashboard/starter-bugs`. It told days from phases by size: every number under 10
+    was a phase. Now the number after `Phase`, or a range after `Phases` ("Phases 6–7", which the
+    tests' plan has), is dropped before the days are read, in `last` too; every other number is a
+    day. jobmatch's phase numbers all follow `Phase`: "Phase 3:", "after Phase 7",
+    "end-of-Phase-7". On jobmatch's plan and its 42 specs at the source commit, the old and new
+    `run_order()` give the same order and no stop. Tests:
+    `test_a_day_under_10_is_a_day_and_only_a_phase_number_is_not` (Days 3, 1, 2 with a stop, then
+    4-5) and `test_jobmatchs_plan_runs_in_its_order` (jobmatch's list as it ended).
 40. **C, `spec-drift.py` lines 97-103 and 1127-1132: the three unnumbered days** (item 18).
     `PLATFORM`, `CLEANUP`, `CLOSEOUT` are found by the phrases `numbered from`, `numbered after
     the last` and `close-out` in plan.md; `next_step()` then says "numbered from 38 (plan.md,
@@ -541,6 +559,10 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     sit in a folder whose name starts with the kit's until then. Tests: `test_token_usage.py`
     calls `count()`, not `transcripts()`; add one.
     **Decision (maintainer, Batch 0 PR):** fixed in Batch 1, as its third bug.
+    **Done** in `dashboard/starter-bugs`: a folder is read when its name is this repository's, or
+    that and `--` (a worktree under `.claude/worktrees/`). New `TranscriptsTest`: of the folders
+    `<name>`, `<name>--claude-worktrees-a`, `<name>-pilot`, `<name>2` and `other`, only the first
+    two are read. Item 73's last bullet (keep the project out of such a folder) is no longer needed.
 53. **C, paths and names that locate this repository.** Checked: `spec-drift.py` takes owner and
     repo from `gh repo view`, and every `gh` call follows the remote; `.spec-drift-cache.json` is
     next to the script (`CACHE_FILE`) and ignored by git; the Pages workflow deploys to whatever
@@ -720,6 +742,9 @@ except the differences the PR names.
 1. **The three kit bugs** (38, 39, and 52's prefix match: a decision of the Batch 0 PR) and
    item 45's error line. `spec-drift.py`, `dashboard.js`,
    `index.html` line 115, `test_spec_drift.py`.
+   **Done** in `dashboard/starter-bugs`, the three bugs (38, 39, 52), plus `token-usage.py` and
+   `test_token_usage.py`. Item 45's error line was not in the maintainer's brief for this batch:
+   not done, still open.
 2. **Page constants into the data** (46, 47, 48) and the data-only fixes (43, 44). `spec-drift.py`,
    `dashboard.js`, `test_spec_drift.py`.
 3. **The project file** (41, 42, 55's workflow name): `spec-drift.config.json`, `spec-drift.py`,

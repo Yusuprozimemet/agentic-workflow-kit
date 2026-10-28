@@ -53,12 +53,13 @@ CITED_PR = re.compile(r"(?<![\w&])#(\d+)\b")
 EVIDENCE_TEST = re.compile(r"\b([A-Z][A-Za-z0-9]*(?:Test|IT|Tests))(?:\.([a-z][A-Za-z0-9_]*))?\b")
 # A break on purpose, in one fixed line (specs/README.md): `broken: <what> → <what it reported>`,
 # on its own line in a PR description or under a ticked criterion; `broken: none → <why>` says
-# there was none. It replaced three regexes over free text (#310), which read a break described in
-# other words as none. Nothing earlier was asked for the line, so it is read from PR #310 on: a
-# PR before it, or a day none of whose PRs reaches it, is not measured. A day number would not do:
-# Days 39-41 ran before Day 28.
+# there was none. In jobmatch-microservices it replaced three regexes over free text (#310), which
+# read a break described in other words as none. Nothing earlier was asked for the line, so there
+# it is read from PR #310 on (310 below): a PR before it, or a day none of whose PRs reaches it, is
+# not measured. A day number would not do: Days 39-41 ran before Day 28. A project whose rules ask
+# for the line from its first PR leaves it at 0, and the page names no PR.
 BREAK_LINE = re.compile(r"^[ \t]*(?:[-*][ \t]+)?broken:[ \t]*(\S[^\n]*?)[ \t]*(?:→|->)[ \t]*\S", re.M)
-BREAK_LINE_FROM_PR = 310
+BREAK_LINE_FROM_PR = 0  # PROJECT: the first PR asked for the broken: line; 0 for all of them
 # A test CI can skip: switched off, or run only on a condition. A condition on a system property
 # is met when a workflow passes it as true (GatewayHarnessIT, -Dharness.gateway=true), so that
 # test runs. A bare @Disabled stays skippable.
@@ -540,12 +541,12 @@ def run_order(plan, spec_days):
     days out of the order: Phase 6's Days 29-31, cut after Phase 7, run nowhere."""
     listed, cut, stop = [], [], None
     lines = re.findall(r"^\d+\.\s+(.*(?:\n {3}.*)*)", section(plan, "Day-by-day specs"), re.M)
-    last = max((int(n) for line in lines for n in re.findall(r"\d+", line) if int(n) >= 10), default=0)
+    # Every number is a day but a phase's: "Phase 3:", "Phases 6–7", "after Phase 7", "end-of-Phase-7".
+    unphased = lambda line: re.sub(r"Phases?[\s-]*\d+(?:\s*[–-]\s*\d+)?", "", line)
+    last = max((int(n) for line in lines for n in re.findall(r"\d+", unphased(line))), default=0)
     for line in (" ".join(line.split()) for line in lines):  # an item may wrap mid-phrase
         days = []
-        for a, b in re.findall(r"(\d+)(?:\s*[–-]\s*(\d+))?", line):
-            if int(a) < 10:  # a phase number, not a day
-                continue
+        for a, b in re.findall(r"(\d+)(?:\s*[–-]\s*(\d+))?", unphased(line)):
             if "numbered from" in line:
                 days += sorted(d for d in spec_days if d >= int(a)) or [PLATFORM]
             else:
@@ -1213,7 +1214,8 @@ def main():
                                infra=infra(),
                                deployment=deployment(),
                                conclusion=conclusion(blobs.read(snaps[-1]["sha"], "docs/lab-notebook.md")),
-                               meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance())),
+                               meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance(),
+                                         break_line_from_pr=BREAK_LINE_FROM_PR)),
                           separators=(",", ":"))
     target = args.build or args.out
     if args.build:

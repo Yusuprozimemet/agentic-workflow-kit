@@ -32,10 +32,12 @@ DATED = re.compile(r"-\d{8}$")
 
 def transcripts(root):
     # Claude Code names a project's folder after its path, every character but letters and digits
-    # turned into "-"; worktrees of this repository get folders that start the same way.
+    # turned into "-"; a worktree of this repository, under its .claude/worktrees/, gets the same name
+    # and "--". A sibling folder whose name only starts with this one's is another project.
     name = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(os.path.join(HERE, os.pardir))).lower()
     for folder in glob.glob(os.path.join(root, "*")):
-        if os.path.basename(folder).lower().startswith(name):
+        base = os.path.basename(folder).lower()
+        if base == name or base.startswith(name + "--"):
             yield from glob.glob(os.path.join(folder, "**", "*.jsonl"), recursive=True)
 
 
