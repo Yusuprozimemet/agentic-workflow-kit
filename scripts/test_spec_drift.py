@@ -2,7 +2,7 @@
 
 Each drift test builds a small git repository, one commit per merge, and runs spec-drift.py's
 trajectory over it; the roadmap tests check the run order, the statuses and the next step. Needs
-git and numpy.
+git and numpy; the page tests run docs/dashboard/dashboard.js and need node.
 
     python scripts/test_spec_drift.py
 """
@@ -713,6 +713,66 @@ class OwnerAndCaveatTest(unittest.TestCase):
 
     def test_the_coverage_caveat_says_tests_and_tooling_count(self):
         self.assertTrue(any("test" in c and "tooling" in c and "0.433" in c for c in sd.CAVEATS))
+
+
+# Boots docs/dashboard/dashboard.js on the data from stdin, with a document that accepts anything,
+# and prints the eyebrow and the stats it wrote. The panels drawn after the eyebrow may throw on a
+# small fixture; only an error before it fails a test.
+BOOT = r"""
+const fs = require("fs"), vm = require("vm"), els = {};
+const stub = () => new Proxy(function () {}, {
+  get: (t, k) => k === Symbol.toPrimitive ? () => "" : k === Symbol.iterator ? [][Symbol.iterator] : k in t ? t[k] : (t[k] = stub()),
+  apply: () => stub(), construct: () => stub() });
+const document = new Proxy({}, { get: (t, k) => k === "getElementById" ? id => els[id] || (els[id] = stub()) : stub() });
+const ctx = vm.createContext({ document, window: {}, DATA: JSON.parse(fs.readFileSync(0, "utf8")) });
+let error = null;
+try { vm.runInContext(fs.readFileSync(process.argv[1], "utf8") + "\nboot(DATA);", ctx); } catch (e) { error = e.message; }
+const text = id => els[id] ? [els[id].textContent, els[id].innerHTML].find(v => typeof v === "string") : null;
+console.log(JSON.stringify({ eyebrow: text("eyebrow"), stats: text("stats"), error }));
+"""
+
+
+def page_row(i, pr, kind, gap):
+    return dict(i=i, sha=f"{i:07x}", date="2026-01-01", pr=pr, title="t", kind=kind, gap_full=gap)
+
+
+def page(rows, days=(), order=(), current_day=None):
+    """What the page writes for this data: its eyebrow, and the value under a stat's name."""
+    data = dict(now=dict(generated="2026-01-01T00:00", head="abc", last_pr=None, current_day=current_day,
+                         next_step="x", open_prs=[]), rows=rows, days=list(days), order=list(order))
+    out = json.loads(subprocess.run(["node", "-e", BOOT, os.path.join(HERE, "..", "docs", "dashboard", "dashboard.js")],
+                                    input=json.dumps(data), capture_output=True, encoding="utf-8", check=True).stdout)
+    if out["eyebrow"] is None:
+        raise AssertionError(f"the page stopped before the eyebrow: {out['error']}")
+    stat = lambda name: out["stats"].split(f">{name}</span>")[1].split('class="v num">')[1].split("<")[0]
+    return out["eyebrow"], stat
+
+
+@unittest.skipUnless(shutil.which("node"), "needs node")
+class PageTest(unittest.TestCase):
+    """The page's own counts, on a new repository: direct commits, flat gaps, days without specs."""
+
+    def test_merged_prs_are_the_merges_that_name_a_pr(self):
+        # The kit's main: direct commits, then PR merges. Each commit is a row; only a PR merge counts.
+        rows = [page_row(0, None, "origin", 50), page_row(1, None, "origin", 50), page_row(2, 1, "other", 50),
+                page_row(3, None, "origin", 50), page_row(4, 2, "other", 50)]
+        self.assertEqual(page(rows)[0].split(" · ", 1)[1], "between days · 2 merged PRs")
+
+    def test_the_gap_share_leaves_out_direct_commits_and_is_a_dash_with_no_gap_closed(self):
+        # A direct commit closes 10°, a spec PR widens 5°, a code PR closes 10°: the PRs closed 5°,
+        # and the spec's share of it is -5 / 5. Counting the direct commit would make it -5 / 15.
+        moved = [page_row(0, None, "origin", 50), page_row(1, None, "origin", 40), page_row(2, 1, "spec", 45),
+                 page_row(3, 2, "code", 35)]
+        self.assertEqual(page(moved)[1]("Share of the gap closed by the spec"), "-100%")
+        flat = [page_row(0, None, "origin", 70.8), page_row(1, None, "origin", 70.8), page_row(2, 1, "other", 70.8)]
+        self.assertEqual(page(flat)[1]("Share of the gap closed by the spec"), "–")
+
+    def test_the_day_total_is_the_run_order_and_the_cut_days_with_specs(self):
+        # Specs for Days 12 and 36 and a cut Day 29; plan.md runs 12, 18, 17, 36 and 40.
+        days = [dict(a_day(12), status="active", phase=1, title="t", prs=[]), dict(a_day(36), status="ready"),
+                dict(a_day(29), status="cut")]
+        eyebrow, _ = page([page_row(0, None, "origin", 50)], days, [12, 18, 17, 36, 40], current_day=12)
+        self.assertIn("· Day 12 of 6 ·", eyebrow)
 
 
 def a_day(n, ticked=1, total=1, kinds=(), titles=()):
