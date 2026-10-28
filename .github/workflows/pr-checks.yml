@@ -174,4 +174,5 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          JIRA_KEY: ${{ vars.JIRA_KEY }}
         run: python scripts/pr-names.py "$BASE_SHA" "$HEAD_SHA"

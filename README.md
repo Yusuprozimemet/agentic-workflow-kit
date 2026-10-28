@@ -23,9 +23,9 @@ that measures it. It holds the agent briefs (`.claude/agents/`), the spec rules
    `specs/day-NN-<slug>.md`. At a stop (**Stop and evaluate.** in `plan.md`'s list) the next
    step waits until `plan.md` has a `## Course correction after Phase N` section, N the stop
    item's phase.
-5. Optional: a tracker key. With a repository variable `JIRA_KEY`, add
-   `JIRA_KEY: ${{ vars.JIRA_KEY }}` to the env of "Compare the names" in
-   `.github/workflows/pr-checks.yml`; unset, no key is checked.
+5. Optional: a tracker key, as a repository variable `JIRA_KEY` (Settings, Secrets and
+   variables, Actions, Variables). "Compare the names" in `.github/workflows/pr-checks.yml`
+   reads it; unset, no key is checked.
 
 On GitHub, in this order:
 

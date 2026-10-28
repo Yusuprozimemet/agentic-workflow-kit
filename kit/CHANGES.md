@@ -1095,6 +1095,14 @@ is an instruction (add `JIRA_KEY: ${{ vars.JIRA_KEY }}` to "Compare the names"):
 passes none today, and no Decision changes it here. `check-links.py`: 0 of 8 broken, was 0 of 9.
 - `broken: none → text only; the starter check's step 5 reads it, and named it (4 lines) before the rewrite`
 
+**Done** in `dashboard/jira-key-var`, the `JIRA_KEY` instruction: "Compare the names" passes
+`JIRA_KEY: ${{ vars.JIRA_KEY }}`, so a project sets the repository variable and edits no
+workflow; README step 5 says so. Unset, the variable arrives empty, which `pr-names.py` already
+reads as no key (item 51), so a copy without it checks what it checked before. New
+`KeyTest.test_compare_the_names_reads_jira_key_from_the_repository_variable`, failing on main's
+workflow (`test_pr_names.py`: 16 of 17, now 17).
+- `broken: the names step passes another variable as JIRA_KEY → AssertionError: 'JIRA_KEY: ${{ vars.JIRA_KEY }}' not found in '\n        env:\n          PR_BRANCH: ${{ github.head_ref }}\n          PR_TITLE: ${{ github.event.pull_request.title }}\n          PR_BODY: ${{ github.event.pull_request.body }}\n          BASE_SHA: ${{ github.event.pull_request.base.sha }}\n          HEAD_SHA: ${{ github.event.pull_request.head.sha }}\n          JIRA_KEY: ${{ vars.TRACKER_KEY }}\n        '`
+
 ### 74. What the pilot (step 4) must exercise
 
 Each of these has never run in the kit; the pilot runs each once:
