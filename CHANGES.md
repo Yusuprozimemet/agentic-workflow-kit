@@ -514,6 +514,13 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     Proposal: keep the mechanism; `next_step()` quotes the plan's own line instead of jobmatch's
     section names; the plan template documents the list's grammar (`Phase N:`, `**cut**`,
     `**Stop and evaluate.**`, `numbered from N`, `numbered after the last`). Data only.
+    **Done** in `dashboard/page-words`: the mechanism kept. `unwritten_lines(plan)` finds the item
+    each placeholder comes from, as `run_order()` reads it; `next_step()` says `Day NN: write its
+    day spec (plan.md: "<the item>")`, NN the `numbered from` number or the day after the last, as
+    `unwritten()` gives it. The three constants' comments describe the grammar; the plan
+    template's list comment adds `**cut**`, `numbered from N`, `numbered after the last` and
+    `close-out`. jobmatch's data is unchanged: its next step is computed once, at its own build.
+    - `broken: next_step() names the plan without quoting its item → AssertionError: 'Day [13 chars] day spec (plan.md)' != 'Day [13 chars] day spec (plan.md: "A step the plan adds, numbered from 20.")'`
 41. **C, `spec-drift.py` lines 70-83, 927: jobmatch's directory history** (item 16): `RENAMED`
     (#296, #298), `MOVED` (six moves by PR number, `backend/…` → `services/…`), the Verify base
     `max(("backend", ""), …)`. Proposal: one project file, `spec-drift.config.json` at the root,
@@ -592,6 +599,15 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     cannot keep the 53 boxes byte for byte** where the words change in a box jobmatch's data
     fills (156, 310, 687). Open: allow a stated diff, those boxes only, listed in the PR?
     **Decision (maintainer, Batch 0 PR):** accepted: a diff in those three boxes only, listed in the PR.
+    **Done** in `dashboard/page-words`: 156 "the code and the plan written for it"; 287 the
+    packages under `services` in `spec-drift.config.json`; 310 "still in place", "in place";
+    687 the title without "(#55)"; 846 "No infra summary on main yet: it appears after the infra
+    workflow next runs on main." (479-483 were item 38's, Batch 1.) Two comments too (the run
+    order's example, the ratio's 1,000 lines). Of the three boxes allowed, one differs on
+    jobmatch's data, `evidence`, saved with `--write`; `readout` and `placed` draw jobmatch's last
+    merge, which shows neither sentence. Not changed: the `moved` chart's label, "Share of the four
+    services' main source lines under services/", is in a box the Decision does not allow; open.
+    - `broken: the boxes say a part-moved service is still in the monolith → AssertionError: '<b>b[28 chars]es) · <b>orders</b> 40 lines out, 30 still in the monolith</p>' != '<b>b[28 chars]es) · <b>orders</b> 40 lines out, 30 still in place</p>'`
 50. **C, `index.html`: jobmatch prose around the panels.** Lines 79 (four services, the monolith),
     94 (Days 1–4, the 1,000-line start), 115 (#310), 137 (infra-ci, Terraform, AWS, LocalStack,
     Days 32 and 36), 150 (Day 35, C35.16-17), 181 (`backend/`, job-service), 189 (Day 17,
@@ -599,6 +615,13 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     example). Proposal: neutral words. This text is outside the 53 boxes, so they hold; the
     starter check's marker search is what checks it. Open: is the 1,000-line start in line 94 a
     constant in `dashboard.js` too? Check in the batch.
+    **Done** in `dashboard/page-words`: the listed lines (115 was item 38's) and three the list
+    missed, of the same kind: 52 (Days 38-40 and 17), 170 (`GatewayHarnessIT`, #55, Day 9,
+    #310), 201 (three jobmatch names as examples, dropped). The prose names the project file's
+    fields (`services`, `infra_workflow`, `verify_bases`, `moved`) where it named jobmatch's
+    values. The 1,000-line start is `RATIO_FROM` in `dashboard.js`; the prose keeps the number and
+    gives a reason that is not jobmatch's Days 1-4. `PageProseTest` holds the markers it checks.
+    - `broken: the deployment panel's prose names Day 35 again → AssertionError: Lists differ: ['Day 35'] != []`
 51. **C, `pr-names.py` line 30 and 33-34: `KAN` and `AREAS`.** `JIRA_KEY` defaults to jobmatch's
     `KAN` (item 13); `AREAS` lists jobmatch's areas (`paper`, `trial`, `security`,
     `dependabot`). Proposal: no default key (unset is "no tracker": no key is checked); `AREAS`
@@ -847,6 +870,9 @@ except the differences the PR names.
    invariants nothing frozen. 53 of 53 boxes the same. 153 tests, was 150.
 5. **The page's words** (40's texts, 49, 50): `dashboard.js`, `index.html`, `spec-drift.py`'s
    `next_step()`. 53 boxes: a stated diff on items 49's boxes, if allowed.
+   **Done** in `dashboard/page-words`, plus `templates/plan.template.md` (item 40's grammar), with
+   the three `broken:` lines under the items. `evidence` alone differs, saved with `--write`; 53
+   of 53 the same after. 156 tests, was 153.
 6. **Process text** (61-70, 59): the agents, `specs/README.md`, `docs/workflow.md`, the SVG and
    PNG, the PR template, the workflow comments, `templates/CLAUDE.template.md`, `.gitattributes`.
    Needs the decisions on items 61, 63, 65, 70 first.

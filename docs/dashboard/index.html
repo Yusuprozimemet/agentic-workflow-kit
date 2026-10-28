@@ -49,7 +49,7 @@
   <section class="panel">
     <div class="panel-head">
       <h2>Spec–code name gap, merge by merge</h2>
-      <p>The spec–code name gap is the angle between the whole spec and the code, over the code names the specs put in backticks, in degrees, not a percentage. The dashed line is what it would read with nothing to find, and the shading around it is the 95% band of 1,000 seeded draws: the gap to the same code counts shuffled across the names. A merge with no spec name in the code has no gap angle and is left off the line. The strip under the axis shows what kind of PR each merge was; below that, a tick where each calendar date begins, so a busy date takes more width. A day marked * ran out of numeric order: Days 38–40 before Day 17, and Day 17 after Days 18–19.</p>
+      <p>The spec–code name gap is the angle between the whole spec and the code, over the code names the specs put in backticks, in degrees, not a percentage. The dashed line is what it would read with nothing to find, and the shading around it is the 95% band of 1,000 seeded draws: the gap to the same code counts shuffled across the names. A merge with no spec name in the code has no gap angle and is left off the line. The strip under the axis shows what kind of PR each merge was; below that, a tick where each calendar date begins, so a busy date takes more width. A day marked * ran out of numeric order.</p>
     </div>
     <div class="legend">
       <span><i style="background:var(--gap)"></i>Name gap: spec vs code</span>
@@ -76,7 +76,7 @@
   <section class="panel">
     <div class="panel-head">
       <h2>Service boundaries</h2>
-      <p>The gap reads names; this reads the tree. For the four services in <code>plan.md</code> (identity, jobs, applications, matching, each with the monolith packages it takes over): the share of their main source lines that sits in its own directory under <code>services/</code> rather than in the monolith. It reaches 100% when the last service leaves.</p>
+      <p>The gap reads names; this reads the tree. For the services under <code>services</code> in <code>spec-drift.config.json</code>, each with the packages it takes over: the share of their main source lines that sits in its own directory under <code>services/</code> rather than where it started. It reaches 100% when the last service has moved.</p>
     </div>
     <div id="moved"></div>
     <div class="finding" id="placed" style="margin-top:14px"></div>
@@ -91,7 +91,7 @@
     <div id="work-bar"></div>
     <div class="panel-head" style="margin-top:14px">
       <h2 style="font-size:17px">Tests per line of code, so far</h2>
-      <p>Test lines changed so far divided by production lines changed so far, at each merge. Days 1–4 wrote the contract tests before any code moved, so the line starts once production passes 1,000 lines; above the dashed line, more test than code has been written.</p>
+      <p>Test lines changed so far divided by production lines changed so far, at each merge. The line starts once production passes 1,000 lines, so tests written before any code do not read as a spike; above the dashed line, more test than code has been written.</p>
     </div>
     <div id="test-ratio"></div>
     <div class="panel-head" style="margin-top:14px">
@@ -134,7 +134,7 @@
   <section class="panel" id="infra">
     <div class="panel-head">
       <h2>Infrastructure, as CI last checked it</h2>
-      <p>infra-ci plans the Terraform without an AWS account, applies the bus and score table to LocalStack, and checks the criteria of Days 32 and 36 on every merge that touches them. This is its last run on main: the criteria, what the plan would create, and an estimate of what it would cost an hour to run. Nothing here reads the AWS account; the deployment itself is Day 35's.</p>
+      <p>The infra workflow, <code>infra_workflow</code> in <code>spec-drift.config.json</code>, checks the infrastructure's criteria on the merges that touch it, and <code>scripts/infra-summary.py</code> writes its summary. This is its last run on main: the criteria, what it would create, and an estimate of what it would cost an hour to run. Nothing here reads a cloud account.</p>
     </div>
     <div id="infra-head"></div>
     <div class="chips" id="infra-criteria"></div>
@@ -147,7 +147,7 @@
   <section class="panel" id="deployment">
     <div class="panel-head">
       <h2>The deployment, as it was checked live</h2>
-      <p>Day 35 deploys once. <code>scripts/live-checks.py</code> then checks the running system against the domain (C35.16 and C35.17) and commits <code>deployment.json</code>. Each check shows its result and when it ran; the account is destroyed after.</p>
+      <p>Once the system is deployed, <code>scripts/live-checks.py</code> checks it against the domain and commits <code>deployment.json</code>. Each check shows its result and when it ran.</p>
     </div>
     <div id="deployment-head"></div>
     <div class="scroll-x" id="deployment-checks"></div>
@@ -167,7 +167,7 @@
   <section class="panel">
     <div class="panel-head">
       <h2>Evidence behind the ticks</h2>
-      <p>For each finished day: of its ticked criteria, how many cite the PR they landed in, name a test, and record a break seen red in a <code>broken:</code> line. Each named test is looked up on <code>main</code>. CI runs every test that is there, so a criterion goes quiet only when its test leaves the tree or can be skipped (a test run on a system property, like <code>GatewayHarnessIT</code>, runs when a workflow passes the property as true). A test that moved is followed under its new name, of the same stem or listed by the PR that moved it. A name counts only if it was in the tree when the day's last PR merged. Grey is retired: a later day's spec names the test and that day's PR removed it; orange is gone with no spec saying so. Days marked <em>pre-format</em> were written before the evidence format (#55, from Day 9): nothing asked their ticks to record any of this, so a zero there is not measured, not missing. The <code>broken:</code> line was asked for from #310: “Seen red” is not measured for a day none of whose PRs reaches it.</p>
+      <p>For each finished day: of its ticked criteria, how many cite the PR they landed in, name a test, and record a break seen red in a <code>broken:</code> line. Each named test is looked up on <code>main</code>. CI runs every test that is there, so a criterion goes quiet only when its test leaves the tree or can be skipped (a test run on a system property runs when a workflow passes the property as true). A test that moved is followed under its new name, of the same stem or listed by the PR that moved it. A name counts only if it was in the tree when the day's last PR merged. Grey is retired: a later day's spec names the test and that day's PR removed it; orange is gone with no spec saying so. Days marked <em>pre-format</em> were written before the evidence format: nothing asked their ticks to record any of this, so a zero there is not measured, not missing. If the <code>broken:</code> line was asked for only from a later PR, “Seen red” is not measured for a day none of whose PRs reaches it.</p>
     </div>
     <div class="scroll-x"><table id="evidence"></table></div>
     <div class="finding" id="evidence-gaps" style="margin-top:14px"></div>
@@ -178,7 +178,7 @@
     <div id="evidence-history"></div>
     <div class="panel-head" style="margin-top:14px">
       <h2 style="font-size:17px">Removal checks</h2>
-      <p>The greps a finished day's criteria or Verify say must print nothing, run over the tree at every merge from the day's end, from <code>backend/</code> or the root, wherever their paths are. Paths follow the directories that moved since (<code>backend/jobs/</code> to job-service, <code>backend/</code> to identity-service), because a grep of a path that is gone prints nothing too. CI runs none of them. A check is orange when it finds lines on <code>main</code>, listed under it; grey when it reads no files; green otherwise. Since is the merge where that state began.</p>
+      <p>The greps a finished day's criteria or Verify say must print nothing, run over the tree at every merge from the day's end, from the root or a directory under <code>verify_bases</code> in <code>spec-drift.config.json</code>, wherever their paths are. Paths follow the directories that moved since (its <code>moved</code>), because a grep of a path that is gone prints nothing too. CI runs none of them. A check is orange when it finds lines on <code>main</code>, listed under it; grey when it reads no files; green otherwise. Since is the merge where that state began.</p>
     </div>
     <div class="scroll-x"><table id="removals"></table></div>
   </section>
@@ -186,7 +186,7 @@
   <section class="panel">
     <div class="panel-head">
       <h2>Hand-offs to days not yet run</h2>
-      <p>What finished days leave for later: a Notes item that names a day not yet run, or a code comment that does ("Day 17 adds job-service"). Nothing else carries them forward. A Notes item with an ID (<code>H28.1</code>, from Day 28 on) counts as picked up only when the receiving spec cites the ID; one without, when it names the day the item came from; a comment, when the spec names its file. Days in run order; a spec written in full should leave none open. Last: ID'd items no later day picks up, and tracks a PR announced that no branch ever named (Day 25's E1c, #298).</p>
+      <p>What finished days leave for later: a Notes item that names a day not yet run, or a code comment that does ("Day 12 adds this"). Nothing else carries them forward. A Notes item with an ID (like <code>H12.1</code>) counts as picked up only when the receiving spec cites the ID; one without, when it names the day the item came from; a comment, when the spec names its file. Days in run order; a spec written in full should leave none open. Last: ID'd items no later day picks up, and tracks a PR announced that no branch ever named.</p>
     </div>
     <div class="hand-offs" id="hand-offs"></div>
   </section>
@@ -198,7 +198,7 @@
       <summary>How the vectors are built</summary>
       <div class="method" style="margin-top:10px">
         <p><b>Snapshots.</b> The initial commit plus every first-parent merge on <code>main</code> (<span id="pr-range"></span>). Code PRs, spec-change PRs and close-the-day PRs are told apart by branch name and title.</p>
-        <p><b>The spec–code name gap</b> needs a space both sides share. It is built from the <span class="num vocab-n"></span> code-like names the specs put in backticks (<code>SavedJobCounts</code>, <code>saved_jobs</code>, <code>JobRepository</code>…). The spec vector counts how often each name appears in the specs. The code vector counts how often it appears in the code, with Markdown, <code>data/</code>, screenshots and comment lines left out: a comment naming a thing is not the thing. Both are log-scaled and compared by angle. Each merge’s gap uses only the names the specs had used by that merge, so a name a later spec adds does not move an earlier point. Counts are never negative, so even unrelated vectors sit well under 90°: the same code counts shuffled across the names would read <span class="num" id="gap-chance"></span> today (the dashed line and its band). With no spec name in the code there is no direction to compare, so no angle, rather than 90°. The other direction is counted apart: names the specs once used and have dropped, that the code still has. The gap is worth reading only as its distance below that line; the share of reached names found in the code (“The sawtooth, up close”) is the plainer measure.</p>
+        <p><b>The spec–code name gap</b> needs a space both sides share. It is built from the <span class="num vocab-n"></span> code-like names the specs put in backticks. The spec vector counts how often each name appears in the specs. The code vector counts how often it appears in the code, with Markdown, <code>data/</code>, screenshots and comment lines left out: a comment naming a thing is not the thing. Both are log-scaled and compared by angle. Each merge’s gap uses only the names the specs had used by that merge, so a name a later spec adds does not move an earlier point. Counts are never negative, so even unrelated vectors sit well under 90°: the same code counts shuffled across the names would read <span class="num" id="gap-chance"></span> today (the dashed line and its band). With no spec name in the code there is no direction to compare, so no angle, rather than 90°. The other direction is counted apart: names the specs once used and have dropped, that the code still has. The gap is worth reading only as its distance below that line; the share of reached names found in the code (“The sawtooth, up close”) is the plainer measure.</p>
         <p><b>Where the work went</b> counts <code>git diff --numstat</code> between one merge and the one before it, every file, so nothing merged is counted twice and nothing is left out. A moved file counts only the lines that changed in the move, under the path it moved to. Binary files, <code>package-lock.json</code>, <code>screenshots/</code> and <code>docs/dashboard/token-usage.json</code> are written by tools, not people, and are not counted. The first rule that matches a file’s path decides its box:</p>
         <ol>
           <li><b>Specs:</b> <code>plan.md</code> and <code>specs/</code>, the template and README there included.</li>
@@ -209,7 +209,7 @@
         </ol>
         <p>The rules sort by path, and a path does not always say what a change was for. A spec-change PR that fixes a test counts as tests; a test helper under <code>src/test/</code> counts as tests even when it is plumbing; a Markdown file inside a service counts as context; the dashboard’s own code counts as verification. The ratio of tests to code uses the <b>Tests</b> box alone, without the scripts.</p>
         <p><b>Refresh.</b> <code>python scripts/spec-drift.py --build</code> in the repository writes this page with its data. It is rerun after every merge, before the next step starts.</p>
-        <p><b>Limits.</b> Names in a spec that should <em>disappear</em> (like <code>saved_jobs</code> leaving <code>jobs/</code>) still count as shared vocabulary. Comments are recognised by line (<code>//</code>, <code>/*</code>, <code>*</code>, <code>--</code>, <code>#</code>, <code>&lt;!--</code>), not parsed, so a marker inside a string can hide the code after it on that line. The gap measures shared language, not correctness; correctness lives in the acceptance criteria and the tests.</p>
+        <p><b>Limits.</b> Names in a spec that should <em>disappear</em> (like a table leaving the module that owned it) still count as shared vocabulary. Comments are recognised by line (<code>//</code>, <code>/*</code>, <code>*</code>, <code>--</code>, <code>#</code>, <code>&lt;!--</code>), not parsed, so a marker inside a string can hide the code after it on that line. The gap measures shared language, not correctness; correctness lives in the acceptance criteria and the tests.</p>
       </div>
     </details>
     <details>

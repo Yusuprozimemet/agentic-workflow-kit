@@ -120,11 +120,10 @@ HAND_OFF_RANGE = re.compile(r"\bH(\d+)\.(\d+)(?:\s*[–-]\s*(?:H\1\.)?(\d+)\b)?"
 # A track number is one digit, as in a day's track table, so neither C32.5 nor a day-numbered C32 is one.
 TRACK_NAMED = re.compile(r"(?<![-\w])(?<!Day \d\d's )(?<!Day \d\d )([A-Z]\d[a-z]?|0[a-z])\b(?!\.\d)")
 PHASE_READ = re.compile(r"^\*\*Read [^*\n]*end of Phase (\d+)\.\*\*.*?(?=^\*\*Read |^## |\Z)", re.M | re.S)
-# The platform step's specs (plan.md, "Course correction after Phase 2") are numbered from here.
+# Days plan.md's list names before their specs exist: an item "numbered from N", one "numbered after
+# the last", and one numbered after the last that says "close-out".
 PLATFORM = "platform"
-# The cleanup day after Phase 5 (plan.md, "Course correction after Phase 5"), numbered after the last day.
 CLEANUP = "cleanup"
-# The close-out day after Phase 7 (plan.md, "Phase 7 outcome"), numbered after the last day too.
 CLOSEOUT = "close-out"
 PLACEHOLDERS = (PLATFORM, CLEANUP, CLOSEOUT)
 # The target services, by the monolith packages each one takes under the package root. A package
@@ -1172,19 +1171,30 @@ def unwritten(days, order):
                 phase=phase.get(before[-1]) if before else None, title=f"The {which} day")
 
 
-def next_step(days, open_prs, order, stop):
+def unwritten_lines(plan):
+    """The plan item each unwritten day comes from, by placeholder, read as run_order() reads it."""
+    out = {}
+    for line in plan_items(plan):
+        if "numbered from" in line:
+            out[PLATFORM] = line
+        if "numbered after the last" in line:
+            out[CLOSEOUT if "close-out" in line else CLEANUP] = line
+    return out
+
+
+def next_step(days, open_prs, order, stop, lines=None):
+    """What to do next. An unwritten day quotes the plan item it comes from (`lines`, from unwritten_lines())."""
     if open_prs:
         return "Waiting on " + ", ".join(f"#{p['number']} {p['title']}" for p in open_prs)
     by_day = {d["day"]: d for d in days}
     left = [d for d in order if d in PLACEHOLDERS or d not in by_day or by_day[d]["status"] not in FINISHED]
     if not left:
         return "Every day is done."
-    if left[0] == PLATFORM:
-        return "The platform step: write its day spec, numbered from 38 (plan.md, Course correction after Phase 2)"
-    if left[0] == CLEANUP:
-        return f"The cleanup day: write its day spec, Day {unwritten(days, order)['day']:02d} (plan.md, Course correction after Phase 5)"
-    if left[0] == CLOSEOUT:
-        return f"The close-out day: write its day spec, Day {unwritten(days, order)['day']:02d} (plan.md, Phase 7 outcome)"
+    if left[0] in PLACEHOLDERS:
+        line = (lines or {}).get(left[0], "")
+        first = re.search(r"numbered from (\d+)", line)
+        day = int(first.group(1)) if left[0] == PLATFORM and first else unwritten(days, order)["day"]
+        return f'Day {day:02d}: write its day spec (plan.md: "{line}")'
     if stop is not None and order.index(left[0]) > order.index(stop):
         return f"Day {stop:02d} is done: stop and evaluate before going on (plan.md)"
     if left[0] not in by_day:
@@ -1264,7 +1274,7 @@ def main():
         now = dict(generated=datetime.datetime.now().astimezone().isoformat(timespec="minutes"),
                    head=snaps[-1]["sha"], last_pr=snaps[-1]["pr"],
                    current_day=next((d["day"] for d in days if d["status"] == "active"), None),
-                   next_step=next_step(days, open_prs, order, stop), stop_after=stop,
+                   next_step=next_step(days, open_prs, order, stop, unwritten_lines(plan)), stop_after=stop,
                    unwritten=unwritten(days, order),
                    open_prs=[dict(number=p["number"], title=p["title"], url=p["url"]) for p in open_prs])
         data = json.dumps(dict(now=now, rows=rows, files=files, days=days, origin_lines=lines,
