@@ -1087,7 +1087,8 @@ def token_usage():
 
 
 def deployment():
-    """The live checks of the one deployment (scripts/live-checks.py), or None if nothing was deployed."""
+    """The live checks of the one deployment (the project's own; kit/jobmatch/live-checks.py is an example), or
+    None if nothing was deployed."""
     path = os.path.join(PAGE, "deployment.json")
     if not os.path.exists(path):
         return None

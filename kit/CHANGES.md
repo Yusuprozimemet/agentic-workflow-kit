@@ -446,32 +446,61 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     `templates/spec.template.md` is byte-identical to `specs/_template.md`: delete it, and
     `templates/` goes. Open: does `spec-drift.py --build` run with no `plan.md`, for the merge
     between the two moves (Batch 7)? Check it in Batch 7a.
+    **Done** in `dashboard/data-out`: `plan.md` → `kit/jobmatch/plan.md`; its four link targets
+    re-pointed (`audit-findings.md`, `../../specs/`), the texts kept. The open question: yes. In a
+    scratch clone with this branch merged into `main`, `spec-drift.py` and `--build` run with no
+    `plan.md` (a missing file reads as empty): 26 snapshots, 0 days, next step "Every day is done.",
+    and the page draws with no error and no failed panel. The templates' move is Batch 7b's.
+    `broken: none → a move and four link targets; check-links.py: 0 of 4 broken`
 30. **D, root `CLAUDE.md`** (jobmatch's, 28 marker lines). Read by every session as instructions:
     the reason this session had to be told to ignore it. Proposal: move to `kit/jobmatch/`, and
     the template takes its place (item 29).
+    **Done** in `dashboard/data-out`: → `kit/jobmatch/CLAUDE.md`; five link targets re-pointed
+    (`../../specs/`, `../../docs/workflow.md`, `lab-notebook.md`), the texts kept. Found: Claude Code
+    also loads a `CLAUDE.md` below the root, when a session reads files in its folder, so a session
+    that reads `kit/jobmatch/` gets jobmatch's rules again. Not changed (the proposal named the path);
+    a name Claude Code does not load (for example `CLAUDE.jobmatch.md`) would avoid it.
+    `broken: none → a move and five link targets; check-links.py: 0 of 6 broken`
 31. **D, `specs/day-12-jwt-issuance.md`, `specs/day-36-ecs-services.md`.** Read by `spec-drift.py`
     as days of this repository: the kit's page lists them as "ready" (item 23). Proposal: move to
     `kit/examples/`, where `spec-drift.py` does not look (it reads `specs/day-*`).
+    **Done** in `dashboard/data-out`. The kit's page lists no day now (`days` 2 → 0), and the
+    footnote "Day run out of number order" is gone (`out_of_order` 5 → 0, with item 29).
+    `broken: none → a move; spec-drift.py reads specs/day-* only`
 32. **D, `docs/lab-notebook.md`** (1,118 lines). Read by `spec-drift.py`'s `conclusion()` (the
     `**Read … end of Phase N.**` paragraphs and the "What is being measured" table, on the page)
     and the plan-auditor ("Results to date"). Proposal: move to `kit/jobmatch/`; a new
     `docs/lab-notebook.md` of headings only: `## Results to date`, `## What is being measured`
     with an empty two-column table, `## Retrospective`. The headings are what the readers need.
+    **Done** in `dashboard/data-out`, the move: → `kit/jobmatch/lab-notebook.md`; two link targets
+    `../specs/…` → `../../specs/…`, the texts kept. `conclusion()` reads a missing notebook as empty
+    (`conclusion.reads` and `.measured` → `[]`). The headings-only notebook is Batch 7b's.
+    `broken: none → a move and two link targets; check-links.py: 0 of 6 broken`
 33. **D, `docs/audit-findings.md`.** Read by the fourth `CAVEATS` line (item 43), `plan.md` and
     `specs/README.md`'s map (item 63). Proposal: move to `kit/jobmatch/`.
+    **Done** in `dashboard/data-out`. `broken: none → a move; no link or script reads its path`
 34. **D, `docs/defects.md`.** SOURCE.md flags it P, but it is jobmatch's list of defects, Days
     1-43 (395 marker lines of 456). Read only by the lab notebook. Proposal: move to
     `kit/jobmatch/`; correct its SOURCE.md flag to J.
+    **Done** in `dashboard/data-out`; SOURCE.md's flag is J. The notebook's two links to it still
+    resolve, beside it. `broken: none → a move; only the moved notebook links to it`
 35. **D, `docs/dashboard/token-usage.json`.** Read by `spec-drift.py`'s `tokens()` and the Tokens
     panel; `test_spec_drift.py` names its path only as a file the work kinds leave out. Proposal:
     replace with `[]`, which is what `token-usage.py` writes with no transcripts. The starter check
     shows whether the panel's empty state holds.
+    **Done** in `dashboard/data-out`, the first half: jobmatch's file → `kit/jobmatch/token-usage.json`,
+    so Batch 7b's `[]` is a new file at a free path. With none, `token_usage()` returns `[]` already
+    (`tokens` 135 → 0) and the Tokens panel draws its empty state.
+    `broken: none → a move; token_usage() reads a missing file as []`
 36. **D, `docs/dashboard/deployment.json`.** `deployment()` returns None when absent, and the panel
     already says "Nothing deployed yet". Proposal: move to `kit/jobmatch/`.
+    **Done** in `dashboard/data-out` (`deployment` → null). `broken: none → a move; deployment() reads a missing file as None`
 37. **D, `lessons/`** (9 files, the maintainer's jobmatch memory). Read by nothing but README.md.
     Six are process lessons with jobmatch's evidence; `checks-before-push.md` is half Maven.
     Proposal: move to `kit/lessons/`. A new project starts with no lessons; its own memory
     collects them.
+    **Done** in `dashboard/data-out`, the nine files; README.md names `kit/lessons/`.
+    `broken: none → a move; nothing but README.md reads them`
 
 ### C: jobmatch values in code
 
@@ -685,6 +714,15 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     on a host; no workflow runs it, and no test covers it. Proposal: keep the panel, off; move
     `live-checks.py` to `kit/jobmatch/` as an example a project rewrites.
     **Decision (maintainer, Batch 0 PR):** keep the panel, off when its input is absent.
+    **Done** in `dashboard/data-out`: `live-checks.py` → `kit/jobmatch/live-checks.py`, its usage
+    line naming the new path; `--out` still defaults to `docs/dashboard/deployment.json`, where
+    `spec-drift.py` reads it. The panel's empty state ("the panel fills when a live check has
+    written …") and its prose ("the project's live check") name no script, where both named
+    `scripts/live-checks.py`; `dashboard.js`'s comment and `deployment()`'s docstring name the
+    example. Tests: `PageTest.test_with_nothing_deployed_the_panel_names_the_file_and_no_script`
+    (`drawn()` with no deployment) and `PageProseTest.test_every_script_it_names_is_in_the_repository`.
+    `broken: the empty deployment panel names scripts/live-checks.py again → AssertionError: '<p c[56 chars]when scripts/live-checks.py has written docs/d[25 chars]</p>' != '<p c[56 chars]when a live check has written docs/dashboard/d[15 chars]</p>'`
+    `broken: the deployment prose names scripts/live-checks.py again → AssertionError: Lists differ: ['scripts/live-checks.py'] != []`
 57. **F, `invariants.py` and `pr-checks.yml` job 3** (item 12, part done). The frozen paths are
     jobmatch's (`IDENTITY_TESTS`, `services/.+/db/…V*__*.sql`); the step is skipped with no
     `services/`. Proposal: the frozen patterns in the item 41 file (`frozen`: contract tests,
@@ -925,6 +963,12 @@ except the differences the PR names.
    `kit/jobmatch/`, `kit/examples/`, `kit/lessons/`, plus SOURCE.md and CHANGES.md to `kit/`;
    (b) `git mv` of the templates to `plan.md` and `CLAUDE.md`, the empty notebook and
    `token-usage.json` (item 35), and `templates/` removed.
+   (a) **Done** in `dashboard/data-out`, in three commits: the 21 moves alone (0 lines), the
+   readers (links in README.md, `docs/workflow.md` and the three moved files; the deployment
+   panel's text, item 56), then this record. `check-links.py`: no file has more broken links than
+   before (the move alone added 17). 53 of 53 boxes the same. 159 tests, was 157; `PageTest` 10
+   of 10, was 9. For (b): `docs/workflow.md`'s `CLAUDE.md` and `plan.md` links point at the two
+   templates until they move; (b) points them back at `../CLAUDE.md` and `../plan.md`.
 8. **The starter check and the README** (72, 73).
 
 ### 72. The starter check (step 3)

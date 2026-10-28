@@ -3,7 +3,7 @@
 The full record of the migration, moved out of the README so that the README
 can stay short. What each day built and turned up, the read at the end of each phase, the
 measurement table with its evidence, the defects by kind, and the retrospective once the last
-phase closes. Every day's own record is in its spec's *Notes* in [`specs/`](../specs/); every
+phase closes. Every day's own record is in its spec's *Notes* in [`specs/`](../../specs/); every
 defect, by day, in [`defects.md`](defects.md).
 
 The migration dashboard reads the phase reads and the measurement table from this file
@@ -1076,7 +1076,7 @@ in a neighbouring row; the split between the two tables is firmer than the rows.
 | Bugs in the migration's own tooling | 19 | six dashboard misreads of tracks and tests, a dashboard measure that credited the spec with gap it did not close, a wrong Jira key |
 
 From Day 21 each day's Notes tag every defect with where it was found and its cause
-([`specs/_template.md`](../specs/_template.md)). Across Days 21–28 and 41, 97 tagged defects: cause
+([`specs/_template.md`](../../specs/_template.md)). Across Days 21–28 and 41, 97 tagged defects: cause
 spec 58, implementation 20, process 16, environment 2, tooling 1; found by an auditor 29, in review
 or during a track 42, by a break on purpose 8, at the close 9, by the session that made them 5, in
 a spec-change PR 3, by the dashboard 1. Their 94 spec, implementation and process causes are the

@@ -2,10 +2,10 @@
 
 This repository migrates the JobMatch monolith to microservices one day spec at a time, and
 records what each day turned up. Three layers have to agree: [`plan.md`](plan.md) is the goal and
-changes rarely; the day specs in [`specs/`](specs/) are the steps; the code is where the steps
-land. The spec rules are in [`specs/README.md`](specs/README.md) and the template in
-[`specs/_template.md`](specs/_template.md). This file is the working order and the lessons the
-rules do not state. [`docs/workflow.md`](docs/workflow.md) draws it.
+changes rarely; the day specs in [`specs/`](../../specs/) are the steps; the code is where the steps
+land. The spec rules are in [`specs/README.md`](../../specs/README.md) and the template in
+[`specs/_template.md`](../../specs/_template.md). This file is the working order and the lessons the
+rules do not state. [`docs/workflow.md`](../../docs/workflow.md) draws it.
 
 **Source of truth, when they disagree:** the code on `main` for what the system does; the merged
 spec for what a day promised; `plan.md` for the goal. The dashboard, Jira and memory only record
@@ -33,7 +33,7 @@ maintainer, and nothing starts after a phase ends until they say so.
    Track 0 holds the tests that must pass before and after the change, and lands first.
 3. **A closing PR:** `day-NN/close-the-day`. Tick each criterion with its evidence (test or
    command, and the PR it landed in), add Notes to the spec, and update the Day entry and measurement
-   table in [`docs/lab-notebook.md`](docs/lab-notebook.md) (the README keeps only its Findings). Run `python scripts/token-usage.py` and commit the refreshed
+   table in [`docs/lab-notebook.md`](lab-notebook.md) (the README keeps only its Findings). Run `python scripts/token-usage.py` and commit the refreshed
    `docs/dashboard/token-usage.json`: CI cannot read the transcripts it counts. Then relabel the
    day's defects blind: `python scripts/relabel.py blind specs/day-NN-*.md --out <dir>`, give
    `<dir>/blind.md` to the **defect-rater** agent, save its JSON as `<dir>/labels.json`, run
