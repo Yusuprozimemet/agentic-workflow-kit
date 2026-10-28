@@ -171,6 +171,12 @@ Breaks on purpose:
   Clear the language's caches first (Python: `PYTHONDONTWRITEBYTECODE=1`, no `__pycache__`).
 - Run the break, then copy its `broken:` line from what `scripts/break.py` printed. A line
   written before the run differed from the report.
+- On Windows, `bash` may be WSL's, which never starts the check ("execvpe(/bin/bash) failed"):
+  name Git Bash by its full path (`"C:/Program Files/Git/bin/bash.exe" -c "..."`). `break.py`
+  refuses such a run rather than record it.
+- A check judged by what it prints, not its exit code (`grep -c` exits 1 at 0, a count): pass
+  `--expect-stdout <regex>`, its output without the break, and see the regex match once
+  unbroken; no wrapper script.
 
 The dashboard script and the PR checks:
 

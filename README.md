@@ -20,7 +20,9 @@ that measures it. It holds the agent briefs (`.claude/agents/`), the spec rules
 3. Add a workflow that runs the project's own tests: the kit's CI checks the workflow, not the
    code. Require it with the others below.
 4. Write each day's spec from [specs/_template.md](specs/_template.md), as
-   `specs/day-NN-<slug>.md`.
+   `specs/day-NN-<slug>.md`. At a stop (**Stop and evaluate.** in `plan.md`'s list) the next
+   step waits until `plan.md` has a `## Course correction after Phase N` section, N the stop
+   item's phase.
 5. Optional: a tracker key. With a repository variable `JIRA_KEY`, add
    `JIRA_KEY: ${{ vars.JIRA_KEY }}` to the env of "Compare the names" in
    `.github/workflows/pr-checks.yml`; unset, no key is checked.
