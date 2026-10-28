@@ -890,16 +890,34 @@ console.log(JSON.stringify({ error, logged, panels: Object.fromEntries(Object.en
 """
 
 
-def drawn(rows, days=(), order=(), **more):
-    """The error that stopped the page, or None, the HTML each box holds, and what was logged as an
-    error; `more` replaces fields of the data."""
+def page_data(rows, days=(), order=(), **more):
+    """The data the page draws: these rows, days and run order, empty elsewhere; `more` replaces fields."""
     data = dict(now=dict(generated="2026-01-01T00:00", head="abc", last_pr=None, current_day=None,
-                         next_step="x", open_prs=[]), rows=rows, days=list(days), order=list(order),
+                         next_step="x", open_prs=[]), rows=list(rows), days=list(days), order=list(order),
                 files=[], removals=[], hand_offs=[], tokens=[], verification=[], infra=dict(runs=[], latest=None),
                 deployment=None, conclusion=dict(reads=[], measured=[]), origin_lines=0, vocab_size=0)
     data.update(more)
-    out = json.loads(subprocess.run(["node", "-e", DRAW, os.path.join(HERE, "..", "docs", "dashboard", "dashboard.js")],
-                                    input=json.dumps(data), capture_output=True, encoding="utf-8", check=True).stdout)
+    return data
+
+
+def drawn(rows=(), days=(), order=(), page=None, **more):
+    """The error that stopped the page, or None, the HTML each box holds, and what was logged as an
+    error; `more` replaces fields of the data. With `page`, a page spec-drift.py --build wrote: its
+    inlined script draws its own data, and the other arguments are not used."""
+    data = page_data(rows, days, order, **more)
+    script = os.path.join(HERE, "..", "docs", "dashboard", "dashboard.js")
+    with tempfile.TemporaryDirectory() as tmp:
+        if page:
+            with open(page, encoding="utf-8") as f:
+                html = f.read()
+            # build() inlines dashboard.js as the script that defines boot(); fill() escapes "</" as "<\/",
+            # which JSON reads back as "/".
+            script = os.path.join(tmp, "dashboard.js")
+            with open(script, "w", encoding="utf-8") as f:
+                f.write(next(s for s in re.findall(r"<script>\n(.*?)</script>", html, re.S) if "function boot(" in s))
+            data = json.loads(re.search(r"^window\.SPEC_DRIFT = (.*);$", html, re.M).group(1))
+        out = json.loads(subprocess.run(["node", "-e", DRAW, script], input=json.dumps(data),
+                                        capture_output=True, encoding="utf-8", check=True).stdout)
     return out["error"], out["panels"], out["logged"]
 
 
@@ -1012,6 +1030,24 @@ class PageTest(unittest.TestCase):
         self.assertIn("<b>1. &lt;name&gt;</b>", panels["roadmap"])  # a heading the template left unfilled
         stopped = re.findall(r'class="tile ready stop" data-day="(\d+)"', panels["roadmap"])
         self.assertEqual(stopped, ["2"])
+
+    def test_a_built_page_draws_the_data_inlined_in_it(self):
+        # What --build writes: dashboard.js and the data in one file. fill() writes a title's "</" as "<\/".
+        rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
+                for i, pr in enumerate([None, None, 1, 2])]
+        now = dict(generated="2026-01-01T00:00", head="abc", last_pr=2, current_day=None, next_step="x",
+                   open_prs=[dict(number=3, title="Stop at </script> here", url="u")])
+        more = dict(now=now, meta=dict(project="toy-repo", phases=["<name>"], stops=[]))
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "index.html")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(sd.build(json.dumps(page_data(rows, **more))))
+            built = drawn(page=path)
+        self.assertEqual(built, drawn(rows, **more))
+        error, panels, logged = built
+        self.assertEqual((error, logged), (None, []))
+        self.assertTrue(panels["eyebrow"].startswith("toy-repo · "), panels["eyebrow"])
+        self.assertEqual([k for k, v in panels.items() if "Stop at &lt;/script&gt; here" in v], ["today"])
 
     def test_the_break_panel_names_the_first_pr_only_when_there_is_one(self):
         # Two code PRs, one recorded and one silent; the source project also had one before its #310.
