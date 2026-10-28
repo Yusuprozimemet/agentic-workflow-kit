@@ -16,7 +16,7 @@ const md = s => esc(s)
 const dd = n => String(n).padStart(2, "0");
 const prLabel = r => r.pr ? "#" + r.pr : "start";
 const dayOfFile = f => { const m = f.match(/day-(\d+)/); return m ? +m[1] : 0; };
-// A day's place in the run order (plan.md): Day 38 runs before Day 17. Mirrors ranker() in the script.
+// A day's place in the run order (plan.md): a day may run before a lower-numbered one. Mirrors ranker() in the script.
 const ORDER = DATA.order || [];
 const rank = d => !d ? -1 : ORDER.includes(d) ? ORDER.indexOf(d) : ORDER.length + d;
 // The days that break the rising run of the order: run ahead of a lower day, or behind a higher one.
@@ -153,7 +153,7 @@ function drawReadout() {
   const dGap = s.gap_full - prev.gap_full, specLines = Object.values(s.spec_files || {}).reduce((a, b) => a + b, 0);
   const sign = x => (x > 0 ? "+" : x < 0 ? "−" : "±") + Math.abs(x).toFixed(2);
   const edits = Object.entries(s.spec_files || {}).sort((a, b) => b[1] - a[1]);
-  const moved = sel === 0 ? "Starting point: the monolith and the plan written for it." :
+  const moved = sel === 0 ? "Starting point: the code and the plan written for it." :
     !specLines && Math.abs(dGap) < 0.05 ? "Neither the spec nor the gap moved noticeably." :
     !specLines ? `Only the code moved. The gap ${dGap < 0 ? "narrowed" : "widened"} by ${Math.abs(dGap).toFixed(2)}°.` :
     `${specLines} spec lines changed and the gap ${dGap < 0 ? "narrowed" : "widened"} by ${Math.abs(dGap).toFixed(2)}°.`;
@@ -284,7 +284,7 @@ function drawLines() {
   lineChart(document.getElementById("moved"), {
     H: 190, yMin: 0, yMax: 100, ticks: steps(0, 100, 4), unit: "%", strip: false,
     label: "Share of the four services' main source lines under services/",
-    empty: "No service code yet: the share counts the Java packages in spec-drift.py's <code>SERVICE</code> map, and the code has none.",
+    empty: "No service code yet: the share counts the packages under <code>services</code> in <code>spec-drift.config.json</code>, and the code has none.",
     series: [{ name: "out", color: "var(--close)", get: r => movedShare(r) }],
   });
   lineChart(document.getElementById("churn"), {
@@ -307,7 +307,7 @@ function drawLines() {
   });
   const p = R[sel].placed || {};
   document.getElementById("placed").innerHTML = `<p>At ${prLabel(R[sel])}: ` + Object.keys(p).sort().map(s =>
-    `<b>${s}</b> ${p[s][1] ? (p[s][0] ? `${p[s][1]} lines out, ${p[s][0]} still in the monolith` : `out (${p[s][1]} lines)`) : `in the monolith (${p[s][0]} lines)`}`).join(" · ")
+    `<b>${s}</b> ${p[s][1] ? (p[s][0] ? `${p[s][1]} lines out, ${p[s][0]} still in place` : `out (${p[s][1]} lines)`) : `in place (${p[s][0]} lines)`}`).join(" · ")
     + "</p>";
 }
 const movedShare = r => {
@@ -322,7 +322,7 @@ R.reduce(([s, c], r) => {
   CUM.set(r, next); return next;
 }, [0, 0]);
 const cumShare = (r, k) => { const [s, c] = CUM.get(r), [S, C] = CUM.get(last); return k === "spec" ? (S ? s / S * 100 : 0) : (C ? c / C * 100 : 0); };
-// Lines per box, summed merge by merge; the ratio waits for 1,000 production lines, since Days 1-4 wrote only tests.
+// Lines per box, summed merge by merge; the ratio waits for 1,000 production lines, so tests written before any code do not read as a spike.
 const WORK = new Map();
 R.reduce((acc, r) => {
   const next = { ...acc };
@@ -685,7 +685,7 @@ function drawEvidence() {
       const off = states.filter(s => s === "skippable" || s === "missing").length;
       const kept = states.filter(s => s === "present").length, retired = states.filter(s => s === "retired").length;
       const pre = !d.evidence_format;
-      return `<tr${pre ? ` title="Spec written before the evidence format (#55)"` : ""}><td class="num">${dd(d.day)}${pre ? ` <span class="pre-tag">pre-format</span>` : ""}</td>${cell(ev.filter(c => c.prs.length).length, ev.length, pre)}${cell(ev.filter(c => Object.keys(c.tests).length).length, ev.length, pre)}${cell(ev.filter(c => c.red).length, ev.length, !d.break_format)}<td class="r${off ? " none" : ""}">${states.length ? `${kept}/${states.length} present${retired ? `, ${retired} retired` : ""}` : "–"}</td><td class="t">${md(d.title)}</td></tr>`;
+      return `<tr${pre ? ` title="Spec written before the evidence format"` : ""}><td class="num">${dd(d.day)}${pre ? ` <span class="pre-tag">pre-format</span>` : ""}</td>${cell(ev.filter(c => c.prs.length).length, ev.length, pre)}${cell(ev.filter(c => Object.keys(c.tests).length).length, ev.length, pre)}${cell(ev.filter(c => c.red).length, ev.length, !d.break_format)}<td class="r${off ? " none" : ""}">${states.length ? `${kept}/${states.length} present${retired ? `, ${retired} retired` : ""}` : "–"}</td><td class="t">${md(d.title)}</td></tr>`;
     }).join("") + "</tbody>";
   const gaps = days.flatMap(d => d.evidence.flatMap(c => Object.entries(c.tests).filter(([, s]) => s !== "present")
     .map(([t, s]) => `<li>Day ${dd(d.day)}: <code>${esc(t)}</code> ${s === "retired" ? "is retired: a later day's spec names it and its PR removed it" : `is ${s}`} · ${md(c.claim)}</li>`)));
@@ -837,14 +837,14 @@ function drawTokens() {
     }).join("") + "</tbody>";
 }
 
-// The last infra-ci summary on main (scripts/infra-summary.py), and each infra-ci run on main.
+// The infra workflow's last summary on main (scripts/infra-summary.py), and each of its runs on main.
 function drawInfra() {
   const I = DATA.infra || { runs: [], latest: null }, L = I.latest, S = L ? L.summary : {};
   const tone = s => ({ pass: "var(--close)", success: "var(--close)", fail: "var(--fail)", failure: "var(--fail)" })[s] || "var(--muted)";
   const chip = (name, state) => `<span class="chip" style="color:${tone(state)}">${esc(name)} · ${esc(state)}</span>`;
   document.getElementById("infra-head").innerHTML = L
     ? `<p>The latest run on main is <a href="${esc(L.url)}"><code>${esc(L.sha)}</code></a> from ${esc(L.date)}: <span class="chip" style="color:${tone(L.conclusion)}">${esc(L.conclusion || "running")}</span></p>`
-    : '<p class="load-error">No infra-ci summary on main yet: it appears after the next merge that touches infra/.</p>';
+    : '<p class="load-error">No infra summary on main yet: it appears after the infra workflow next runs on main.</p>';
   document.getElementById("infra-criteria").innerHTML = Object.entries(S.criteria || {}).map(([c, s]) => chip(c, s)).join("");
   document.getElementById("infra-steps").innerHTML = Object.entries(S.steps || {}).map(([n, s]) => chip(n, s)).join("");
   const resources = Object.entries(S.resources || {}).sort((a, b) => b[1] - a[1]);

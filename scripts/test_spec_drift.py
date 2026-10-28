@@ -903,6 +903,20 @@ def drawn(rows, days=(), order=(), **more):
     return out["error"], out["panels"], out["logged"]
 
 
+class PageProseTest(unittest.TestCase):
+    """The words around the panels: the page explains any project's data, not the one it was built on."""
+
+    # What the prose said of jobmatch: its services and layout, its days, PRs and criteria, its cloud.
+    MARKERS = ["monolith", "identity", "job-service", "backend/", "saved_jobs", "SavedJobCounts", "GatewayHarnessIT",
+               "infra-ci", "Terraform", "LocalStack", "AWS", "Day 35", "Days 1–4", "Days 38–40", "C35.16", "H28.1",
+               "#55", "#298", "#310"]
+
+    def test_the_prose_names_none_of_the_project_it_was_built_on(self):
+        with open(os.path.join(HERE, "..", "docs", "dashboard", "index.html"), encoding="utf-8") as f:
+            page = f.read()
+        self.assertEqual([m for m in self.MARKERS if m in page], [])
+
+
 @unittest.skipUnless(shutil.which("node"), "needs node")
 class PageTest(unittest.TestCase):
     """The page's own counts, on a new repository: direct commits, flat gaps, days without specs."""
@@ -955,6 +969,24 @@ class PageTest(unittest.TestCase):
         for box in ("infra-head", "token-bars", "findings", "tbl", "deltas", "heat"):  # after it in boot(), then setSel()
             self.assertTrue(panels[box], box)
             self.assertNotIn("This panel failed", panels[box], box)
+
+    def test_the_boxes_words_name_no_project(self):
+        # The first merge; one service still in place and one part out; a day before the evidence
+        # format; no infra summary yet. Then no service code at all.
+        row = dict(page_row(0, None, "origin", 50), code_churn=0, placed={"billing": [120, 0], "orders": [30, 40]})
+        day = dict(a_day(5), status="done", phase=1, title="t", prs=[], evidence_format=False,
+                   evidence=[dict(ticked=True, prs=[], tests={}, claim="c")])
+        error, panels, _ = drawn([row], [day], [5])
+        self.assertIsNone(error)
+        self.assertEqual(panels["placed"].split(": ", 1)[1],
+                         "<b>billing</b> in place (120 lines) · <b>orders</b> 40 lines out, 30 still in place</p>")
+        self.assertIn("Starting point: the code and the plan written for it.", panels["readout"])
+        self.assertIn('<tr title="Spec written before the evidence format">', panels["evidence"])
+        self.assertEqual(panels["infra-head"], '<p class="load-error">No infra summary on main yet: '
+                                               'it appears after the infra workflow next runs on main.</p>')
+        _, panels, _ = drawn([page_row(0, None, "origin", 50)])
+        self.assertIn("No service code yet: the share counts the packages under <code>services</code> in "
+                      "<code>spec-drift.config.json</code>, and the code has none.", panels["moved"])
 
     def test_the_name_phases_and_stops_come_from_the_data(self):
         days = [dict(a_day(n), status="ready", phase=p, title="t", prs=[]) for n, p in ((1, 0), (2, 0), (3, 1))]
@@ -1131,7 +1163,8 @@ The cleanup day first.
         self.assertIsNone(stop)
         self.assertEqual(order[order.index(28) + 1], sd.CLEANUP)
         days = sd.settle([a_day(28, kinds=["close"]), a_day(29)], [28, sd.CLEANUP, 29])
-        self.assertIn("cleanup day: write its day spec, Day 30", sd.next_step(days, [], [28, sd.CLEANUP, 29], None))
+        self.assertEqual(sd.next_step(days, [], [28, sd.CLEANUP, 29], None, sd.unwritten_lines(plan)),
+                         'Day 30: write its day spec (plan.md: "The cleanup day: its spec is written next, numbered after the last.")')
         days[0]["phase"], days[1]["phase"] = 5, 6
         self.assertEqual(sd.unwritten(days, [28, sd.CLEANUP, 29]),
                          dict(day=30, phase=5, title="The cleanup day"))  # the roadmap shows it after Day 28
@@ -1150,7 +1183,8 @@ The cleanup day first.
         self.assertEqual(order[-2:], [35, sd.CLOSEOUT])
         days = sd.settle([a_day(35, kinds=["close"]), a_day(36)], [35, sd.CLOSEOUT])
         days[0]["phase"] = 7
-        self.assertIn("close-out day: write its day spec, Day 37", sd.next_step(days, [], [35, sd.CLOSEOUT], None))
+        self.assertEqual(sd.next_step(days, [], [35, sd.CLOSEOUT], None, sd.unwritten_lines(plan)),
+                         'Day 37: write its day spec (plan.md: "The close-out day, numbered after the last.")')
         self.assertEqual(sd.unwritten(days, [35, sd.CLOSEOUT]), dict(day=37, phase=7, title="The close-out day"))
         order, _ = sd.run_order(plan, list(range(1, 36)) + [39])  # after the last named, Day 38
         self.assertEqual(order[-1], 39)  # written: the day takes the placeholder's place
@@ -1172,6 +1206,20 @@ The cleanup day first.
         self.assertEqual(sd.next_step(days, [], order, None),
                          "Day 11: write its day spec (plan.md lists it, specs/ has none)")
 
+    def test_an_unwritten_day_quotes_the_plan_item_it_comes_from(self):
+        plan = ("## Day-by-day specs\n\n1. Phase 1: Days 1-2.\n2. A step the plan adds, numbered\n"
+                "   from 20.\n3. One more day, numbered after the last.\n")
+        self.assertEqual(sd.unwritten_lines(plan), {sd.PLATFORM: "A step the plan adds, numbered from 20.",
+                                                    sd.CLEANUP: "One more day, numbered after the last."})
+        order, _ = sd.run_order(plan, [1, 2])
+        days = sd.settle([a_day(1, kinds=["close"]), a_day(2, kinds=["close"])], order)
+        self.assertEqual(sd.next_step(days, [], order, None, sd.unwritten_lines(plan)),
+                         'Day 20: write its day spec (plan.md: "A step the plan adds, numbered from 20.")')
+        order, _ = sd.run_order(plan, [1, 2, 20])
+        days = sd.settle([a_day(1, kinds=["close"]), a_day(2, kinds=["close"]), a_day(20, kinds=["close"])], order)
+        self.assertEqual(sd.next_step(days, [], order, None, sd.unwritten_lines(plan)),
+                         'Day 21: write its day spec (plan.md: "One more day, numbered after the last.")')
+
     def test_a_finished_day_with_boxes_open_is_closed_not_done(self):
         days = sd.settle([a_day(1, ticked=0, total=7), a_day(2), a_day(3, kinds=["code"])], [1, 2, 3])
         self.assertEqual([d["status"] for d in days], ["closed", "done", "active"])
@@ -1186,7 +1234,9 @@ The cleanup day first.
 
     def test_the_next_step_is_the_platform_then_the_stop(self):
         days = sd.settle([a_day(16, kinds=["close"]), a_day(17)], [16, sd.PLATFORM, 17])
-        self.assertIn("platform step", sd.next_step(days, [], [16, sd.PLATFORM, 17], None))
+        lines = {sd.PLATFORM: "New day specs, numbered from 38."}
+        self.assertEqual(sd.next_step(days, [], [16, sd.PLATFORM, 17], None, lines),
+                         'Day 38: write its day spec (plan.md: "New day specs, numbered from 38.")')
         days = sd.settle([a_day(28, kinds=["close"]), a_day(29)], [28, 29])
         self.assertIn("stop and evaluate", sd.next_step(days, [], [28, 29], 28))
 

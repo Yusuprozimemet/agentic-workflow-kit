@@ -67,7 +67,10 @@ The phases are broken into day specs in [`specs/`](specs/). Read
 
 <!-- One numbered item for each run of days, in the order they run. A number after "Phase" is the
 phase; every other number is a day, and "Days 4-6" is a range. End an item with
-**Stop and evaluate.** to make its last day a stopping point. -->
+**Stop and evaluate.** to make its last day a stopping point. An item marked **cut** takes its
+days out of the order. Days whose specs are not written yet: "numbered from N" is a run that
+starts at Day N; "numbered after the last" is one day after every day the list names ("close-out"
+in the item names it so). Until its spec exists, the next step quotes the item. -->
 
 1. Phase 0: Days <NN>, <NN>. **Stop and evaluate.**
 2. Phase 1: Days <NN>-<NN>.
