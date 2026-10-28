@@ -56,6 +56,22 @@ jobs:
       - run: python scripts/test_break.py
       - run: python scripts/test_relabel.py
 
+  # What a copy of the kit starts with: kit/starter-check.py builds the pull request without kit/
+  # and checks it. On every pull request, since any file can name the source project. Not in the
+  # gate's needs: it is required only once the branch rules name it.
+  starter:
+    name: The starter names no project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy
+      - name: Build the copy and check it
+        if: hashFiles('kit/starter-check.py') != ''  # a project started from the kit has deleted kit/
+        run: python kit/starter-check.py
+
   # The required check, named per workflow so they do not share one name. It runs even when a job
   # before it failed or was skipped, since a skipped required check counts as passed: skipped jobs
   # pass here, failed or cancelled ones do not.
