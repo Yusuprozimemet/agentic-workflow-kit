@@ -1001,6 +1001,29 @@ except the differences the PR names.
    than before (`CLAUDE.md` 8 → 2, `plan.md` 2 → 0). 53 of 53 boxes the same. 159 tests;
    `PageTest` 10 of 10.
 8. **The starter check and the README** (72, 73).
+   **Decision (maintainer, Batch 8 session):** item 72's marker search found 88 lines in 17 files
+   outside `kit/`, so two PRs: (a) clears the hits that slipped through; (b) adds the check, which
+   runs item 72's full list and exempts, path by path with a one-line reason each, what earlier
+   Decisions kept: the marked evidence (the agents, `specs/README.md`, `CLAUDE.md`; items 61, 63,
+   65, 70), the Maven rules (`break.py`, `test_break.py`; item 60), the infra panel's scripts
+   (`infra-summary.py`, `test_infra_summary.py`; items 55, 56) and `PageProseTest.MARKERS`. The
+   script is `kit/starter-check.py`; its job, "The starter names no project", runs on every PR and
+   is not required until the maintainer adds it in settings; `drawn()` takes `page=`; the README
+   drops item 73's folder-name bullet if item 52's fix still holds.
+   (a) **Done** in `dashboard/starter-markers`: the fixtures in `test_service_wiring.py` and
+   `test_spec_drift.py` renamed as Batch 3 did (`job-service` → `account-service` or
+   `orders-service`, `identity-service` → `account-service`, `KAN-` → `ABC-`); comments and
+   docstrings in `service-wiring.py`, `spec-drift.py` (`jobmatch`, `surefire`, `infra-ci`),
+   `dashboard.js`, `pr-checks.yml` (item 69's marked example: the evidence kept, the name and keys
+   dropped) and `pr-names.py`'s history (its keys dropped; the key itself was already `JIRA_KEY`,
+   item 51). Extras of the same kind in `test_spec_drift.py`: `./mvnw -B` in two CI fixtures,
+   `Ecs.java`, the plan sample's ECS, `jobmatch` in eight comments, and the two `test_jobmatchs_…`
+   tests renamed `test_the_source_projects_…` (Batch 0's and item 39's Done lines keep the old
+   names). `architecture-auditor.md`'s `checkstyle`, `flyway` and `identity-service` are inside
+   item 70's "e.g. jobmatch's:" examples: left, for (b)'s agents exemption. Left: 39 lines in 10
+   files, each in (b)'s exemptions, and `README.md`'s 4, which (b) rewrites. 53 of 53 boxes the
+   same; 159 tests.
+   - `broken: service-wiring checks no scrape target → AssertionError: 0 != 1 : 0 misses over 1 services` (the renamed fixture still fails on a miss)
 
 ### 72. The starter check (step 3)
 
