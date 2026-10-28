@@ -124,8 +124,7 @@ CAVEATS = [
     "They match names, not meaning: prose is not understood, so a spec can name a thing the code has "
     "and still describe it wrongly.",
     "A name a spec says should disappear still counts as shared vocabulary while the code has it.",
-    "Name coverage counts test and tooling files as code: the architecture audit measured 0.871 over "
-    "all code and 0.433 over production code alone (docs/audit-findings.md, AR-8).",
+    "Name coverage counts test and tooling files as code.",
 ]
 PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "docs", "dashboard")
 # What git said about each merge, kept between runs: every call cached here names commits only by
@@ -326,7 +325,7 @@ def kind(title, branch, files=None):
         return "other"
     if "tick" in t or "close" in b:
         return "close"
-    if "track" in b or "track" in t or re.match(r"day-0[12]/", b):
+    if "track" in b or "track" in t:
         return "code"
     return "other"
 
@@ -392,13 +391,16 @@ def code_names(line, index):
 
 
 def snapshots(prs):
+    """Each commit on main's first-parent history, oldest first: a PR's merge, or a commit with no PR."""
+    if subprocess.run(["git", "rev-parse", "--verify", "-q", "main"], capture_output=True).returncode:
+        sys.exit("spec-drift.py reads the branch main, and this repository has none: git branch -m main")
     out = []
     for line in run("git", "log", "--first-parent", "main", "--reverse",
                     "--format=%h|%ad|%s", "--date=short").splitlines():
         sha, date, subject = line.split("|", 2)
         m = re.match(r"Merge pull request #(\d+)", subject)
         p = prs.get(int(m.group(1)), {}) if m else {}
-        title = p.get("title", subject) if m else "Initial commit: monolith + migration plan"
+        title = p.get("title", subject)
         out.append(dict(sha=sha, date=date, pr=int(m.group(1)) if m else None, title=title,
                         branch=p.get("headRefName", "")))
     return out
@@ -533,6 +535,33 @@ def section(text, heading):
     return m.group(1) if m else ""
 
 
+# Every number is a day but a phase's: "Phase 3:", "Phases 6–7", "after Phase 7", "end-of-Phase-7".
+UNPHASED = re.compile(r"Phases?[\s-]*\d+(?:\s*[–-]\s*\d+)?")
+
+
+def plan_items(plan):
+    """The numbered items of plan.md's "Day-by-day specs" list, each on one line: an item may wrap mid-phrase."""
+    return [" ".join(item.split()) for item in
+            re.findall(r"^\d+\.\s+(.*(?:\n {3}.*)*)", section(plan, "Day-by-day specs"), re.M)]
+
+
+def stops(plan):
+    """The days plan.md's list marks **Stop and evaluate.**, each the last day its item names. A stop
+    a course correction has lifted is still one: the roadmap shows where the plan stopped."""
+    out = []
+    for item in plan_items(plan):
+        days = re.findall(r"\d+", UNPHASED.sub("", item))
+        if "Stop and evaluate" in item and days:
+            out.append(int(days[-1]))
+    return out
+
+
+def phases(plan):
+    """Each phase's name, by number, from plan.md's "### Phase N — <name>" headings; "" for a number with none."""
+    named = {int(n): name.strip() for n, name in re.findall(r"^### Phase (\d+) [—–-] (.+)$", plan, re.M)}
+    return [named.get(p, "") for p in range(max(named, default=-1) + 1)]
+
+
 def run_order(plan, spec_days):
     """The order days run in, from plan.md's "Day-by-day specs" list, and the day after which work
     stops to be evaluated. Days the list does not name (the finished ones) come first. A day named
@@ -541,11 +570,10 @@ def run_order(plan, spec_days):
     lifted once plan.md has the course correction for its phase. An item marked **cut** takes its
     days out of the order: Phase 6's Days 29-31, cut after Phase 7, run nowhere."""
     listed, cut, stop = [], [], None
-    lines = re.findall(r"^\d+\.\s+(.*(?:\n {3}.*)*)", section(plan, "Day-by-day specs"), re.M)
-    # Every number is a day but a phase's: "Phase 3:", "Phases 6–7", "after Phase 7", "end-of-Phase-7".
-    unphased = lambda line: re.sub(r"Phases?[\s-]*\d+(?:\s*[–-]\s*\d+)?", "", line)
+    lines = plan_items(plan)
+    unphased = lambda line: UNPHASED.sub("", line)
     last = max((int(n) for line in lines for n in re.findall(r"\d+", unphased(line))), default=0)
-    for line in (" ".join(line.split()) for line in lines):  # an item may wrap mid-phrase
+    for line in lines:
         days = []
         for a, b in re.findall(r"(\d+)(?:\s*[–-]\s*(\d+))?", unphased(line)):
             if "numbered from" in line:
@@ -1178,6 +1206,14 @@ def github():
     return listed, runs, None
 
 
+def project_name():
+    """The repository's name on GitHub; with no remote, its folder's."""
+    try:
+        return run("gh", "repo", "view", "--json", "name", "-q", ".name").strip()
+    except subprocess.CalledProcessError:
+        return os.path.basename(run("git", "rev-parse", "--show-toplevel").strip())
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     out = ap.add_mutually_exclusive_group()
@@ -1195,7 +1231,8 @@ def main():
         snaps = snapshots(prs)
         head = snaps[-1]["sha"]
         spec_days = [d for d in map(day_of, run("git", "ls-tree", "--name-only", head, "specs/").split()) if d]
-        rows, files, vocab, lines = trajectory(snaps, blobs, run_order(blobs.read(head, "plan.md"), spec_days)[0])
+        plan = blobs.read(head, "plan.md")
+        rows, files, vocab, lines = trajectory(snaps, blobs, run_order(plan, spec_days)[0])
         days, order, stop = roadmap(snaps, prs, blobs)
         evidence_history(rows, days, snaps, blobs)
         boundaries(rows, snaps, blobs)
@@ -1216,7 +1253,8 @@ def main():
                                deployment=deployment(),
                                conclusion=conclusion(blobs.read(snaps[-1]["sha"], "docs/lab-notebook.md")),
                                meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance(),
-                                         break_line_from_pr=BREAK_LINE_FROM_PR)),
+                                         break_line_from_pr=BREAK_LINE_FROM_PR, project=project_name(),
+                                         phases=phases(plan), stops=stops(plan))),
                           separators=(",", ":"))
     target = args.build or args.out
     if args.build:

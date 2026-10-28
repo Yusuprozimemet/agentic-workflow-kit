@@ -274,7 +274,8 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
       "–" after item 25).
     - **jobmatch's constants in `dashboard.js`.** `PROJECT` (`jobmatch-microservices`, item 2),
       `PHASES` (jobmatch's eight phase names, item 19) and `STOPS` (`[16, 20, 24, 28, 35]`,
-      jobmatch's stopping points) are set in the page, not read from `plan.md`.
+      jobmatch's stopping points) are set in the page, not read from `plan.md`. Done in Batch 2
+      (items 46-48).
 
 75. **`scripts/spec-drift.py`: `kit/` read as the project's code.** Found on the kit's published
     page after Batch 1: #7 moved the name-gap angle from 70.8° to 61.81°, its first move (item 23).
@@ -525,17 +526,31 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     kept (the live data carries the counts already made).
 43. **C, `spec-drift.py` lines 126-127: a caveat citing jobmatch's audit** ("0.871 … 0.433 …
     AR-8"). Proposal: keep the first clause, drop the measurement and the reference. Data only.
+    **Done** in `dashboard/constants-into-data`: "Name coverage counts test and tooling files as
+    code." The test checks that clause, and that no caveat holds a digit or a `.md` file.
+    - `broken: the caveat cites the audit, as before → AssertionError: 'Name coverage counts test and tooling files as code.' not found in [...]`
 44. **C, `spec-drift.py` lines 328 and 400: two jobmatch habits.** `kind()` counts any
     `day-01/` or `day-02/` branch as code (jobmatch's first days had no track names), and a
     commit with no PR is titled `Initial commit: monolith + migration plan`. Proposal: drop the
     `day-0[12]` clause; use the commit's subject. Data only.
+    **Done** in `dashboard/constants-into-data`: a merge is code when its branch or title says
+    `track`; a commit with no PR keeps its subject (here: "Copy the workflow from
+    jobmatch-microservices at 7cbae28, unchanged"). jobmatch's data is precomputed: 53 boxes kept.
+    - `broken: kind() counts any day-01/ or day-02/ branch as code, as before → AssertionError: 'code' != 'other'`
 45. **C, `spec-drift.py` lines 395 and 1064: the branch `main`** (item 23). Proposal: keep `main`
     (the CI, branch rules and CLAUDE.md all say it), and fail with one line saying the branch
     must be `main` instead of git's exit 128. README tells the copier `git init -b main`.
+    **Done** in `dashboard/constants-into-data`: `snapshots()` checks for `main` first and exits
+    with `spec-drift.py reads the branch main, and this repository has none: git branch -m main`.
+    Line 1064 is `infra()`'s `gh run list --branch main`, a filter, not a lookup: unchanged.
+    - `broken: snapshots() runs git log on a missing main, as before → AssertionError: 'git exited 128' != 'spec-drift.py reads the branch main, and [40 chars]main'`
 46. **C, `dashboard.js` line 592, `PROJECT = "jobmatch-microservices"`** (item 2). Proposal:
     `spec-drift.py` writes `meta.project`, the repository name from `gh repo view`, or the
     folder's name with no remote; the page reads it. 53 boxes: kept, the live data given
     `project`.
+    **Done** in `dashboard/constants-into-data`: `project_name()` (`gh repo view --json name`, else
+    the folder of `git rev-parse --show-toplevel`) into `meta.project`; here `agentic-workflow-kit`.
+    - `broken: the page names the project in a constant, as before → AssertionError: False is not true : jobmatch-microservices · between days · 0 merged PRs`
 47. **C, `dashboard.js` lines 594-595, `PHASES`** (item 19). Proposal: `spec-drift.py` reads the
     `### Phase N — <name>` headings into `meta.phases`. On jobmatch's own plan the names differ
     from the constant in four phases (1 adds "(no network yet)", 5 "+ events", 6 lacks "(cut)",
@@ -543,12 +558,23 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     data; the comparison says so.
     **Decision (maintainer, Batch 0 PR):** accepted: the four names change for jobmatch's data too; the comparison does not fake
     the old names, and the PR lists the boxes that change.
+    **Done** in `dashboard/constants-into-data`: `phases()` reads `### Phase N — <name>` (em dash,
+    en dash or hyphen) into a list by phase number, `""` for a number with no heading. The page
+    escapes each name: the template's `<name>` would otherwise be a tag. The comparison gives
+    jobmatch's data its plan's names; only `roadmap` differs (with item 48's stops).
+    - `broken: phases() lists the headings in order, not by phase number → AssertionError: Lists differ: ['Lay the ground', 'Build it (later)'] != ['Lay the ground', '', 'Build it (later)']`
 48. **C, `dashboard.js` line 596, `STOPS = [16, 20, 24, 28, 35]`.** jobmatch's phase-end tags;
     its plan names one stop (Day 28). Proposal: `meta.stops`, the days plan.md's list marks
     **Stop and evaluate** plus those under its "Stopping points" heading (the template's). 53
     boxes: kept with the five given to the live data. Open: should a stop be what the plan says,
     or every phase's last day, as the constant was?
     **Decision (maintainer, Batch 0 PR):** only what the plan marks. The plan template gets a way to mark them (Batch 2).
+    **Done** in `dashboard/constants-into-data`: `stops()` is each list item marked **Stop and
+    evaluate**, its last day, a stop since lifted included (`run_order()`'s stop is the one still
+    in force). One mark, the list's: the "Stopping points" heading is not read, so the two cannot
+    disagree; the template says so under that heading and documents the list under "Day-by-day
+    specs". jobmatch: `[28]`. The legend reads "Stop and evaluate", was "Ends a phase".
+    - `broken: stops() drops a stop a course correction lifted → AssertionError: Lists differ: [] != [2, 6]`
 49. **C, `dashboard.js`: jobmatch text inside boxes.** Line 156 ("the monolith and the plan
     written for it"), 287 ("the Java packages in spec-drift.py's `SERVICE` map"), 310 ("still in
     the monolith"), 479-483 (#310, item 38), 687 ("before the evidence format (#55)"), 846
@@ -769,6 +795,10 @@ except the differences the PR names.
    1b. **`kit/` out of the gap** (item 75). **Done** in `dashboard/kit-out-of-gap`.
 2. **Page constants into the data** (46, 47, 48) and the data-only fixes (43, 44). `spec-drift.py`,
    `dashboard.js`, `test_spec_drift.py`.
+   **Done** in `dashboard/constants-into-data`, with item 45, plus `templates/plan.template.md`
+   and `kit/compare-page.py`. The comparison's `LATER` now holds what jobmatch's plan gives;
+   `roadmap` alone differs, saved with `--write`: Phases 1, 5, 6, 7 renamed, Days 16, 20, 24
+   and 35 no longer stops, the legend's "Stop and evaluate". 88 tests, was 82.
 3. **The project file** (41, 42, 55's workflow name): `spec-drift.config.json`, `spec-drift.py`,
    `test_spec_drift.py`.
 4. **The checks' inputs** (51, 57): `pr-names.py`, `invariants.py`, their tests, `pr-checks.yml`.

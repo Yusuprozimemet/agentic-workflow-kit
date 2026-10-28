@@ -42,6 +42,11 @@ Each phase is a series of <400-line PRs, so CI stays green.
 - **Day <NN> (<what it finishes>) is a stopping point.** The plan-auditor reads the whole plan
   against the code before anything goes on.
 
+<!-- Mark each stopping point in the list under "Day-by-day specs" too: its item ends with
+**Stop and evaluate.**, and its last day is the stop. That mark is what the dashboard reads: the
+roadmap marks the day, and the next step waits there until a "## Course correction after Phase N"
+section, N the item's phase, lifts it. -->
+
 ## Constraints
 
 - <a rule every day keeps, e.g. the contract tests are never edited>
@@ -60,4 +65,9 @@ maintainer chose. Empty at the start. -->
 The phases are broken into day specs in [`specs/`](specs/). Read
 [`specs/README.md`](specs/README.md) for the workflow.
 
-<The order the days run in, if it differs from their numbers.>
+<!-- One numbered item for each run of days, in the order they run. A number after "Phase" is the
+phase; every other number is a day, and "Days 4-6" is a range. End an item with
+**Stop and evaluate.** to make its last day a stopping point. -->
+
+1. Phase 0: Days <NN>, <NN>. **Stop and evaluate.**
+2. Phase 1: Days <NN>-<NN>.
