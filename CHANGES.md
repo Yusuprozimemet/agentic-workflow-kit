@@ -267,6 +267,14 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
       kind `origin` (line 399), and the eyebrow counts `N - 1` snapshots as merged PRs: "1 merged
       PRs" with none.
     - **Empty panels:** with no PRs, "Share of the gap closed by the spec" shows `NaN%`.
+    The eyebrow's count, the `NaN%` and the day total are fixed in item 25. Still open, noted from
+    the deployed kit page:
+    - **A flat gap angle.** The name-gap angle is 70.8° at all 13 merges of the kit's data, first
+      to last, so no PR has closed or widened it and the gap share has nothing to divide (it shows
+      "–" after item 25).
+    - **jobmatch's constants in `dashboard.js`.** `PROJECT` (`jobmatch-microservices`, item 2),
+      `PHASES` (jobmatch's eight phase names, item 19) and `STOPS` (`[16, 20, 24, 28, 35]`,
+      jobmatch's stopping points) are set in the page, not read from `plan.md`.
 
 ## Found on GitHub
 
@@ -286,3 +294,33 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
     reads as next until plan.md drops it or marks it **cut**.
     - `broken: next_step() looks up every planned day in by_day, as before → FAILED (errors=1)`
     - `broken: settle() looks up the first unfinished planned day in by_day, as before → FAILED (errors=1)`
+
+25. **`docs/dashboard/dashboard.js`: three counts wrong on a new repository.** The deployed kit page
+    read `Day 12 of 2 · 12 merged PRs` and showed `NaN%` for "Share of the gap closed by the spec".
+    jobmatch's page computes the same fields right only because its history hid the bug: every row
+    on its `main` but the first is a PR merge (431 of 432), its only `origin` row is that first
+    one, where the gap loop starts after it, and every day it planned has a spec (42).
+    - **Merged PRs were `N - 1`**, every commit after the first. The kit's `main` has 11 direct
+      commits (5507876 to 2f24de3) before 2 PR merges. The count is now the rows with a PR, which
+      is how `snapshots()` reads a PR (a `Merge pull request #N` subject) and what the page's
+      `merged` list already held.
+    - **The gap share summed `byKind[origin]`,** a key it does not have: `undefined + 0` is `NaN`.
+      `origin` rows (the plan as written, a commit with no PR) are left out, as the kind charts
+      leave them out (`["spec", "code", "close", "other"]`). With no gap closed, the share is
+      "–", not `0 / 0`: the kit's gap is flat (item 23).
+    - **The day total was the days with specs** (`days.length`: 2 in the kit). It is now the days
+      in `plan.md`'s run order (`DATA.order`) together with the days that have a spec, so a cut day
+      with a spec still counts: 21 in the kit, 42 in jobmatch as before.
+    Not changed: `N - 1` "merges" in the gap note, the PR range and the conclusion; the
+    "`done` of `days.length` days finished" lines in the today panel and the conclusion; and, on
+    the kit's data, `drawLines()` throws in `lineChart()` (`end` is undefined), so the panels
+    drawn after it are not, in node as on the page.
+    Tests: new `PageTest` in `test_spec_drift.py`, one test per count, each with its own rows. It
+    runs `dashboard.js` in node on a stub document and reads the eyebrow and the stat; it needs
+    node. 74 tests, was 71.
+    **Done in `dashboard/counts-on-a-new-repo`.** On jobmatch's live data the page gives the same
+    as before: `between days · 431 merged PRs`, `-52%`, and with Day 35 set as the current day,
+    `Day 35 of 42` both before and after.
+    - `broken: the eyebrow counts every commit after the first as a merged PR, as before → AssertionError: 'between days · 4 merged PRs' != 'between days · 2 merged PRs'`
+    - `broken: byKind adds every row after the first, origin included, as before → AssertionError: '–' != '-100%'`
+    - `broken: the day total is the days with specs, as before → AssertionError: '· Day 12 of 6 ·' not found in 'jobmatch-microservices · Day 12 of 3 · 0 merged PRs'`

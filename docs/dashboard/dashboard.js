@@ -63,8 +63,11 @@ const first = R[0], last = R[N - 1];
 // A merge with no gap angle (no spec name in the code yet) takes no step, to it or from it.
 const step = (a, b) => a == null || b == null ? 0 : +(b - a).toFixed(2);
 const byKind = { spec: 0, code: 0, close: 0, other: 0 };
-for (let i = 1; i < N; i++) byKind[R[i].kind] += step(R[i - 1].gap_full, R[i].gap_full);
+// A commit with no PR is the plan as written, as in the kind charts: it moves no kind's share.
+for (let i = 1; i < N; i++) if (R[i].kind in byKind) byKind[R[i].kind] += step(R[i - 1].gap_full, R[i].gap_full);
 const gapClosed = -Object.values(byKind).reduce((a, b) => a + b, 0);
+// With no gap closed there is no share: "–", not NaN.
+const ofGap = x => gapClosed ? `${Math.round(-x / gapClosed * 100)}%` : "–";
 const firstGap = R.find(r => r.gap_full != null) || first;
 const specShare = -byKind.spec / gapClosed;
 const nKind = k => R.filter(r => r.kind === k).length;
@@ -85,8 +88,8 @@ document.getElementById("stats").innerHTML = `
     <span class="n">Of the backticked names the specs use today, the share the code has; Jaccard is the names in both over the names in either.</span>
     <span class="n" style="color:var(--muted)">Name-gap angle (secondary): ${fmt(firstGap.gap_full)}° → ${fmt(last.gap_full)}°, ${fmt(gapClosed)}° closed across ${N - 1} merges; ${fmt(last.gap_chance)}° by chance (95%: ${band(last.gap_chance_band)}). ${last.names_kept == null ? "" : `${last.names_kept} names the specs dropped are still in the code. `}${last.names_retired == null ? "" : `${last.names_retired} of the names not in the code were there at an earlier merge: retired, still counted as missing. `}${last.coverage == null ? "" : `${fmt(last.coverage * 100, 1)}% of the names the reached days use are in the code.`}</span></div>
   <div class="stat"><span class="k">Share of the gap closed by the spec</span>
-    <span class="v num">${Math.round(specShare * 100)}%</span>
-    <span class="n"><span class="sw" style="background:var(--spec)"></span>${nKind("spec")} spec-change PRs ${specShare >= 0 ? "moved the spec toward the code" : "widened the gap, naming what was not built yet"}; <span class="sw" style="background:var(--code)"></span>${nKind("code")} code PRs closed ${Math.round(-byKind.code / gapClosed * 100)}%</span></div>
+    <span class="v num">${ofGap(byKind.spec)}</span>
+    <span class="n"><span class="sw" style="background:var(--spec)"></span>${nKind("spec")} spec-change PRs ${specShare >= 0 ? "moved the spec toward the code" : "widened the gap, naming what was not built yet"}; <span class="sw" style="background:var(--code)"></span>${nKind("code")} code PRs closed ${ofGap(byKind.code)}</span></div>
   <div class="stat"><span class="k">Spec text since Sep 20</span>
     <span class="v num">−${last.deleted} <small>/ +${last.added} lines</small></span>
     <span class="n">of ${DATA.origin_lines} lines as written: ${Math.round(last.deleted / DATA.origin_lines * 100)}% rewritten, the rest kept</span></div>`;
@@ -585,9 +588,12 @@ function drawNow() {
   const open = now.open_prs.map(p => `<a href="${esc(p.url)}" target="_blank" rel="noopener">#${p.number}</a> ${esc(p.title)}`).join("<br>");
   const nextBox = `<div class="next"><span class="eyebrow">Next step</span><b>${md(now.next_step)}</b>${open ? `<div>${open}</div>` : ""}</div>
     <div class="refreshed">refreshed ${esc(now.generated.replace("T", " "))} · main at ${esc(now.head)}${now.last_pr ? ` (#${now.last_pr})` : ""}</div>`;
+  // The days plan.md runs, and those with a spec it does not (cut): a new project writes specs one day at a time.
+  const planned = new Set([...ORDER, ...days.map(d => d.day)]).size;
+  // Merged PRs are the merges to main that name a PR; a direct commit is not one.
   document.getElementById("eyebrow").textContent = cur
-    ? `${PROJECT} · Day ${dd(now.current_day)} of ${days.length} · ${N - 1} merged PRs`
-    : `${PROJECT} · between days · ${N - 1} merged PRs`;
+    ? `${PROJECT} · Day ${dd(now.current_day)} of ${planned} · ${merged.length} merged PRs`
+    : `${PROJECT} · between days · ${merged.length} merged PRs`;
   // Between days: the next piece of work has no day spec yet (the platform step, the cleanup day), or work has stopped.
   if (!cur) document.getElementById("today").innerHTML = `
     <div class="eyebrow">Between days</div>
