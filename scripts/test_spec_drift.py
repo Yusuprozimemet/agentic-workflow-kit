@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -18,6 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_file_location("spec_drift", os.path.join(HERE, "spec-drift.py"))
 sd = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sd)
+COMPARE = os.path.join(HERE, "..", "kit", "compare-page.py")
 
 PLAN = "# Plan\n\nThe plan names `FooService` and `bar_table`.\n"
 DAY = "# Day 01\n\nThe day adds `FooService`, then the rest of the day.\n"
@@ -839,6 +841,12 @@ class PageTest(unittest.TestCase):
         for box in ("infra-head", "token-bars", "findings", "tbl", "deltas", "heat"):  # after it in boot(), then setSel()
             self.assertTrue(panels[box], box)
             self.assertNotIn("This panel failed", panels[box], box)
+
+    @unittest.skipUnless(os.path.exists(COMPARE), "kit/ removed")
+    def test_jobmatchs_data_draws_the_boxes_it_drew(self):
+        # kit/compare-page.py: jobmatch's published data through this page, against its saved 53 boxes.
+        run = subprocess.run([sys.executable, COMPARE], capture_output=True, encoding="utf-8")
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
 
 def a_day(n, ticked=1, total=1, kinds=(), titles=()):
