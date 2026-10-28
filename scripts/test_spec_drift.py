@@ -878,6 +878,7 @@ class El {
   get textContent() { return this.html; }
   insertAdjacentHTML(_, h) { this.kids.push({ out: () => String(h) }); }
   addEventListener() {} querySelectorAll() { return []; }
+  querySelector(t) { return this.kids.find(k => k.tag === t) || this.appendChild(new El(t)); }
   out() { return `<${this.tag}${Object.entries(this.attrs).map(([k, v]) => ` ${k}="${v}"`).join("")}>${this.innerHTML}</${this.tag}>`; }
 }
 const document = { getElementById: id => els[id] || (els[id] = new El("div")), createElementNS: (_, t) => new El(t),
@@ -940,6 +941,22 @@ class PageProseTest(unittest.TestCase):
             named = re.findall(r"<code>([\w.-]+/[\w./-]+\.py)</code>", f.read())  # a path, not a name like conftest.py
         self.assertEqual([p for p in named if not os.path.exists(os.path.join(HERE, "..", p))], [])
         self.assertIn("scripts/token-usage.py", named)  # the pattern still finds what the prose names
+
+    def test_no_words_call_the_project_a_migration(self):
+        # The lede, the Tokens text and dashboard.js's first line did; "migrations" in a list of production code is files.
+        found = []
+        for name in ("index.html", "dashboard.js"):
+            with open(os.path.join(HERE, "..", "docs", "dashboard", name), encoding="utf-8") as f:
+                found += [name for _ in re.findall(r"\bmigration\b", f.read(), re.I)]
+        self.assertEqual(found, [])
+
+    def test_a_table_header_is_in_the_body_font(self):
+        # th.r shared td.r's mono font, so "Files read" over the removal checks read as code.
+        with open(os.path.join(HERE, "..", "docs", "dashboard", "dashboard.css"), encoding="utf-8") as f:
+            rules = re.findall(r"([^{}]+)\{([^}]*)\}", f.read())
+        mono = [s.strip() for sel, body in rules if "var(--mono)" in body for s in sel.split(",")]
+        self.assertIn("td.r", mono)
+        self.assertEqual([s for s in mono if re.match(r"th\b", s.split()[-1])], [])
 
 
 @unittest.skipUnless(shutil.which("node"), "needs node")
@@ -1062,6 +1079,66 @@ class PageTest(unittest.TestCase):
         _, panels, _ = drawn(rows, verification=[pr(309, "not measured")] + new, meta=dict(break_line_from_pr=310))
         self.assertTrue(panels["breaks"].startswith("<p>Since #310, 1 of 2 code PRs"), panels["breaks"])
         self.assertIn("1 code PRs before #310 are not measured.", panels["breaks"])
+
+    def test_service_boundaries_with_no_service_say_so(self):
+        # It drew "At start: " and stopped.
+        _, panels, _ = drawn([dict(page_row(0, None, "origin", 50), placed={})])
+        self.assertEqual(panels["placed"], "<p>At start: no service code.</p>")
+
+    def test_removal_checks_with_none_say_none(self):
+        # It drew the header row over an empty body; the panels beside it say "None: ...".
+        _, panels, _ = drawn([page_row(0, None, "origin", 50)])
+        self.assertEqual(panels["removals"][:21], "<tbody><tr><td>None: ")
+
+    def test_the_spec_text_is_counted_since_the_first_merges_date(self):
+        # It said "since Sep 20", the source project's start, whatever the data.
+        rows = [dict(page_row(0, None, "origin", 50), date="2026-03-05", added=0, deleted=0),
+                dict(page_row(1, 1, "spec", 50), date="2026-03-06", added=4, deleted=1)]
+        _, panels, _ = drawn(rows, origin_lines=10)
+        self.assertEqual(re.findall(r'"k">Spec text since ([^<]*)<', panels["stats"]), ["Mar 5"])
+        self.assertEqual(re.findall(r"% of the ([^<]*) spec's lines", panels["findings"]), ["Mar 5"])
+
+    def test_the_out_of_order_key_names_only_days_that_have_run(self):
+        # plan.md runs Day 3 before Day 2: before Day 2's first merge there is no D02 label for a * to mark.
+        rows = [page_row(0, None, "origin", 50), dict(page_row(1, 1, "code", 50), day=1)]
+        error, panels, _ = drawn(rows, order=[1, 3, 2], out_of_order=[2])
+        self.assertIsNone(error)
+        self.assertEqual([k for k, v in panels.items() if "out of number order" in v], [])
+        self.assertEqual(panels["ooo-key"], "")
+        _, panels, _ = drawn(rows + [dict(page_row(2, 2, "code", 50), day=2)], order=[1, 3, 2], out_of_order=[2])
+        self.assertIn('<p class="axis-note">* Day run out of number order: D02.</p>', panels["lines"])
+        self.assertEqual(panels["ooo-key"], "<b>D02*</b>")
+
+    def test_the_merge_strip_stays_inside_the_plot(self):
+        # Each cell was one merge-step wide and centred on its merge: with two merges the end ones ran off the card.
+        _, panels, _ = drawn([page_row(0, None, "origin", 50), page_row(1, 1, "spec", 40)])
+        cells = [(float(x), float(w)) for x, w in re.findall(r'<rect x="([^"]+)" y="275" width="([^"]+)" height="8"', panels["lines"])]
+        self.assertEqual(len(cells), 2)
+        self.assertEqual([c for c in cells if c[0] < 44 or c[0] + c[1] > 1000 - 104], [])
+
+    def test_a_copy_with_no_merged_pr_draws_no_nan(self):
+        # A fresh copy's only row, as spec-drift.py writes it: one row put every x at NaN (N - 1 = 0),
+        # "#Infinity–#-Infinity" over the table, and "NaN% came from", "below Infinity%" in the findings.
+        origin = dict(i=0, sha="d1ffa9a", date="2026-10-28", pr=None, title="Start", kind="origin", day=0, added=0,
+                      deleted=0, gap_full=None, gap_chance=None, gap_chance_band=None, coverage=None, name_coverage=0.0,
+                      jaccard=0.0, names_kept=0, names_retired=0, spec_files={}, code_churn=0,
+                      work=dict(spec=0, context=0, prod=0, test=0, tooling=0), evidence=None, placed={}, crossings={})
+        error, panels, logged = drawn([origin], origin_lines=236, vocab_size=5)
+        self.assertEqual((error, logged), (None, []))
+        self.assertEqual({k: re.findall(r"NaN|Infinity|undefined", v) for k, v in panels.items() if re.search(r"NaN|Infinity|undefined", v)}, {})
+        self.assertEqual(panels["pr-range"], "0 merges")
+        # The headings are claims; with nothing merged they claim nothing.
+        self.assertEqual(re.findall(r"<h3>(No [^<]*)</h3>", panels["findings"]), ["No gap has closed yet", "No day reached yet"])
+
+    def test_one_of_a_kind_is_singular(self):
+        # "1 days in", "1 spec-change PRs".
+        rows = [dict(page_row(0, None, "origin", 50), added=0, deleted=0),
+                dict(page_row(1, 1, "spec", 40), added=1, deleted=0, day=1), dict(page_row(2, 2, "code", 30), added=1, deleted=0, day=1)]
+        _, panels, _ = drawn(rows, days=[dict(day=1, status="done", prs=[dict(number=1)])], origin_lines=10)
+        text = panels["stats"] + panels["findings"]
+        self.assertEqual(re.findall(r"\b1 (?:days|spec-change PRs|code PRs)\b", text), [])
+        self.assertIn("1 day in,", text)
+        self.assertIn("1 spec-change PR ", text)
 
     @unittest.skipUnless(os.path.exists(COMPARE), "kit/ removed")
     def test_the_source_projects_data_draws_the_boxes_it_drew(self):

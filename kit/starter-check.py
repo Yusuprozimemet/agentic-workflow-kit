@@ -4,7 +4,8 @@ starts with, made from HEAD.
 1. HEAD's files without kit/ in a fresh folder, `git init -b main`, one commit.
 2. No day specs: no specs/day-*.
 3. spec-drift.py --build with no GitHub remote writes the page, and stderr holds only its NO_REMOTE line.
-4. The page draws in node (test_spec_drift.py's drawn(page=)): no error, nothing logged, no panel failed.
+4. The page draws in node (test_spec_drift.py's drawn(page=)): no error, nothing logged, no panel failed or
+   drew NaN, Infinity or undefined (a page with no merged PR did, in seven boxes).
 5. No line names the project the kit was copied from, except where EXEMPT says why.
 
     python kit/starter-check.py    # a line per step; on the first that fails, exit 1 with a last line naming it
@@ -104,7 +105,7 @@ def main():
         print("3. spec-drift.py --build wrote the page; stderr: the NO_REMOTE line alone")
 
         error, panels, logged = tests.drawn(page=page)
-        failed = [box for box, html in panels.items() if "This panel failed" in html]
+        failed = [box for box, html in panels.items() if re.search(r"This panel failed|NaN|Infinity|undefined", html)]
         if error or logged or failed:
             raise SystemExit(f"4. failed: error {error!r}, {len(logged)} logged, panels failed: {failed}")
         print(f"4. the page draws {len(panels)} boxes: no error, nothing logged, no panel failed")

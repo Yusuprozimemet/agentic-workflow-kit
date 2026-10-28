@@ -1111,6 +1111,63 @@ Each of these has never run in the kit; the pilot runs each once:
   and the evidence behind the ticks, a hand-off with an ID picked up by the next day.
 - A plan whose order is not by number, with a stop on a day under 10 (item 39).
 
+### 75. What the pilot found
+
+The pilot, wordtally (a small Python CLI copied from the kit at `563fc31`), ran its Day 1 and
+numbered what the kit got wrong as it went: findings 1-28 and optimizations O1-O4. Three of its PRs
+fixed kit files in place (#2, #3, #6). The rest are fixed here, in three PRs split by what they
+touch: the page, the scripts, the text. Each fix has a test seen failing on `main` first and one
+break with `scripts/break.py`.
+
+**The page** (`dashboard/pilot-findings`):
+
+- **wordtally #2 and #6, ported as merged** (findings 8, 12, 18, 25). The gap chart's merge strip:
+  each cell runs halfway to its neighbours, clipped to the plot; with few merges the end cells ran
+  off the card. The legend's out-of-order sample is the data's first out-of-order day that has a
+  merge (`oooRun`), hidden when there is none; it said `D38*` whatever the data. Service boundaries
+  with no service says "no service code." where it stopped after "At start:"; Removal checks with
+  none says "None: …" where it drew a bare header; "Spec text since Sep 20" and the finding beside
+  it use the first row's date; the out-of-order footnote names only days with a merge; `th.r` is
+  out of the mono font ("Files read"); "migration" is out of the lede, the Tokens text and
+  `dashboard.js`'s first line. PageTest's DOM stub has `querySelector` (finding 25: without it the
+  legend fix failed the gap panel on any data with an out-of-order day, and the kit's data has
+  none). The source project's data draws as before, except `lines` and `churn` (the strip cells:
+  the first clipped at the plot's edge, the rest a float's last digit) and one new box, `ooo-key`,
+  `D38*`; `kit/page/jobmatch-boxes.sha256` rewritten with `--write`, 54 boxes.
+- **Finding 26: a page with no merged PR.** A fresh copy's one row put every chart's x at NaN
+  (`lx` divides by N - 1), the gap axis at "NaN°" (0 to 0), the PR range at
+  "#Infinity–#-Infinity", and "NaN% came from", "below Infinity%" and "NaN% of all edited" in
+  the findings. One row now sits mid-plot, its strip cell spanning it; the axis has a 15° floor;
+  the range is "0 merges"; the findings say "No gap has closed yet" and "No day reached yet" and
+  use "–" for a share of nothing. The "undefined" texts the note lists came from a test row
+  without `added`, `deleted` and `code_churn`; spec-drift.py writes all three on the origin row,
+  so the test uses the row a fresh copy writes. `kit/starter-check.py` step 4 now also fails on
+  NaN, Infinity or undefined in a box: on `main` it named 7 (`pr-range`, `findings`, `lines`,
+  `cover`, `evidence-history`, `churn`, `deltas`).
+- **Finding 28: singulars.** `many(n, noun)`: "1 day in", "1 spec-change PR", "1 code PR",
+  "1 merge", "1 merged PR".
+
+Tests: 8 PageTest and 2 PageProseTest tests, each failing on `main`'s page first (7 PageTest, both
+prose tests, and the strip test, which wordtally's PR #2 had none of). The starter check's
+step 4 cannot be broken against a fixed HEAD: its red run is the one on `main` above.
+
+- `broken: the strip's cells not clipped to the plot → AssertionError: Lists differ: [(-381.0, 850.0), (471.0, 850.0)] != []`
+- `broken: the legend's sample fixed at D38* → AssertionError: '<b>D38*</b>' != '<b>D02*</b>'`
+- `broken: oooRun keeps a day with no merge → AssertionError: Lists differ: ['lines', 'cover', 'evidence-history', 'churn', 'deltas'] != []`
+- `broken: Service boundaries with no service draws nothing after At → AssertionError: '<p>At start: </p>' != '<p>At start: no service code.</p>'`
+- `broken: Removal checks with none draws the header row → AssertionError: '<thead><tr><th>Day</t' != '<tbody><tr><td>None: '`
+- `broken: the stat's date fixed at Sep 20 → AssertionError: Lists differ: ['Sep 20'] != ['Mar 5']`
+- `broken: migration back in the lede → AssertionError: Lists differ: ['index.html'] != []`
+- `broken: th.r back in the mono font → AssertionError: Lists differ: ['th.r'] != []`
+- `broken: lx divides by N - 1 with one row → AssertionError: {'lines': ['NaN', 'NaN', 'NaN', 'NaN', 'Na[223 chars]aN']} != {}`
+- `broken: the gap axis has no 15 degree floor → AssertionError: {'lines': ['NaN', 'NaN', 'NaN', 'NaN']} != {}`
+- `broken: the PR range drawn with no merged PR → AssertionError: {'pr-range': ['Infinity', 'Infinity']} != {}`
+- `broken: the coverage finding drawn with no day reached → AssertionError: {'findings': ['Infinity']} != {}`
+- `broken: the spec's share of the gap as 0/0 → AssertionError: {'findings': ['NaN']} != {}`
+- `broken: the forward share as 0/0 with no spec edited → AssertionError: {'findings': ['NaN']} != {}`
+- `broken: the share heading claims with no gap closed → AssertionError: Lists differ: ['No day reached yet'] != ['No gap has closed yet', 'No day reached yet']`
+- `broken: many() plural for one → AssertionError: Lists differ: ['1 spec-change PRs', '1 code PRs', '1 days', '1 spec-change PRs', '1 code PRs'] != []`
+
 ### Open questions
 
 All decided by the maintainer in the Batch 0 PR, each under its item: 47, 48, 49, 52, 55,
