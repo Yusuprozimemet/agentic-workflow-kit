@@ -1357,3 +1357,28 @@ All decided by the maintainer in the Batch 0 PR, each under its item: 47, 48, 49
 - Item 67: how was `agent-workflow.png` made?
 - Items 55, 56: keep the infra and deployment panels (off), as proposed, or remove them, which
   loses the 53-box comparison and one suite?
+
+## v2: Wordtally's tooling and dashboard
+
+Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4ce7`, the kit at
+`6418ac3` (tree of `3f478ab`), file-level base `563fc31` (matched Wordtally's first snapshot
+`df0c205` for every shared script, dashboard file and `pr-checks.yml`). Manifest:
+[`v2-manifest.md`](v2-manifest.md).
+
+### 76. Where both sides' behaviour met (steps 1-2)
+
+- **Python test classes, both sides.** Wordtally (`69c419b`) and the kit (`b1b62c0`) each taught
+  `test_state` to find Python classes. Kept the kit's: test paths only, indented classes, pytest
+  skips. Wordtally's four page regressions were already in the kit, so its copies were dropped.
+- **`evidence.py` against the kit's `break.py`.** The kit writes a temporary directory, its whole
+  path, as `<tmp>`; `evidence.py` now applies the same rule to both reports before comparing.
+  The kit refuses an arrow in `--what`, so a recorded break with one cannot run again:
+  `evidence.py` reports it as could not run, with the refusal, not as passed. Changed behaviour:
+  Wordtally's test expected such a line to pass.
+- **Token rows from before agents were counted.** Wordtally's `token-usage.py` read `agent` from
+  every kept row (a `KeyError` on the kit's older rows). A row without it keeps, as `unknown`,
+  what it holds beyond the agents counted for its date, day and model: no count is lost and no
+  agent is guessed.
+- **`.gitignore`:** `spec-drift.json`, the dashboard's generated data, and `.env`.
+- **Not yet:** the page comparison (`kit/compare-page.py`, and its test in
+  `test_spec_drift.py`) reports 8 boxes changed or new; reviewed in step 5 before `--write`.

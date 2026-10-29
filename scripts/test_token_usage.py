@@ -9,6 +9,9 @@ import importlib.util
 import json
 import os
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -85,6 +88,60 @@ class TranscriptsTest(unittest.TestCase):
                 f.write(line())
         read = sorted(os.path.basename(os.path.dirname(p)) for p in tu.transcripts(root))
         self.assertEqual(read, [name, name + "--claude-worktrees-a"])
+
+
+def native(path):
+    # The test builds its files with its own \\?\ prefix, not the script's, so it runs on main's code too.
+    return "\\\\?\\" + path if os.name == "nt" else path
+
+
+class LongPathTest(unittest.TestCase):
+    def setUp(self):
+        self.root = os.path.realpath(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, native(self.root))
+        name = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(os.path.join(HERE, os.pardir)))
+        self.project = os.path.join(self.root, name)
+
+    def write(self, path, text):
+        os.makedirs(native(os.path.dirname(path)), exist_ok=True)
+        with open(native(path), "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def test_transcript_past_max_path_is_counted(self):
+        # A subagent's transcript in a folder past 260 characters, beside a session at a short path.
+        self.write(os.path.join(self.project, "short.jsonl"), line(output=3, branch="main") + "\n")
+        folder = os.path.join(self.project, "s" * 200, "subagents")
+        self.write(os.path.join(folder, "agent-" + "a" * 100 + ".jsonl"), line(message_id="msg_2", output=7, branch="main") + "\n")
+        self.write(os.path.join(folder, "agent-" + "a" * 100 + ".meta.json"), '{"agentType": "implementer"}')
+        self.assertGreater(len(folder), 260)
+        totals = tu.count(tu.transcripts(self.root))
+        self.assertEqual({who: t["output"] for (_, _, _, who), t in totals.items()},
+                         {"main": 3, "implementer": 7})
+
+
+class MergeTest(unittest.TestCase):
+    """The rows already written are kept, those from before agents were counted among them."""
+
+    def test_a_row_with_no_agent_keeps_its_count_as_unknown(self):
+        with tempfile.TemporaryDirectory() as root:
+            out = os.path.join(root, "token-usage.json")
+            model = "claude-haiku-5-5"  # as rows store it, its date taken off
+            legacy = dict(date="2026-10-12", day=43, model=model, input=10, cache_write=0, cache_read=0, output=100, replies=4)
+            other = dict(legacy, date="2026-10-11", output=40, replies=2)
+            with open(out, "w", encoding="utf-8") as f:
+                json.dump([legacy, other], f)
+            # Still on disk: one reply of the 2026-10-12 total, the main session's.
+            project = os.path.join(root, "projects", re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(os.path.join(HERE, os.pardir))))
+            os.makedirs(project)
+            with open(os.path.join(project, "s.jsonl"), "w", encoding="utf-8") as f:
+                f.write(line(output=30) + "\n")
+            run = subprocess.run([sys.executable, os.path.join(HERE, "token-usage.py"), "--transcripts",
+                                  os.path.join(root, "projects"), "--out", out], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            with open(out, encoding="utf-8") as f:
+                rows = {(r["date"], r["agent"]): (r["output"], r["replies"]) for r in json.load(f)}
+        self.assertEqual(rows, {("2026-10-11", "unknown"): (40, 2),
+                                ("2026-10-12", "main"): (30, 1), ("2026-10-12", "unknown"): (70, 3)})
 
 
 if __name__ == "__main__":
