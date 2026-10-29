@@ -29,7 +29,7 @@ name: PR checks
 #    a `claude/...` branch).
 #
 # 6. A track's new tests are seen red (scripts/track-red.py): each test its spec's `new` criteria
-#    name fails by assertion where the branch started and passes on it. #15 and #18 lacked the record.
+#    name fails by assertion where the branch started and passes on it. A pilot of the kit merged two tracks without the record.
 #    Opt-in: it runs Python unittest tests only, so it checks a track when the repository variable
 #    TRACK_RED_RUNNER is `unittest`. Unset, it reports "not configured" and passes; any other value
 #    fails as a configuration error. Its self-tests run in spec-drift-tests.yml whatever the setting.

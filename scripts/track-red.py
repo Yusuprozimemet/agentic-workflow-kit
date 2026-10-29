@@ -3,12 +3,12 @@ print one line per test.
 
     python scripts/track-red.py --branch <day-NN/track-x-slug> [--base main] [--runner unittest]
 
-A `new` criterion must fail on the code before the day (specs/README.md); the `seen red:` record was
-missing from #15 and #18. CI runs this on every PR ("Track tests seen red") with `--runner` set to the
+A `new` criterion must fail on the code before the day (specs/README.md); a pilot of the kit merged
+two tracks without the `seen red:` record. CI runs this on every PR ("Track tests seen red") with `--runner` set to the
 repository variable TRACK_RED_RUNNER: empty, the variable unset, is "not configured" and checks
 nothing; `unittest`, the only runner it has, checks; anything else cannot run. It runs the tests again;
-it cannot show the track's author did. What it checks comes from the spec, never the diff (#27 added
-tests that pin what holds, and is not a track):
+it cannot show the track's author did. What it checks comes from the spec, never the diff (a PR that adds
+tests pinning what holds is not a track):
 
 - Any branch but `day-NN/track-<x>-<slug>` passes. The spec is `specs/day-NN-*.md` on the base.
 - A one-row Tracks table owns every criterion; otherwise a track owns what its Work cell names

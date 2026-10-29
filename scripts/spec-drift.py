@@ -644,8 +644,8 @@ def phases(plan):
 
 def lifted(plan, phase):
     """Whether plan.md lifts the stop of Phase `phase`: a "Course correction after Phase N" section,
-    or the template's "Course corrections" section naming the phase outside its comment. wordtally
-    put its stop's decisions there, and three days ran under the stop."""
+    or the template's "Course corrections" section naming the phase outside its comment. A pilot
+    of the kit put its stop's decisions there, and three days ran under the stop."""
     corrections = re.sub(r"<!--.*?-->", "", section(plan, "Course corrections"), flags=re.S)
     return bool(section(plan, f"Course correction after Phase {phase}")
                 or re.search(rf"\bPhase {phase}\b", corrections))

@@ -54,14 +54,14 @@ BREAK = os.path.join(HERE, "break.py")
 
 CRITERION = re.compile(r"^- \[([ x])\] (C\d+\.\d+)\b")
 TEST = re.compile(r"`(\w+)\.(test_\w+)`")
-# At the last arrow: Day 1 recorded two breaks with an arrow inside what was broken.
+# At the last arrow: what was broken can hold an arrow itself.
 BROKEN = re.compile(r"^\s*broken: (.+) → (.*)$", re.S)
 PR_SUFFIX = re.compile(r"\s+\(#\d+\)$")
 TEMP_NAME = re.compile(r"tmp[0-9a-z_]{8}")
 # break.py's own: it writes a temporary directory, the whole path up to it, as <tmp>.
 TEMP_PATH = re.compile(r"[^\s'\"()\[\]]*?[\\/]+tmp[a-z0-9_]{8}(?![a-z0-9_])")
 COMMENT = re.compile(r"^(.*?)\s{2,}#\s*(.*)$")
-# A criterion checked by a command it quotes, not by a named test: Days 1-5's hold criteria.
+# A criterion checked by a command it quotes, not by a named test, as a hold criterion often is.
 COMMAND = re.compile(r"`((?:git|python|diff|grep|bash) [^`]+)`")
 SCHEMA = 1
 MARK = {"passed": "ok  ", "failed": "FAIL", "error": "ERR ", "not_applicable": "n/a "}

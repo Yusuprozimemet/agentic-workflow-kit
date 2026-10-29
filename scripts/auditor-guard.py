@@ -6,7 +6,7 @@
 The hooks run for every Bash command and every subagent's stop; the guard acts only when the
 hook's `agent_type` is one of AUDITORS, the five agents whose brief says "Read-only" and that have
 Bash, and lets the main session and every other agent through. Hooks in an agent's frontmatter
-were the first wiring (#46): the terminal's Claude Code 2.1.170 ran them, the VS Code extension's
+were the first wiring: the terminal's Claude Code 2.1.170 ran them, the VS Code extension's
 2.1.312 ignored them. Settings hooks run on both, inside subagents.
 
 Each brief said "Read-only", and all but the defect-rater had Bash to break it with; one auditor

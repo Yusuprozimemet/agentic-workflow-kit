@@ -61,6 +61,11 @@ On GitHub, in this order:
   "Require a pull request before merging" on the settings page: the API ties it to a review rule.
 - "Every service is wired into compose and Prometheus" checks nothing until `services/` exists,
   and passes. A project with no services leaves it out of the required checks, or deletes the job.
+- The kit has no workflow for the project's own tests: each project adds one (for example
+  `.github/workflows/tests.yml`) before Day 1 and requires its check by name, as above. The
+  kit's workflows test only its own tools.
+- "Track tests seen red" reports on every pull request; with `TRACK_RED_RUNNER` set (item 6
+  above), require it by name too.
 
 Locally: Python with `numpy`, `node` for the page tests, and `gh`, logged in.
 

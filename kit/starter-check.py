@@ -6,7 +6,7 @@ starts with, made from HEAD.
 3. spec-drift.py --build with no GitHub remote writes the page, and stderr holds only its NO_REMOTE line.
 4. The page draws in node (test_spec_drift.py's drawn(page=)): no error, nothing logged, no panel failed or
    drew NaN, Infinity or undefined (a page with no merged PR did, in seven boxes).
-5. No line names the project the kit was copied from, except where EXEMPT says why.
+5. No line names a project the kit was built from, except where EXEMPT says why.
 
     python kit/starter-check.py    # a line per step; on the first that fails, exit 1 with a last line naming it
 
@@ -26,16 +26,17 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 # Item 72's list. Left out for false hits: `Day \d+` and `#\d+` (the rules' examples, the branch
 # grammar), migration, gateway, AWS, Java (TEST_PATH names .java), V1, and Maven (item 60's rules).
+# wordtally, the pilot whose tools v2 brought in (item 78).
 MARKERS = (r"jobmatch|hackyourfuture|KAN-[0-9]|identity-service|job-service|api-gateway|mvnw|checkstyle|surefire"
-           r"|flyway|terraform|localstack|infra-ci|eu-west-1|\bECS\b")
+           r"|flyway|terraform|localstack|infra-ci|eu-west-1|\bECS\b|wordtally")
 
-# The files that still name it, kept by a maintainer's decision (CHANGES.md, Batch 8), each with why.
+# The files that still name one, kept by a maintainer's decision (CHANGES.md, Batch 8), each with why.
 EXEMPT = {
     ".claude/agents/architecture-auditor.md": "the source project's system, as marked examples (item 70)",
     ".claude/agents/security-ops-auditor.md": "the source project's system, as marked examples (item 70)",
     ".claude/agents/spec-auditor.md": "evidence from the source project, marked as its (item 61)",
-    "specs/README.md": "evidence from the source project, marked as its (item 63)",
-    "CLAUDE.md": "evidence from the source project, marked as its (item 65)",
+    "specs/README.md": "evidence from the source project and the pilot, marked as theirs (items 63, 78)",
+    "CLAUDE.md": "evidence from the source project and the pilot, marked as theirs (items 65, 78)",
     "scripts/break.py": "the Maven rules, inert for any other command (item 60)",
     "scripts/test_break.py": "the Maven rules' tests (item 60)",
     "scripts/infra-summary.py": "the infra panel's summary, off without an infra workflow (items 55, 56)",

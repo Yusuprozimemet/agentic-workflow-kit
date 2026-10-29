@@ -12,8 +12,8 @@ It exits 0 only when the command failed there, and prints the record for the PR:
 the tests do not see the change. Read the reported line: `errors=` alone may be an import error,
 not the behaviour the test asserts.
 
-The step was a Note, not a script, and did not carry: new tests were not seen red on the pre-day
-code in #15, and again in #18 (lab-notebook Retrospective, open item 10).
+The step was a Note, not a script, and did not carry: a pilot of the kit merged two tracks whose new
+tests were never seen red on the code before them.
 """
 import argparse
 import importlib.util

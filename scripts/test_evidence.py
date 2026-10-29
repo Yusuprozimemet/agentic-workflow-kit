@@ -146,7 +146,7 @@ class EvidenceTest(unittest.TestCase):
         self.assertIn("1 could not run", run.stdout)
 
     def test_a_report_recorded_across_lines_with_its_backslashes_undoubled_is_the_same(self):
-        report = "AssertionError: 'C:\\x\n'"  # as Day 1 pasted it: \\ as \, \n as a new line
+        report = "AssertionError: 'C:\\x\n'"  # as a close pasted it: \\ as \, \n as a new line
         check = [sys.executable, "-c", "import sys; sys.exit(\"AssertionError: 'C:\\\\\\\\x\\\\n'\")"]
         run = self.run_evidence(spec(report=report), breaks=(dict(BREAK, command=check),))
         self.assertEqual(run.returncode, 0, run.stdout)

@@ -1410,3 +1410,48 @@ Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4
   `seen-red.py` copies only changed files under `tests/`; `evidence.py` looks named tests up as
   Python classes under `tests/`. Other languages keep the `seen red:` record by hand. General
   runner adapters are a separate change.
+
+### 78. Instructions and CI match what the kit does (step 4)
+
+- **Ported from Wordtally,** after comparing each retained document with its copy there; the
+  kit already had "One session per step", the implementer brief and the re-count rule.
+  - The phase-end audits run on fresh `main` after the phase's last closing PR has merged,
+    never inside it: CLAUDE.md step 6 and the auditors' table, `docs/workflow.md`, the
+    plan-auditor's description and the three end-of-phase auditors' timing lines.
+  - The auditors' hook, with its limits: it blocks the git and `gh` commands it recognises as
+    writes and, at the auditor's stop, finds what git shows changed; it reads commands, not
+    what a program does, so it is not a sandbox.
+  - `seen-red.py` in CLAUDE.md "The implementer" and `specs/README.md`, for tests under
+    `tests/`, with the stash route for any other layout and the CI opt-in.
+  - A pitfall: on a CRLF tree, `git diff --exit-code` under `break.py` reports git's CRLF
+    warning; run `git -c core.safecrlf=false diff`.
+  - What stayed Wordtally's: its commands, paths, frozen tests, model and Pages URL, and the
+    wording the kit has since replaced (the defect-rater's "merged or not", the template's
+    Evidence line). The manifest says so row by row.
+- **No Wordtally day or PR in the code a copy keeps.** Its PR numbers (#15, #18, #27, #46) left
+  `track-red.py`, `seen-red.py`, `auditor-guard.py` and `pr-checks.yml`; its days left
+  `evidence.py`'s comments, the relabel panel's sentence on Days 1 and 3 (now: a day whose Notes
+  quote no counts is not counted), and the test comments and fixtures that named it.
+  `starter-check.py` searches for `wordtally` too; `CLAUDE.md` and `specs/README.md` keep their
+  marked evidence from it, exempt as the source project's is. The page-prose test lists the
+  removed sentence's words.
+  - `broken: the relabel panel's Day 1 and Day 3 sentence put back → AssertionError: Lists differ: ['Day 1 does not', 'Day 3 tells'] != []`
+  - `broken: wordtally left out of the starter scan's markers → AssertionError: the probe line not found: []`
+
+    The probe: a scratch clone of the candidate with one commit adding `docs/probe.md`, "Built
+    after Wordtally."; `starter-check.py` stopped at "5. failed: 1 lines in 1 files name the
+    source project: docs/probe.md", and the break ran a check that `hits()` finds that line.
+- **CI.** "Drift and gap move when they should" runs every `scripts/test_*.py` in a loop, each
+  in its own log group, all run, the job failing if any did: `test_infra_summary.py` ran nowhere
+  before, and a new test file now runs without an edit to the workflow. Its trigger paths are
+  every script and the page's HTML, CSS and JS, besides the agents, settings, project file and
+  page fixtures. A new job, "Token counts on Windows", runs `test_token_usage.py` on
+  `windows-latest`, where the long-path regression bites; on Linux it passes either way. The
+  gate needs it and the starter job; in a copy without `kit/` the starter's step is skipped and
+  the job passes. Check names are unchanged. The README says each project adds its own test
+  workflow and requires its check, and requires "Track tests seen red" once
+  `TRACK_RED_RUNNER` is set.
+  - `broken: the long-path prefix never added → AssertionError: {'main': 3} != {'main': 3, 'implementer': 7}`
+
+    Run on Windows. The loop, run locally under Git Bash, ran all 12 files and exited 1 on
+    `test_spec_drift.py`'s one known failure, the page comparison that step 5 reviews.

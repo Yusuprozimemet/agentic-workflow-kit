@@ -244,7 +244,7 @@ class SpecDriftTest(unittest.TestCase):
                           ("scripts/test_spec_drift.py", "test"), ("data/tests/conftest.py", "test"), ("web/a.spec.ts", "test"),
                           ("scripts/spec-drift.py", "tooling"), (".github/workflows/ci.yml", "tooling"),
                           ("docs/dashboard/dashboard.js", "tooling"), ("backend/app/src/main/java/x/Latest.java", "prod"),
-                          ("wordtally/count.py", "prod"), ("tests/contract/test_word_rule.py", "test"),
+                          ("app/count.py", "prod"), ("tests/contract/test_word_rule.py", "test"),
                           ("experiments/jev/e1/build.py", "tooling"), ("experiments/jev/e1/test_build.py", "test"),
                           ("docker-compose.yml", "prod"), ("docs/dashboard/token-usage.json", None),
                           ("docs/dashboard/deployment.json", None),
@@ -373,7 +373,7 @@ class SpecDriftTest(unittest.TestCase):
         self.assertIsInstance(p["script_edited"], bool)
 
     def test_before_the_first_commit_the_data_names_no_commit(self):
-        # wordtally's first run: git rev-parse HEAD exited 128 in a repository with no commit yet.
+        # a pilot's first run: git rev-parse HEAD exited 128 in a repository with no commit yet.
         empty = Repo()
         self.addCleanup(empty.close)
         script = os.path.join(empty.path, "spec-drift.py")
@@ -384,7 +384,7 @@ class SpecDriftTest(unittest.TestCase):
         self.assertEqual((p["commit"], p["script_edited"]), (None, True))
 
     def test_the_spec_rules_and_template_are_not_specs_for_the_vocabulary(self):
-        # wordtally: 5 of the 8 names "missing" from its code were the source project's examples there.
+        # a pilot: 5 of the 8 names "missing" from its code were the source project's examples there.
         before = self.repo.inside(lambda blobs: sd.trajectory([dict(s) for s in self.repo.snaps], blobs)[2])
         self.repo.merge({"specs/README.md": "Name `AccountDeletionIT` and `savedCount`.\n",
                          "specs/_template.md": "- [ ] C28.1 **new** — `SameSite` is set.\n"})
@@ -511,7 +511,7 @@ class EvidenceTest(unittest.TestCase):
         self.assertEqual(set(self.state()[0]["tests"].values()), {"missing"})
 
     def test_a_python_test_is_found_by_its_class_in_any_test_file(self):
-        # wordtally: CliTest lives in tests/test_cli.py, and every criterion's tests read "missing".
+        # a pilot: CliTest lives in tests/test_cli.py, and every criterion's tests read "missing".
         self.repo.merge({"tests/test_cli.py": "import unittest\n\n\nclass CliTest(unittest.TestCase):\n"
                                               "    def test_counts(self):\n        pass\n",
                          "tests/test_rule.py": "class RuleTest:\n    @pytest.mark.skipif(True, reason='x')\n"
@@ -524,7 +524,7 @@ class EvidenceTest(unittest.TestCase):
                                  "HelperTest": "missing"})  # src/helper.py is not a test file
 
     def test_a_python_test_that_calls_skip_test_is_skippable(self):
-        # wordtally PR #20: a test can skip itself from its body, as CI on a missing tool does.
+        # a pilot: a test can skip itself from its body, as CI on a missing tool does.
         self.repo.merge({"tests/test_cli.py": "import unittest\n\n\nclass CliTest(unittest.TestCase):\n"
                                               "    def test_bash(self):\n        self.skipTest('no bash')\n"})
         state = self.repo.inside(lambda blobs: sd.test_state({"CliTest.test_bash"}, self.repo.snaps[-1]["sha"], blobs))
@@ -792,7 +792,7 @@ class HandOffTest(unittest.TestCase):
         self.assertEqual(sd.unopened_tracks([dict(number=1, headRefName="day-32/track-c1-x", body=body)]), [])
 
     def test_a_notes_item_that_only_cites_its_days_hand_off_is_not_one(self):
-        # wordtally Day 1: a Note ending "(H1.2)" was listed as H1.2 a second time, to no day.
+        # a pilot, Day 1: a Note ending "(H1.2)" was listed as H1.2 a second time, to no day.
         repo = Repo().merge({
             "specs/day-01-a.md": "## Notes\n- The condition is in one place, so Day 03 decides it (H01.2).\n"
                                  "- **Hand-off** H01.2 → Day 03: the stop decides it.\n",
@@ -1041,7 +1041,7 @@ class PageProseTest(unittest.TestCase):
     # What the prose said of the project it was built on: its services and layout, its days, PRs and criteria, its cloud.
     MARKERS = ["monolith", "identity", "job-service", "backend/", "saved_jobs", "SavedJobCounts", "GatewayHarnessIT",
                "infra-ci", "Terraform", "LocalStack", "AWS", "Day 35", "Days 1–4", "Days 38–40", "C35.16", "H28.1",
-               "#55", "#298", "#310"]
+               "#55", "#298", "#310", "wordtally", "Day 1 does not", "Day 3 tells"]
 
     def test_the_prose_names_none_of_the_project_it_was_built_on(self):
         with open(os.path.join(HERE, "..", "docs", "dashboard", "index.html"), encoding="utf-8") as f:
@@ -1331,7 +1331,7 @@ class EvidenceReportTest(unittest.TestCase):
     """The committed evidence report: read, never replayed, and current only on main's inputs."""
 
     def setUp(self):
-        self.repo = Repo().merge({"specs/day-01-x.md": "# Day 01\n"}).merge({"wordtally/a.py": "x = 1\n"})
+        self.repo = Repo().merge({"specs/day-01-x.md": "# Day 01\n"}).merge({"app/a.py": "x = 1\n"})
         self.addCleanup(self.repo.close)
         self.close = self.repo.git("rev-parse", "HEAD").strip()
         self.days = [dict(day=1, status="done", file="specs/day-01-x.md", prs=[dict(number=1, kind="close")]),
@@ -1487,7 +1487,7 @@ Go on.
         self.assertEqual((sd.phases("# Plan\n"), sd.stops("# Plan\n")), ([], []))
 
     def test_a_course_corrections_entry_naming_the_phase_lifts_its_stop(self):
-        # wordtally Day 4: the stop's decisions went under the template's "Course corrections",
+        # a pilot, Day 4: the stop's decisions went under the template's "Course corrections",
         # and Days 2, 4 and 5 ran under "Day 03 is done: stop".
         plan = ("# Plan\n\n## Course corrections\n\n<!-- A stop's decision, e.g. after Phase 0. -->\n\n{}\n"
                 "## Day-by-day specs\n\n1. Phase 0: Days 3, 1. **Stop and evaluate.**\n2. Phase 1: Days 2, 4.\n")

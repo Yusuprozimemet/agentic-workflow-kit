@@ -2,16 +2,11 @@ name: Dashboard metric tests
 
 # The dashboard's drift and gap are only worth reading if they move when they
 # should. scripts/test_spec_drift.py builds small repositories and checks that
-# they do; this runs it on every pull request that touches the script. It also runs
-# scripts/test_token_usage.py, which checks the token counts the dashboard reads, and
-# scripts/test_invariants.py, which checks the rule that keeps the frozen
-# files unedited, and scripts/test_break.py, which checks that a break on purpose
-# puts the code back as it was, and scripts/test_relabel.py, which checks that the close's blind
-# relabel hides a defect's tags and finds where the rater disagrees, and scripts/test_evidence.py,
-# which checks that a ticked criterion's test, Verify line or break that does not hold up fails, and
-# scripts/test_seen_red.py, which checks that a track's tests are seen red on the code before it,
-# scripts/test_track_red.py, which checks the PR check that runs them (whatever TRACK_RED_RUNNER is), and
-# scripts/test_auditor_guard.py, which checks that the auditors' hook blocks writes and finds changes.
+# they do. The tests job runs every scripts/test_*.py, that one and the tests of each
+# tool beside it (token counts, frozen files, breaks on purpose, the blind relabel, evidence,
+# seen-red and track-red whatever TRACK_RED_RUNNER is, the auditors' hook, ...), on every pull
+# request that touches a script or a file they read. A new test file runs without an edit here.
+# The token counts also run on Windows, where a transcript's path can pass 260 characters.
 
 on:
   # Every pull request, so the gate below always reports: a required check that never starts
@@ -37,7 +32,7 @@ jobs:
       - name: Compare with the base
         id: diff
         env:
-          PATHS: '^(scripts/(spec-drift|test_spec_drift|token-usage|test_token_usage|invariants|test_invariants|break|test_break|relabel|test_relabel|evidence|test_evidence|seen-red|test_seen_red|track-red|test_track_red|auditor-guard|test_auditor_guard)\.py$|\.claude/agents/.*\.md$|\.claude/settings\.json$|spec-drift\.config\.json$|docs/dashboard/dashboard\.js$|kit/(compare-page\.py|page/.*)$|\.github/workflows/spec-drift-tests\.yml$)'
+          PATHS: '^(scripts/[^/]+\.py$|\.claude/agents/.*\.md$|\.claude/settings\.json$|spec-drift\.config\.json$|docs/dashboard/(dashboard\.js|index\.html|dashboard\.css)$|kit/(compare-page\.py|page/.*)$|\.github/workflows/spec-drift-tests\.yml$)'
         run: |
           files=$(git diff --name-only HEAD^1 HEAD)
           if grep -qE "$PATHS" <<< "$files"; then run=true; else run=false; fi
@@ -54,19 +49,34 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install numpy
-      - run: python scripts/test_spec_drift.py
+      # Each file in its own log group; every one runs, and the job fails if any did.
+      - name: Every scripts/test_*.py
+        run: |
+          failed=""
+          for t in scripts/test_*.py; do
+            echo "::group::$t"
+            python "$t" || failed="$failed $t"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then echo "failed:$failed"; exit 1; fi
+
+  # The long-path regression: Windows refuses a path past 260 characters that does not start
+  # with \\?\, and glob skips such a folder without a word. On Linux the test passes either way.
+  token-windows:
+    name: Token counts on Windows
+    needs: changes
+    if: needs.changes.outputs.run == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - run: python scripts/test_token_usage.py
-      - run: python scripts/test_invariants.py
-      - run: python scripts/test_break.py
-      - run: python scripts/test_relabel.py
-      - run: python scripts/test_evidence.py
-      - run: python scripts/test_seen_red.py
-      - run: python scripts/test_track_red.py
-      - run: python scripts/test_auditor_guard.py
 
   # What a copy of the kit starts with: kit/starter-check.py builds the pull request without kit/
-  # and checks it. On every pull request, since any file can name the source project. Not in the
-  # gate's needs: it is required only once the branch rules name it.
+  # and checks it. On every pull request, since any file can name a source project. In the gate's
+  # needs: in a copy without kit/ its step is skipped and the job passes.
   starter:
     name: The starter names no project
     runs-on: ubuntu-latest
@@ -86,7 +96,7 @@ jobs:
   gate:
     name: Dashboard metric tests gate
     if: always()
-    needs: [changes, test]
+    needs: [changes, test, token-windows, starter]
     runs-on: ubuntu-latest
     steps:
       - name: Every job passed or had nothing to do
