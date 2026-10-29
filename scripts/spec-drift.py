@@ -149,6 +149,8 @@ CAVEATS = [
     "and still describe it wrongly.",
     "A name a spec says should disappear still counts as shared vocabulary while the code has it.",
     "Name coverage counts test and tooling files as code.",
+    "Production name coverage counts only files the path rules call production: a path, not proof "
+    "that the file runs in the product. Test and tool names may legitimately be absent from it.",
 ]
 PAGE = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "docs", "dashboard")
 # What git said about each merge, kept between runs: every call cached here names commits only by
@@ -258,6 +260,7 @@ def code_like(tok):
 
 
 WORK_KINDS = ("spec", "context", "prod", "test", "tooling")
+PLACES = ("prod", "test", "tooling", "other")  # where a code name was found: a work kind, or other for the rest
 NOT_WRITTEN = re.compile(r"(^|/)package-lock\.json$|^docs/dashboard/token-usage\.json$|^docs/dashboard/deployment\.json$|^screenshots/")
 TEST_PATH = re.compile(r"(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$|(Test|Tests|IT)\.java$"
                        r"|\.(test|spec)\.[jt]sx?$")
@@ -271,7 +274,9 @@ def renamed_to(path):
 
 def work_kind(path):
     """Which box a changed file's lines go in; the first rule that matches wins. None: generated
-    by a tool, not written, so not counted."""
+    by a tool, not written, so not counted. A path no rule names is prod: the package, and also
+    root files such as a config. experiments/ is tooling: E1's cases copy spec text, and as prod
+    they raised production name coverage at #30 with no product code changed."""
     if NOT_WRITTEN.search(path):
         return None
     if path == "plan.md" or path.startswith("specs/"):
@@ -281,9 +286,15 @@ def work_kind(path):
         return "context"
     if TEST_PATH.search(path):
         return "test"
-    if path.startswith(("scripts/", ".github/", "docs/dashboard/", "kit/")):
+    if path.startswith(("scripts/", ".github/", "docs/dashboard/", "kit/", "experiments/")):
         return "tooling"
     return "prod"
+
+
+def place_of(path):
+    """Where a code name was found: the file's work_kind, or other for any box not in PLACES."""
+    w = work_kind(path)
+    return w if w in PLACES else "other"
 
 
 def broke(text):
@@ -304,6 +315,21 @@ def broken_at_close(day):
     closing = {p["number"] for p in day["prs"] if p["kind"] == "close"}
     return [c["id"] or c["claim"] for c in day["evidence"]
             if c["ticked"] and closing and c["broke_in"] and set(c["broke_in"]) <= closing]
+
+
+RELABEL = re.compile(r"relabel\.py compare`\)?:?\s*([^`]{0,120})")
+RELABEL_FIELD = re.compile(r"\b(stage|cause|made)\s+(\d+)\s+of\s+(\d+)")
+
+
+def relabel(text):
+    """How often the blind defect-rater agreed with the tags the close gave, as the spec's Notes
+    quote `relabel.py compare` ("stage 3 of 4, cause 3 of 4, made 4 of 4"), or None where the
+    Notes tell it in prose: those days are not counted, not counted as agreeing."""
+    for m in RELABEL.finditer(text):
+        found = {f: [int(a), int(n)] for f, a, n in RELABEL_FIELD.findall(m.group(1))}
+        if found:
+            return found
+    return None
 
 
 def break_state(body, number):
@@ -471,20 +497,32 @@ def trajectory(snaps, blobs, order=()):
     def code_counts(sha):
         """A merge's counts need only the names the specs had used by then (later ones are masked
         by born), and a SHA fixes its history, so counts cached under it stay right. kit/ is the
-        starter cleanup's tooling and the source project's data, which a copy deletes: not this project's code."""
+        starter cleanup's tooling and the source project's data, which a copy deletes: not this project's code.
+        specs/ is the spec side, every file in it: its break manifests copy the spec's names, and
+        counted as code they narrowed the gap at #25 with no code changed.
+        One count vector per place, by the file's work_kind: prod, test, tooling, and other for
+        any box else; summed, they are the all-code counts. The cache keeps each name's count per
+        path, so a merge's lists can say where a name is; the second return is name -> paths."""
         cached = CACHE.setdefault("code", {}).get(sha)
-        if cached is not None:
-            return np.array([cached.get(v, 0) for v in vocab], dtype=float)
-        out = subprocess.run(["git", "grep", "-h", "-I", "-w", "-F", "-f", "-", sha, "--", ".",
-                              ":(exclude)*.md", ":(exclude)data", ":(exclude)screenshots", ":(exclude)docs/dashboard",
-                              ":(exclude)**/package-lock.json", ":(exclude)kit"], input=patterns,
-                             capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
-        c = np.zeros(len(vocab))
-        for line in out.splitlines():
-            for tok in code_names(line, index):
-                c[index[tok]] += 1
-        CACHE["code"][sha] = {vocab[k]: int(n) for k, n in enumerate(c) if n}
-        return c
+        if cached is None:
+            out = subprocess.run(["git", "grep", "-z", "-I", "-w", "-F", "-f", "-", sha, "--", ".",
+                                  ":(exclude)*.md", ":(exclude)data", ":(exclude)screenshots", ":(exclude)docs/dashboard",
+                                  ":(exclude)**/package-lock.json", ":(exclude)kit", ":(exclude)specs"], input=patterns,
+                                 capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
+            cached = {}
+            for match in out.split("\n"):
+                where, _, text = match.partition("\0")  # -z: "<sha>:<path>\0<line>"
+                path = where.split(":", 1)[-1]
+                for line in text.splitlines():  # as the lines were read before the path was kept
+                    for tok in code_names(line, index):
+                        cached.setdefault(tok, {}).setdefault(path, 0)
+                        cached[tok][path] += 1
+            CACHE["code"][sha] = cached
+        counts = {p: np.zeros(len(vocab)) for p in PLACES}
+        for tok, paths in cached.items():
+            for path, n in paths.items() if tok in index else ():
+                counts[place_of(path)][index[tok]] += n
+        return counts, cached
 
     day, rows, ever = 0, [], np.zeros(len(vocab), dtype=bool)
     for i, s in enumerate(snaps):
@@ -493,7 +531,8 @@ def trajectory(snaps, blobs, order=()):
         m = re.match(r"day-(\d+)/", s["branch"])
         if m and s["kind"] in ("code", "close"):
             day = max(day, int(m.group(1)), key=rank)
-        spec, code = spec_counts(s["texts"]), code_counts(s["sha"])
+        spec, (places, where) = spec_counts(s["texts"]), code_counts(s["sha"])
+        code = sum(places.values())
         reached = spec_counts({f: t for f, t in s["texts"].items() if day_of(f) and rank(day_of(f)) <= rank(max(day, 1))})
         added = deleted = 0
         for line in at_commits("diff", "--numstat", snaps[0]["sha"], s["sha"], "--", "plan.md", "specs").splitlines():
@@ -519,6 +558,16 @@ def trajectory(snaps, blobs, order=()):
         # A name the code had at an earlier merge and lacks now: `ever` holds only the merges before this one.
         in_code = (code > 0) & known
         names_retired = int(((spec > 0) & known & ~in_code & ever).sum())
+        # Production coverage: the same share, of the names in files work_kind calls prod; the
+        # counts beside it are its numerator and the all-code one, over spec_names.
+        named = (spec > 0) & known
+        prod_name_coverage = name_overlap(spec, places["prod"], known)[0]
+        # The names behind the two counts' difference, and behind the all-code miss: sorted, each
+        # outside-production name with the places it is in and its paths there.
+        outside = [vocab[k] for k in np.flatnonzero(named & in_code & (places["prod"] == 0))]
+        names_outside_prod = {v: {p: sorted(f for f in where[v] if place_of(f) == p)
+                                  for p in PLACES if any(place_of(f) == p for f in where[v])} for v in outside}
+        names_absent = [vocab[k] for k in np.flatnonzero(named & ~in_code)]
         ever |= in_code
         chance = chance_angle(spec_v, code_v, known)
         rows.append(dict(i=i, sha=s["sha"], date=s["date"], pr=s["pr"], title=s["title"], kind=s["kind"],
@@ -527,6 +576,9 @@ def trajectory(snaps, blobs, order=()):
                          gap_chance=chance and chance[0], gap_chance_band=chance and chance[1:],
                          coverage=round(float((code[mask] > 0).mean()), 3) if s["pr"] and mask.any() else None,
                          name_coverage=name_coverage, jaccard=jaccard, names_kept=names_kept, names_retired=names_retired,
+                         prod_name_coverage=prod_name_coverage, spec_names=int(named.sum()),
+                         names_in_code=int((named & in_code).sum()), names_in_prod=int((named & (places["prod"] > 0)).sum()),
+                         names_outside_prod=names_outside_prod, names_absent=names_absent,
                          spec_files=spec_files, code_churn=churn, work=work))
     files = sorted({f for s in snaps for f in s["texts"] if f == "plan.md" or day_of(f)},
                    key=lambda f: (rank(day_of(f)), f))
@@ -861,7 +913,7 @@ def roadmap(snaps, prs, blobs):
                          worked=[worked[0], worked[-1]] if worked else None,
                          evidence_format=in_evidence_format(ev),
                          break_format=any(p["number"] >= BREAK_LINE_FROM_PR for p in mine),
-                         evidence=ev, removal_checks=removal_checks(text)))
+                         evidence=ev, removal_checks=removal_checks(text), relabel=relabel(text)))
         days[-1]["broken_at_close"] = broken_at_close(days[-1])
     order, stop = run_order(blobs.read(head, "plan.md"), [d["day"] for d in days])
     return evidence(settle(days, order), snaps, blobs), order, stop
@@ -1116,6 +1168,70 @@ def deployment():
         return json.load(f)
 
 
+EVIDENCE_SCHEMA = 1  # scripts/evidence.py's SCHEMA
+EVIDENCE_STATUSES = ("passed", "failed", "error", "not_applicable")
+
+
+def blob_id(sha, path):
+    """The blob a commit holds at path, or None where it has none."""
+    r = subprocess.run(["git", "rev-parse", "--verify", "-q", f"{sha}:{path}"], capture_output=True, text=True)
+    return r.stdout.strip() or None
+
+
+def input_drift(record, head, path):
+    """Why an input the report read is not path as main has it now, or None if it is the same file.
+    Compared by blob, not by the report's hash: that hashes the working tree's bytes, CRLF on Windows."""
+    state, rev = record.get("state"), record.get("revision")
+    if state == "missing":
+        return None if blob_id(head, path) is None else f"{path} was missing when checked"
+    if state != "clean" or not rev:
+        return f"{path} was {state} when checked"
+    return None if blob_id(rev, record.get("path") or path) == blob_id(head, path) else f"{path} changed since {rev[:7]}"
+
+
+def evidence_checks(days, snaps):
+    """The committed report of scripts/evidence.py --json, read, never replayed: each finished day's
+    checks counted by kind and status, current if checked at main's close and on main's spec and
+    breaks file, stale if not. No report is "absent", one this cannot read "invalid": neither a pass."""
+    path = os.path.join(PAGE, "evidence-checks.json")
+    if not os.path.exists(path):
+        return dict(state="absent")
+    head, merged = snaps[-1]["sha"], {s["pr"]: s["sha"] for s in snaps if s["pr"]}
+    try:
+        with open(path, encoding="utf-8") as f:
+            report = json.load(f)
+        if report.get("schema") != EVIDENCE_SCHEMA:
+            raise ValueError(f"schema {report.get('schema')!r}, this page reads {EVIDENCE_SCHEMA}")
+        by_day = {}
+        for d in report["days"]:
+            for c in d["checks"]:
+                if c["status"] not in EVIDENCE_STATUSES:
+                    raise ValueError(f"{c['id']}: status {c['status']!r}")
+            by_day[day_of(d["spec"]["path"])] = d
+        out = []
+        for d in (d for d in days if d["status"] in FINISHED):
+            r = by_day.get(d["day"])
+            if r is None:
+                out.append(dict(day=d["day"], state="not checked"))
+                continue
+            close = max((p["number"] for p in d["prs"] if p["kind"] == "close"), default=None)
+            close = merged.get(close)
+            why = [] if close and (r.get("close_sha") or "").startswith(close) else [
+                f"checked at close {(r.get('close_sha') or 'none')[:7]}, main's is {close or 'none'}"]
+            why += [w for w in (input_drift(r.get("spec") or {}, head, d["file"]),
+                                input_drift(r.get("breaks") or {}, head, f"specs/breaks/day-{d['day']:02d}.json")) if w]
+            counts = {}
+            for c in r["checks"]:
+                counts.setdefault(c["kind"], dict.fromkeys(EVIDENCE_STATUSES, 0))[c["status"]] += 1
+            out.append(dict(day=d["day"], state="stale" if why else "current", why=why, counts=counts,
+                            problems=[{k: c.get(k) for k in ("kind", "status", "label", "diagnostic")}
+                                      for c in r["checks"] if c["status"] in ("failed", "error")]))
+        return dict(state="loaded", generated=report["generated"], ref=report["ref"], ref_sha=report["ref_sha"],
+                    runner=report["runner"], days=out)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+        return dict(state="invalid", diagnostic=f"{type(e).__name__}: {e}")
+
+
 INFRA_TRIES = 5
 
 
@@ -1308,6 +1424,7 @@ def main():
                                verification=verification(prs, runs),
                                infra=infra(INFRA_WORKFLOW),
                                deployment=deployment(),
+                               evidence_checks=evidence_checks(days, snaps),
                                conclusion=conclusion(blobs.read(snaps[-1]["sha"], "docs/lab-notebook.md")),
                                meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance(),
                                          break_line_from_pr=BREAK_LINE_FROM_PR, project=project_name(),

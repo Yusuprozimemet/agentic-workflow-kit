@@ -6,6 +6,10 @@ const KIND = { spec: "Spec change", code: "Code track", close: "Close the day", 
 const KVAR = { spec: "var(--spec)", code: "var(--code)", close: "var(--close)", other: "var(--other)", origin: "var(--muted)" };
 const fmt = (x, d = 1) => x == null ? "–" : Number(x).toFixed(d);
 const band = b => b == null ? "–" : `${fmt(b[0])}–${fmt(b[1])}°`;
+// Where a merge's gap sits against its shuffled counts' 95% band, endpoints inside. It says how the
+// gap compares, not that the code is right or that the difference is significant.
+const bandPlace = r => r.gap_full == null || r.gap_chance_band == null ? "comparison unavailable" :
+  `${r.gap_full < r.gap_chance_band[0] ? "below" : r.gap_full > r.gap_chance_band[1] ? "above" : "inside"} the shuffled-count reference band`;
 // PR titles come from anyone who opens a pull request, so everything from the data is escaped.
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const md = s => esc(s)
@@ -49,6 +53,7 @@ function rowTip(r) {
   <div class="row"><span>date</span><span>${r.date}</span></div>
   <div class="row"><span>day reached</span><span>${r.day || "–"}</span></div>
   <div class="row"><span>spec names in code</span><span>${r.name_coverage == null ? "–" : fmt(r.name_coverage * 100, 1) + "%"}</span></div>
+  <div class="row"><span>spec names in production</span><span>${r.prod_name_coverage == null ? "–" : fmt(r.prod_name_coverage * 100, 1) + "%"}</span></div>
   <div class="row"><span>Jaccard, spec ∩ code</span><span>${r.jaccard == null ? "–" : fmt(r.jaccard, 2)}</span></div>
   <div class="row"><span>names kept, dropped by specs</span><span>${r.names_kept ?? "–"}</span></div>
   <div class="row"><span>Spec names retired from the code</span><span>${r.names_retired ?? "–"}</span></div>
@@ -87,7 +92,7 @@ R.forEach(r => {
 document.getElementById("stats").innerHTML = `
   <div class="stat"><span class="k">Spec names in the code · Jaccard</span>
     <span class="v num">${last.name_coverage == null ? "–" : fmt(last.name_coverage * 100, 1) + "%"} <small>· ${last.jaccard == null ? "–" : fmt(last.jaccard, 2)}</small></span>
-    <span class="n">Of the backticked names the specs use today, the share the code has; Jaccard is the names in both over the names in either.</span>
+    <span class="n">Of the backticked names the specs use today, the share the code has${last.spec_names == null ? "" : ` (${last.names_in_code} of ${last.spec_names}; in production, ${last.names_in_prod})`}; Jaccard is the names in both over the names in either.</span>
     <span class="n" style="color:var(--muted)">Name-gap angle (secondary): ${fmt(firstGap.gap_full)}° → ${fmt(last.gap_full)}°, ${fmt(gapClosed)}° closed across ${N - 1} merges; ${fmt(last.gap_chance)}° by chance (95%: ${band(last.gap_chance_band)}). ${last.names_kept == null ? "" : `${last.names_kept} names the specs dropped are still in the code. `}${last.names_retired == null ? "" : `${last.names_retired} of the names not in the code were there at an earlier merge: retired, still counted as missing. `}${last.coverage == null ? "" : `${fmt(last.coverage * 100, 1)}% of the names the reached days use are in the code.`}</span></div>
   <div class="stat"><span class="k">Share of the gap closed by the spec</span>
     <span class="v num">${ofGap(byKind.spec)}</span>
@@ -132,6 +137,7 @@ const barPath = (get, hi) => R.map((r, i) => get(r) ? `M${spX(i)},${SPARK_H - 1}
 const specTotal = r => Object.values(r.spec_files || {}).reduce((a, b) => a + b, 0);
 const SPARK_SERIES = {
   names: [{ get: r => r.name_coverage, hi: 1, color: "var(--code)" }, { get: r => r.jaccard, hi: 1, color: "var(--muted)", dash: true }],
+  prod: [{ get: r => r.prod_name_coverage, hi: 1, color: "var(--code)" }],
   kept: [{ get: r => r.names_kept, hi: scaleTop(r => r.names_kept), color: "var(--code)" }],
   retired: [{ get: r => r.names_retired, hi: scaleTop(r => r.names_retired), color: "var(--code)" }],
   gap: [{ get: r => r.gap_full, hi: scaleTop(r => r.gap_full), color: "var(--gap)" }],
@@ -150,6 +156,23 @@ const sparkHtml = k => `<svg viewBox="0 0 ${SPARK_W} ${SPARK_H}" preserveAspectR
       + (v == null ? "" : `<path d="M${spX(sel)},${spY(v, s.hi)}h0" stroke="var(--ink)" stroke-width="5" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`);
   }).join("") + "</svg>";
 
+// A name share with its counts; with no spec name there is nothing to divide, which is not 0% or 100%.
+// Data from before the counts were kept has no spec_names: the share alone, or – without one.
+const nameShare = (x, n, d) => x == null ? (d === 0 ? "not measured: no extracted spec names" : "–")
+  : `${fmt(x * 100, 1)}%` + (d == null ? "" : ` <small>${n}/${d}</small>`);
+// The names behind the two shares: each found only outside production with its places and paths, then the missing.
+function nameLists(s) {
+  if (s.names_outside_prod == null) return "";  // data from before the lists were kept
+  const out = Object.entries(s.names_outside_prod), absent = s.names_absent || [];
+  return `<details class="names"><summary>Present only outside production <span class="num">(${out.length})</span></summary>
+      ${out.length ? `<ul>${out.map(([n, at]) => `<li><code>${esc(n)}</code> ${Object.entries(at).map(([p, fs]) =>
+        `<span class="chip">${esc(p)}</span> ${fs.map(f => `<code class="path">${esc(f)}</code>`).join(" ")}`).join(" ")}</li>`).join("")}</ul>` : "<p>None.</p>"}
+    </details>
+    <details class="names"><summary>Absent from all scanned code <span class="num">(${absent.length})</span></summary>
+      ${absent.length ? `<ul>${absent.map(n => `<li><code>${esc(n)}</code></li>`).join("")}</ul>` : "<p>None.</p>"}
+    </details>`;
+}
+
 function drawReadout() {
   const s = R[sel], prev = R[Math.max(0, sel - 1)];
   const dGap = s.gap_full - prev.gap_full, specLines = Object.values(s.spec_files || {}).reduce((a, b) => a + b, 0);
@@ -166,15 +189,20 @@ function drawReadout() {
     <p style="font-size:14px;color:var(--ink-2)">${moved}</p>
     <div class="hr"></div>
     <dl>
-      <dt>Spec names in code</dt><dd>${s.name_coverage == null ? "–" : fmt(s.name_coverage * 100, 1) + "%"}</dd><dd class="spark">${sparkHtml("names")}</dd>
+      <dt>Spec names in code, all places</dt><dd>${nameShare(s.name_coverage, s.names_in_code, s.spec_names)}</dd><dd class="spark">${sparkHtml("names")}</dd>
+      <dt>Spec names in production</dt><dd>${nameShare(s.prod_name_coverage, s.names_in_prod, s.spec_names)}</dd><dd class="spark">${sparkHtml("prod")}</dd>
       <dt>Jaccard, spec ∩ code</dt><dd>${s.jaccard == null ? "–" : fmt(s.jaccard, 2)}</dd><dd></dd>
       <dt>Names the specs dropped, still in code</dt><dd>${s.names_kept ?? "–"}</dd><dd class="spark">${sparkHtml("kept")}</dd>
       <dt>Spec names retired from the code</dt><dd>${s.names_retired ?? "–"}</dd><dd class="spark">${sparkHtml("retired")}</dd>
       <dt>Spec–code name-gap angle (secondary)</dt><dd>${fmt(s.gap_full, 2)}° <span style="color:var(--muted)">(${sign(dGap)})</span></dd><dd class="spark">${sparkHtml("gap")}</dd>
+      <dt>Against shuffled counts (95%: ${band(s.gap_chance_band)})</dt><dd>${bandPlace(s)}</dd><dd></dd>
       <dt>Reached-day names in code</dt><dd>${s.coverage == null ? "–" : fmt(s.coverage * 100, 1) + "%"}</dd><dd class="spark">${sparkHtml("coverage")}</dd>
       <dt>Code lines changed</dt><dd>${s.code_churn.toLocaleString()}</dd><dd class="spark">${sparkHtml("code")}</dd>
       <dt>Spec lines changed</dt><dd>${edits.reduce((a, b) => a + b[1], 0)}</dd><dd class="spark">${sparkHtml("spec")}</dd>
     </dl>
+    <p class="limit">Vocabulary: matches extracted names, not behavior. Test and tool names may legitimately be absent from production.
+      Gap: compared with seeded shuffles of name counts; this is not a correctness test.</p>
+    ${nameLists(s)}
     ${edits.length ? `<div style="font-size:12.5px;color:var(--ink-2)">${edits.slice(0, 5).map(([f, n]) => `<div style="display:flex;justify-content:space-between;gap:10px"><code>${esc(f.replace("specs/", ""))}</code><span class="num">${n}</span></div>`).join("")}${edits.length > 5 ? `<div style="color:var(--muted)">+${edits.length - 5} more files</div>` : ""}</div>` : ""}`;
 }
 
@@ -693,7 +721,7 @@ function drawEvidence() {
   // A day written before the evidence format was never asked to record these: its zero is "not measured".
   const cell = (n, of, pre) => pre ? `<td class="r pre">${n ? `${n}/${of}` : "not measured"}</td>`
     : `<td class="r${n ? "" : " none"}">${n}/${of}</td>`;
-  document.getElementById("evidence").innerHTML = `<thead><tr><th>Day</th><th class="r">Cite a PR</th><th class="r">Name a test</th><th class="r">Seen red</th><th class="r">Tests on main</th><th>Title</th></tr></thead><tbody>` +
+  document.getElementById("evidence").innerHTML = `<thead><tr><th>Day</th><th class="r">Cite a PR</th><th class="r">Name a test</th><th class="r">Seen red, recorded</th><th class="r">Tests on main</th><th>Title</th></tr></thead><tbody>` +
     days.map(d => {
       const ev = d.evidence.filter(c => c.ticked), states = ev.flatMap(c => Object.values(c.tests));
       // A retired test is a loss a later day chose, so only skippable and missing tests turn the cell orange.
@@ -726,6 +754,38 @@ function drawEvidence() {
     ? `<tbody><tr><td>None: no finished day's criteria or Verify name a grep that must print nothing.</td></tr></tbody>` : `<thead><tr><th>Day</th><th>Check</th><th>From</th><th>On main</th><th class="r">Files read</th><th>Since</th></tr></thead><tbody>` +
     removals.map(c => `<tr><td class="num">${dd(c.day)}</td><td class="t"><code>${esc(c.cmd)}</code></td><td class="num">${esc(c.base)}</td><td>${chip(c)}</td><td class="r num">${c.reads}</td>` +
       `<td class="num" title="${esc(R[c.from].title || "")}">${prLabel(R[c.from])}${c.from === c.since ? " · day end" : ""}</td></tr>${found(c)}`).join("") + "</tbody>";
+}
+
+// The report scripts/evidence.py wrote, as spec-drift.py read it. No report is "not checked", and a
+// day the report leaves out is too: neither is ever drawn as a pass.
+const CHECK_KINDS = [["named_test", "Named tests"], ["verify", "Verify"], ["break", "Breaks replayed"]];
+function drawEvidenceChecks() {
+  const ec = DATA.evidence_checks || { state: "absent" }, box = document.getElementById("evidence-checks");
+  if (ec.state === "absent") {
+    box.innerHTML = `<p class="off">Not checked: no report. <code>python scripts/evidence.py specs/day-*.md --json docs/dashboard/evidence-checks.json</code> writes one.</p>`;
+    return;
+  }
+  if (ec.state !== "loaded") {
+    box.innerHTML = `<p class="load-error">Report unavailable: ${esc(ec.diagnostic || ec.state)}</p>`;
+    return;
+  }
+  // passed / (passed + failed + error): with none run, no share.
+  const cell = n => {
+    if (!n) return `<td class="r pre">none</td>`;
+    const ran = n.passed + n.failed + n.error, na = n.not_applicable ? ` · ${n.not_applicable} n/a` : "";
+    return ran ? `<td class="r${n.passed < ran ? " none" : ""}">${n.passed}/${ran} passed${n.error ? `, ${n.error} error` : ""}${na}</td>`
+      : `<td class="r pre">–${na}</td>`;
+  };
+  const r = ec.runner || {};
+  box.innerHTML = `<p class="limit">Report of ${esc(String(ec.generated).replace("T", " "))} · ${esc(ec.ref)} at ${esc(String(ec.ref_sha || "none").slice(0, 7))} · runner ${esc(String(r.revision || "unknown").slice(0, 7))}${r.dirty ? " (edited)" : ""}</p>` +
+    `<div class="scroll-x"><table><thead><tr><th>Day</th><th>Report</th>${CHECK_KINDS.map(([, h]) => `<th class="r">${h}</th>`).join("")}</tr></thead><tbody>` +
+    ec.days.map(d => d.state === "not checked"
+      ? `<tr><td class="num">${dd(d.day)}</td><td class="pre" colspan="${CHECK_KINDS.length + 1}">not checked: the report leaves this day out</td></tr>`
+      : `<tr${d.state === "stale" ? ` class="off" title="${esc(d.why.join("; "))}"` : ""}><td class="num">${dd(d.day)}</td><td>${d.state === "stale" ? `<span class="pre-tag">stale</span> ${esc(d.why.join("; "))}` : "current"}</td>${CHECK_KINDS.map(([k]) => cell(d.counts[k])).join("")}</tr>`).join("") +
+    `</tbody></table></div>`;
+  const problems = ec.days.flatMap(d => (d.problems || []).map(p =>
+    `<li>Day ${dd(d.day)}: ${esc(p.status)} · ${esc(p.label)}${p.diagnostic ? ` → ${esc(p.diagnostic)}` : ""}</li>`));
+  if (problems.length) box.innerHTML += `<h3>Failed or could not run</h3><ul>${problems.join("")}</ul>`;
 }
 
 /* ---------- hand-offs ---------- */
@@ -792,7 +852,7 @@ function drawConclusion() {
 }
 
 /* ---------- tokens ---------- */
-const MODEL_VAR = { "claude-opus-5-5": "var(--m-opus)", "claude-opus-5": "var(--m-opus-prev)", "claude-sonnet-5": "var(--m-sonnet)", "claude-haiku-4-5": "var(--m-haiku)" };
+const MODEL_VAR = { "claude-opus-5-5": "var(--m-opus)", "claude-opus-5": "var(--m-opus-prev)", "claude-sonnet-5": "var(--m-sonnet)", "claude-haiku-4-5": "var(--m-haiku)", "claude-haiku-5-5": "var(--m-haiku)" };
 const modelName = m => m.replace(/^claude-/, "").replace(/^(\w)(\w*)-/, (_, a, b) => a.toUpperCase() + b + " ").replace(/-/g, ".");
 const kilo = n => n >= 1e6 ? fmt(n / 1e6, 2) + "M" : n >= 1e3 ? fmt(n / 1e3, 0) + "k" : String(n);
 function drawTokens() {
@@ -807,11 +867,13 @@ function drawTokens() {
   const color = m => MODEL_VAR[m] || "var(--other)";
   document.getElementById("token-legend").innerHTML = models.map(m =>
     `<span><i class="dot" style="background:${color(m)}"></i>${esc(modelName(m))} · ${kilo(sum(T.filter(r => r.model === m), "output"))}</span>`).join("");
-  // The log counts by model, not by agent; the implementer is the one agent on Haiku, so its share is the Haiku rows.
-  const haiku = T.filter(r => /haiku/.test(r.model)), pct = (a, b) => fmt(b ? a / b * 100 : 0, 1) + "%";
-  document.getElementById("token-implementer").innerHTML = haiku.length
-    ? `<b>The implementer</b> (Haiku, which writes the track code from a brief) used <b>${pct(ctx(haiku), ctx(T))}</b> of the context read (${kilo(ctx(haiku))} of ${kilo(ctx(T))}) and <b>${pct(sum(haiku, "output"), sum(T, "output"))}</b> of the output (${kilo(sum(haiku, "output"))} of ${kilo(sum(T, "output"))}). The main sessions (specs, audits, review, the breaks on purpose, the pull requests) used the rest. Counted by model: any other Haiku reply would count here too.`
+  const pct = (a, b) => fmt(b ? a / b * 100 : 0, 1) + "%";
+  const who = r => r.agent || "unknown";
+  const impl = T.filter(r => who(r) === "implementer"), main = T.filter(r => who(r) === "main");
+  document.getElementById("token-implementer").innerHTML = impl.length
+    ? `<b>The implementer</b> (which writes the track code from a brief) used <b>${pct(ctx(impl), ctx(T))}</b> of the context read (${kilo(ctx(impl))} of ${kilo(ctx(T))}) and <b>${pct(sum(impl, "output"), sum(T, "output"))}</b> of the output (${kilo(sum(impl, "output"))} of ${kilo(sum(T, "output"))}); the main sessions (specs, review, the breaks on purpose, the pull requests) <b>${pct(sum(main, "output"), sum(T, "output"))}</b> of the output; the checking agents the rest.`
     : "";
+  drawAgents(T, sum, ctx, perReply, color);
   const dates = [...new Set(T.map(r => r.date))].sort();
   const H = 260, P = { l: 56, r: 12, t: 12, b: 46 }, bw = (LW - P.l - P.r) / dates.length;
   const perDate = dates.map(d => T.filter(r => r.date === d));
@@ -853,6 +915,52 @@ function drawTokens() {
     }).join("") + "</tbody>";
 }
 
+// One bar per agent, longest first, coloured by the model it ran on (the legend above names them).
+function drawAgents(T, sum, ctx, perReply, color) {
+  const box = document.getElementById("token-agents");
+  const agents = [...new Set(T.map(r => r.agent || "unknown"))]
+    .map(a => ({ a, rs: T.filter(r => (r.agent || "unknown") === a) }))
+    .map(o => ({ ...o, out: sum(o.rs, "output"), model: [...new Set(o.rs.map(r => r.model))] }))
+    .sort((x, y) => y.out - x.out);
+  if (!agents.length) { box.innerHTML = ""; return; }
+  const RH = 30, P = { l: 210, r: 70, t: 4, b: 4 }, H = P.t + P.b + RH * agents.length;
+  const top = agents[0].out, lx = v => P.l + v / top * (LW - P.l - P.r);
+  box.innerHTML = "";
+  const svg = el("svg", { viewBox: `0 0 ${LW} ${H}`, role: "img", "aria-label": "Output tokens by agent" }, box);
+  agents.forEach((o, i) => {
+    const y = P.t + i * RH;
+    el("text", { x: P.l - 10, y: y + RH / 2 + 4, "text-anchor": "end" }, svg).textContent = o.a === "main" ? "main sessions" : o.a;
+    let x = P.l;
+    o.model.forEach(m => {
+      const v = sum(o.rs.filter(r => r.model === m), "output");
+      el("rect", { x, y: y + 7, width: Math.max(1, lx(v) - P.l), height: RH - 14, rx: 3, fill: color(m) }, svg);
+      x += lx(v) - P.l;
+    });
+    el("text", { x: x + 8, y: y + RH / 2 + 4, class: "num" }, svg).textContent = kilo(o.out);
+    const hit = el("rect", { x: 0, y, width: LW, height: RH, fill: "transparent" }, svg);
+    hit.addEventListener("mousemove", ev => showTip(ev, `<b>${esc(o.a === "main" ? "main sessions" : o.a)}</b>
+      <div class="row"><span>model</span><span>${o.model.map(m => esc(modelName(m))).join(", ")}</span></div>
+      <div class="row"><span>output</span><span>${kilo(o.out)}</span></div>
+      <div class="row"><span>input + cache</span><span>${kilo(ctx(o.rs))}</span></div>
+      <div class="row"><span>context per reply</span><span>${perReply(o.rs)}</span></div>
+      <div class="row"><span>replies</span><span>${sum(o.rs, "replies")}</span></div>`));
+    hit.addEventListener("mouseleave", hideTip);
+  });
+}
+
+// Per finished day, how many tags the blind defect-rater gave the same way; null where the Notes have no counts.
+function drawRelabel() {
+  const days = DATA.days.filter(finished).sort((a, b) => rank(a.day) - rank(b.day));
+  const F = ["stage", "cause", "made"];
+  const cell = p => !p ? `<td class="r pre">–</td>`
+    : `<td class="r"><span class="meter"><i style="width:${p[0] / p[1] * 100}%"></i></span>${p[0]} of ${p[1]}</td>`;
+  const tot = F.map(f => days.reduce((a, d) => d.relabel && d.relabel[f] ? [a[0] + d.relabel[f][0], a[1] + d.relabel[f][1]] : a, [0, 0]));
+  document.getElementById("relabel").innerHTML = `<thead><tr><th>Day</th>${F.map(f => `<th class="r">${f[0].toUpperCase() + f.slice(1)}</th>`).join("")}<th>Title</th></tr></thead><tbody>` +
+    days.map(d => `<tr><td class="num">${dd(d.day)}</td>${d.relabel ? F.map(f => cell(d.relabel[f])).join("")
+      : `<td class="r pre" colspan="3">not counted: the Notes give no counts</td>`}<td class="t">${md(d.title)}</td></tr>`).join("") +
+    `<tr><td><b>All counted</b></td>${tot.map(p => cell(p[1] ? p : null)).join("")}<td></td></tr></tbody>`;
+}
+
 // The infra workflow's last summary on main (scripts/infra-summary.py), and each of its runs on main.
 function drawInfra() {
   const I = DATA.infra || { runs: [], latest: null }, L = I.latest, S = L ? L.summary : {};
@@ -889,8 +997,8 @@ function drawDeployment() {
 }
 
 panel("today", drawNow); panel("work-bar", drawWork); panel("perday", drawPerDay); panel("breaks", drawVerification);
-panel("infra-head", drawInfra); panel("deployment-head", drawDeployment); panel("token-bars", drawTokens);
-panel("evidence-gaps", drawEvidence); panel("hand-offs", drawHandOffs); panel("read", drawConclusion);
+panel("infra-head", drawInfra); panel("deployment-head", drawDeployment); panel("token-bars", drawTokens); panel("relabel", drawRelabel);
+panel("evidence-gaps", drawEvidence); panel("evidence-checks", drawEvidenceChecks); panel("hand-offs", drawHandOffs); panel("read", drawConclusion);
 panel("findings", drawFindings); panel("tbl", drawTable); setSel(sel);
 }
 
