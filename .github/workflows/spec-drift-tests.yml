@@ -48,7 +48,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install numpy
+      # numpy for the dashboard's tests, PyYAML for service-wiring.py's.
+      - run: pip install numpy pyyaml
       # Each file in its own log group; every one runs, and the job fails if any did.
       - name: Every scripts/test_*.py
         run: |

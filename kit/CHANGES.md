@@ -1456,6 +1456,10 @@ Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4
 
     Run on Windows. The loop, run locally under Git Bash, ran all 12 files and exited 1 on
     `test_spec_drift.py`'s one known failure, the page comparison that step 5 reviews.
+  - Missed, mine: the loop's job installed only `numpy`, and `service-wiring.py` imports `yaml`.
+    Locally PyYAML was installed, so the miss showed only on the PR's first CI run (7 of 7
+    `test_service_wiring.py` tests failed, exit 1). The job now installs `pyyaml` too, as
+    `pr-checks.yml`'s wiring job does, and the README names it.
 
 ### 79. The page comparison reviewed, and the page at phone width (step 5)
 

@@ -67,7 +67,8 @@ On GitHub, in this order:
 - "Track tests seen red" reports on every pull request; with `TRACK_RED_RUNNER` set (item 6
   above), require it by name too.
 
-Locally: Python with `numpy`, `node` for the page tests, and `gh`, logged in.
+Locally: Python with `numpy` (and `pyyaml` for `scripts/test_service_wiring.py`), `node` for the
+page tests, and `gh`, logged in.
 
 ## A session's prompt
 
