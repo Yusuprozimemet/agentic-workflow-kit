@@ -26,7 +26,7 @@ Decisions where behaviour met: [CHANGES.md](CHANGES.md), item 76.
 | `.gitignore` | differ | merge by hand | kit `6418ac3` | kit's lines, plus spec-drift.json and .env |
 | `CLAUDE.md` | differ | retain + port | kit `6418ac3` | kit template, plus the post-merge audit timing, the auditors' hook and its limits, seen-red.py and a CRLF break pitfall (CHANGES 78) |
 | `README.md` | differ | retain + add | kit `6418ac3` | kit template, plus `test_count` and `TRACK_RED_RUNNER` setup (CHANGES 77) and the project's own test workflow (CHANGES 78) |
-| `docs/dashboard/dashboard.css` | differ | merge | kit `6418ac3` + Wordtally `82b4ce7`, base `563fc31` | Wordtally's new panels with the kit's fixes; reviewed together |
+| `docs/dashboard/dashboard.css` | differ | merge | kit `6418ac3` + Wordtally `82b4ce7`, base `563fc31` | Wordtally's new panels with the kit's fixes; reviewed together; a panel's boxes shrink and its list items wrap at phone width (CHANGES 79) |
 | `docs/dashboard/dashboard.js` | differ | merge | kit `6418ac3` + Wordtally `82b4ce7`, base `563fc31` | Wordtally's new panels with the kit's fixes; reviewed together |
 | `docs/dashboard/evidence-checks.json` | Wordtally only | exclude | Wordtally `82b4ce7` | Wordtally's results; absent until a project writes one (step 3) |
 | `docs/dashboard/index.html` | differ | merge | kit `6418ac3` + Wordtally `82b4ce7`, base `563fc31` | Wordtally's new panels with the kit's fixes; reviewed together; the relabel panel's day-specific sentence made general (CHANGES 78) |

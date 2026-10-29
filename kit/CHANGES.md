@@ -1380,8 +1380,9 @@ Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4
   what it holds beyond the agents counted for its date, day and model: no count is lost and no
   agent is guessed.
 - **`.gitignore`:** `spec-drift.json`, the dashboard's generated data, and `.env`.
-- **Not yet:** the page comparison (`kit/compare-page.py`, and its test in
-  `test_spec_drift.py`) reports 8 boxes changed or new; reviewed in step 5 before `--write`.
+- **The page comparison** (`kit/compare-page.py`, and its test in `test_spec_drift.py`) reported
+  8 boxes changed or new after these steps. Reviewed box by box in step 5 and saved with
+  `--write` there (item 79).
 
 ### 77. A new project starts empty; the track check is opt-in (step 3)
 
@@ -1455,3 +1456,41 @@ Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4
 
     Run on Windows. The loop, run locally under Git Bash, ran all 12 files and exited 1 on
     `test_spec_drift.py`'s one known failure, the page comparison that step 5 reviews.
+
+### 79. The page comparison reviewed, and the page at phone width (step 5)
+
+- **Every test file fails when a test does.** Each of the 12 `scripts/test_*.py` ends in
+  `unittest.main()`. A temporary copy of each with one failing test added exited 1; the same
+  copies with a passing test exited 0.
+- **The comparison's baseline holds.** `main`'s `dashboard.js` (and `f66c095`'s) draws the source
+  project's saved data to exactly the saved hashes, 54 boxes. Of the 8 boxes that differ, all
+  change in `2fa694d`, `token-agents` again in `88b969d`; step 4 (`db92366`) changed none.
+
+  | Box | Change | Why the new version is right |
+  |---|---|---|
+  | `evidence` | the column reads "Seen red, recorded" | it counts the `broken:` record, not proof that the tests failed (Wordtally `10bee7e`) |
+  | `evidence-checks` (new) | "Not checked: no report" | the saved data has no evidence report |
+  | `readout` | "Spec names in code, all places"; "Spec names in production" shows "–"; the gap against shuffled counts (95%: 45.3–48.5°); two lines on what the numbers do not measure | the data predates production coverage; the band is the data's own `gap_chance_band` (Wordtally `0ebb970`, `f04a96a`) |
+  | `relabel` (new) | every day "not counted: the Notes give no counts" | the data predates the blind relabel |
+  | `token-bars`, `token-legend` | 9 `claude-haiku-5-5` rows in Haiku's colour, were grey as "other" | `MODEL_VAR` names that model now; only fills changed (Wordtally `f1a8db6`) |
+  | `token-implementer` | empty, was "17.4% … 18.3%" | the old sentence took every Haiku row for the implementer; it now counts by `agent`, and 0 of 135 rows have one, so nothing is guessed (item 76) |
+  | `token-agents` (new) | one bar, "agent not recorded 13.00M" | no row records an agent; the bar was "unknown" until item 77 |
+
+  Saved with `kit/compare-page.py --write` in its own commit; then 57 of 57 boxes the same.
+- **The page at 375 px.** Drawn in headless Edge at 1280 and 375 px: the empty starter, Wordtally's
+  generated data and the source project's saved data. No script error, failed panel, NaN or
+  undefined. At 375 px two pages scrolled sideways: the source project's to 420 px, from test ids
+  and commands in "Named tests not running on main" (as on `main`), and Wordtally's to 650 px,
+  from those, an 82-character temp path in "Failed or could not run", and `#evidence-checks`
+  taking its table's width as its minimum. `dashboard.css`: a panel's boxes may shrink
+  (`min-width: 0`, as the page's outer boxes already could) and its list items break anywhere.
+  Page width at 375 px, Wordtally's and the source project's: 650 and 420 before, 484 and 375 with
+  the list rule alone, 375 and 375 with both; the empty starter 375 throughout; 1280 px unchanged.
+- **Follow-ups, seen and not fixed:**
+  - The agents chart's labels shrink with its SVG and are unreadable at 375 px; every chart on the
+    page scales this way, this one most.
+  - The empty starter's next step reads "Every day is done." with 0 days. It is in
+    `spec-drift.py` since the kit's first copy (`5507876`), not new in v2.
+  - The empty starter's "Who spent them" is a heading with nothing under it, and its relabel
+    table holds only an "All counted" row of dashes; the token panel's empty state above covers
+    both, but each could say so itself.
