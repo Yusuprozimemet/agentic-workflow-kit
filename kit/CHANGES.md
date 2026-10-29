@@ -1382,3 +1382,31 @@ Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4
 - **`.gitignore`:** `spec-drift.json`, the dashboard's generated data, and `.env`.
 - **Not yet:** the page comparison (`kit/compare-page.py`, and its test in
   `test_spec_drift.py`) reports 8 boxes changed or new; reviewed in step 5 before `--write`.
+
+### 77. A new project starts empty; the track check is opt-in (step 3)
+
+- **What a copy starts with.** Checked on a scratch commit of the candidate (`kit/starter-check.py`,
+  5 of 5 steps, 50 boxes drawn): `token-usage.json` is `[]`; no `evidence-checks.json` (the page
+  says "Not checked: no report", where a `{}` or `[]` would have read as a run); no
+  `spec-drift.json` or cache; `specs/` holds only the README and template; the project file's
+  settings are empty and `test_count` is absent, now described in the README's setup.
+- **`TRACK_RED_RUNNER`.** "Track tests seen red" ran Wordtally's `unittest` discovery on every PR,
+  which a project in another language, or with no `tests/`, would fail. `track-red.py` takes
+  `--runner`, which CI fills from the repository variable: empty is "not configured" and passes,
+  `unittest` checks, anything else exits 2 as a configuration error. Run by hand without it, the
+  check is unchanged. The job still runs and reports on every PR. Its self-tests moved to
+  "Dashboard metric tests", which runs them whatever the variable says, with their paths among
+  its triggers. Seen red: the three new tests failed on the script before the option
+  (`unrecognized arguments: --runner`).
+  - ```broken: track-red.py treats an empty runner as unittest → AssertionError: 2 != 0 : track-red.py: TRACK_RED_RUNNER `` is not supported; the only runner is unittest```
+  - `broken: track-red.py accepts pytest → AssertionError: 0 != 2 : seen red: tests.test_app.T.test_double_a_string (C1.1) on 7d769f1 → FAILED (failures=1); on the head → OK`
+- **Tokens with no agent on the page.** The agents chart drew such rows as a bar named
+  "unknown", and the implementer's sentence counted them among "the checking agents the rest".
+  The bar now reads "agent not recorded", and the sentence gives its share before the rest. Every
+  row of jobmatch's saved data has no agent, so its page shows one such bar. Seen red: the new
+  page test failed with the bar named `unknown`.
+  - `broken: the implementer sentence counts no unknown tokens → AssertionError: False is not true : <b>The implementer</b> (which writes the track code from a brief) used <b>20.0%</b> of the context read (100 of 500) and <b>20.0%</b> of the output (200 of 1k); the main sessions (specs, review, the breaks on purpose, the pull requests) <b>30.0%</b> of the output; the checking agents the rest.`
+- **Language limits, in the README:** `track-red.py` discovers `unittest` tests under `tests/`;
+  `seen-red.py` copies only changed files under `tests/`; `evidence.py` looks named tests up as
+  Python classes under `tests/`. Other languages keep the `seen red:` record by hand. General
+  runner adapters are a separate change.

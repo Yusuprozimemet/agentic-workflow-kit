@@ -30,6 +30,9 @@ name: PR checks
 #
 # 6. A track's new tests are seen red (scripts/track-red.py): each test its spec's `new` criteria
 #    name fails by assertion where the branch started and passes on it. #15 and #18 lacked the record.
+#    Opt-in: it runs Python unittest tests only, so it checks a track when the repository variable
+#    TRACK_RED_RUNNER is `unittest`. Unset, it reports "not configured" and passes; any other value
+#    fails as a configuration error. Its self-tests run in spec-drift-tests.yml whatever the setting.
 #
 # Recovery is automatic for the first two and the fifth's title and description: editing the description fires the `edited`
 # event and re-runs these checks. No new commit needed.
@@ -192,11 +195,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python scripts/test_track_red.py
       - name: Run each new criterion's test on the base and the head
         # The base is where the branch started, as the size check's three-dot diff counts from.
         env:
           PR_BRANCH: ${{ github.head_ref }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: python scripts/track-red.py --branch "$PR_BRANCH" --base "$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+          TRACK_RED_RUNNER: ${{ vars.TRACK_RED_RUNNER }}
+        run: >-
+          python scripts/track-red.py --branch "$PR_BRANCH" --runner "$TRACK_RED_RUNNER"
+          --base "$(git merge-base "$BASE_SHA" "$HEAD_SHA")"

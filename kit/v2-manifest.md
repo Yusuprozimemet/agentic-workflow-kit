@@ -25,7 +25,7 @@ Decisions where behaviour met: [CHANGES.md](CHANGES.md), item 76.
 | `.github/workflows/tests.yml` | Wordtally only | exclude | Wordtally `82b4ce7` | Wordtally's app tests; each project brings its own |
 | `.gitignore` | differ | merge by hand | kit `6418ac3` | kit's lines, plus spec-drift.json and .env |
 | `CLAUDE.md` | differ | retain | kit `6418ac3` | kit template; missing generic lessons ported in step 4 |
-| `README.md` | differ | retain | kit `6418ac3` | kit template; missing generic lessons ported in step 4 |
+| `README.md` | differ | retain + add | kit `6418ac3` | kit template, plus `test_count` and `TRACK_RED_RUNNER` setup (CHANGES 77); missing generic lessons ported in step 4 |
 | `docs/dashboard/dashboard.css` | differ | merge | kit `6418ac3` + Wordtally `82b4ce7`, base `563fc31` | Wordtally's new panels with the kit's fixes; reviewed together |
 | `docs/dashboard/dashboard.js` | differ | merge | kit `6418ac3` + Wordtally `82b4ce7`, base `563fc31` | Wordtally's new panels with the kit's fixes; reviewed together |
 | `docs/dashboard/evidence-checks.json` | Wordtally only | exclude | Wordtally `82b4ce7` | Wordtally's results; absent until a project writes one (step 3) |
@@ -70,9 +70,9 @@ Decisions where behaviour met: [CHANGES.md](CHANGES.md), item 76.
 | `scripts/test_service_wiring.py` | same | retain | kit `6418ac3` | the same on both sides |
 | `scripts/test_spec_drift.py` | differ | merge | kit `6418ac3` + Wordtally `82b4ce7`, base `563fc31` | both sides' regressions; conflicts resolved to the kit's (CHANGES 76) |
 | `scripts/test_token_usage.py` | same | retain + add | kit `6418ac3` | kit tests, Wordtally's long-path test moved in, legacy-row merge test |
-| `scripts/test_track_red.py` | Wordtally only | copy | Wordtally `82b4ce7` | newer tool; kit had none or an unchanged copy |
+| `scripts/test_track_red.py` | Wordtally only | copy + fix | Wordtally `82b4ce7` | newer tool, plus the `--runner` tests (CHANGES 77) |
 | `scripts/token-usage.py` | differ | copy + fix | Wordtally `82b4ce7` | per-agent tokens; older rows without an agent kept as unknown (CHANGES 76) |
-| `scripts/track-red.py` | Wordtally only | copy | Wordtally `82b4ce7` | newer tool; kit had none or an unchanged copy |
+| `scripts/track-red.py` | Wordtally only | copy + fix | Wordtally `82b4ce7` | newer tool; opt-in through `--runner`, CI's `TRACK_RED_RUNNER` (CHANGES 77) |
 | `spec-drift.config.json` | differ | retain | kit `6418ac3` | starter version; Wordtally's holds its project |
 | `specs/README.md` | differ | retain | kit `6418ac3` | kit template; missing generic lessons ported in step 4 |
 | `specs/_template.md` | differ | retain | kit `6418ac3` | kit template; missing generic lessons ported in step 4 |

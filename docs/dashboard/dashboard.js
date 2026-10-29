@@ -870,8 +870,10 @@ function drawTokens() {
   const pct = (a, b) => fmt(b ? a / b * 100 : 0, 1) + "%";
   const who = r => r.agent || "unknown";
   const impl = T.filter(r => who(r) === "implementer"), main = T.filter(r => who(r) === "main");
+  // A row counted before agents were, or a subagent with no type beside it, belongs to no agent: not the checkers'.
+  const unknown = T.filter(r => who(r) === "unknown");
   document.getElementById("token-implementer").innerHTML = impl.length
-    ? `<b>The implementer</b> (which writes the track code from a brief) used <b>${pct(ctx(impl), ctx(T))}</b> of the context read (${kilo(ctx(impl))} of ${kilo(ctx(T))}) and <b>${pct(sum(impl, "output"), sum(T, "output"))}</b> of the output (${kilo(sum(impl, "output"))} of ${kilo(sum(T, "output"))}); the main sessions (specs, review, the breaks on purpose, the pull requests) <b>${pct(sum(main, "output"), sum(T, "output"))}</b> of the output; the checking agents the rest.`
+    ? `<b>The implementer</b> (which writes the track code from a brief) used <b>${pct(ctx(impl), ctx(T))}</b> of the context read (${kilo(ctx(impl))} of ${kilo(ctx(T))}) and <b>${pct(sum(impl, "output"), sum(T, "output"))}</b> of the output (${kilo(sum(impl, "output"))} of ${kilo(sum(T, "output"))}); the main sessions (specs, review, the breaks on purpose, the pull requests) <b>${pct(sum(main, "output"), sum(T, "output"))}</b> of the output; ${unknown.length ? `tokens with no agent recorded <b>${pct(sum(unknown, "output"), sum(T, "output"))}</b>; ` : ""}the checking agents the rest.`
     : "";
   drawAgents(T, sum, ctx, perReply, color);
   const dates = [...new Set(T.map(r => r.date))].sort();
@@ -918,6 +920,7 @@ function drawTokens() {
 // One bar per agent, longest first, coloured by the model it ran on (the legend above names them).
 function drawAgents(T, sum, ctx, perReply, color) {
   const box = document.getElementById("token-agents");
+  const label = a => a === "main" ? "main sessions" : a === "unknown" ? "agent not recorded" : a;
   const agents = [...new Set(T.map(r => r.agent || "unknown"))]
     .map(a => ({ a, rs: T.filter(r => (r.agent || "unknown") === a) }))
     .map(o => ({ ...o, out: sum(o.rs, "output"), model: [...new Set(o.rs.map(r => r.model))] }))
@@ -929,7 +932,7 @@ function drawAgents(T, sum, ctx, perReply, color) {
   const svg = el("svg", { viewBox: `0 0 ${LW} ${H}`, role: "img", "aria-label": "Output tokens by agent" }, box);
   agents.forEach((o, i) => {
     const y = P.t + i * RH;
-    el("text", { x: P.l - 10, y: y + RH / 2 + 4, "text-anchor": "end" }, svg).textContent = o.a === "main" ? "main sessions" : o.a;
+    el("text", { x: P.l - 10, y: y + RH / 2 + 4, "text-anchor": "end" }, svg).textContent = label(o.a);
     let x = P.l;
     o.model.forEach(m => {
       const v = sum(o.rs.filter(r => r.model === m), "output");
@@ -938,7 +941,7 @@ function drawAgents(T, sum, ctx, perReply, color) {
     });
     el("text", { x: x + 8, y: y + RH / 2 + 4, class: "num" }, svg).textContent = kilo(o.out);
     const hit = el("rect", { x: 0, y, width: LW, height: RH, fill: "transparent" }, svg);
-    hit.addEventListener("mousemove", ev => showTip(ev, `<b>${esc(o.a === "main" ? "main sessions" : o.a)}</b>
+    hit.addEventListener("mousemove", ev => showTip(ev, `<b>${esc(label(o.a))}</b>
       <div class="row"><span>model</span><span>${o.model.map(m => esc(modelName(m))).join(", ")}</span></div>
       <div class="row"><span>output</span><span>${kilo(o.out)}</span></div>
       <div class="row"><span>input + cache</span><span>${kilo(ctx(o.rs))}</span></div>

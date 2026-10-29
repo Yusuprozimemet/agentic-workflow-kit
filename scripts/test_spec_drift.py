@@ -1189,6 +1189,21 @@ class PageTest(unittest.TestCase):
                                                     'a live check has written docs/dashboard/deployment.json.</p>')
         self.assertEqual(panels["deployment-checks"], "")
 
+    def test_tokens_with_no_agent_are_drawn_as_unknown_and_not_given_to_the_checking_agents(self):
+        # token-usage.py keeps a row from before agents were counted as "unknown"; an older file has no field.
+        def tok(agent, output):
+            return dict(date="2026-10-12", day=1, model="claude-opus-4-1", agent=agent, input=100,
+                        cache_write=0, cache_read=0, output=output, replies=1)
+        tokens = [tok("main", 300), tok("implementer", 200), tok("unknown", 300), tok("spec-auditor", 100)]
+        tokens.append({k: v for k, v in tok("", 100).items() if k != "agent"})
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=tokens)
+        self.assertIsNone(error)
+        bars = re.findall(r'text-anchor="end"[^>]*>([^<]+)<', panels["token-agents"])
+        self.assertEqual(bars, ["agent not recorded", "main sessions", "implementer", "spec-auditor"])
+        self.assertTrue(re.sub("<[^>]+>", "", panels["token-implementer"]).endswith(
+            "the main sessions (specs, review, the breaks on purpose, the pull requests) 30.0% of the output; "
+            "tokens with no agent recorded 40.0%; the checking agents the rest."), panels["token-implementer"])
+
     def test_the_name_phases_and_stops_come_from_the_data(self):
         days = [dict(a_day(n), status="ready", phase=p, title="t", prs=[]) for n, p in ((1, 0), (2, 0), (3, 1))]
         meta = dict(project="toy-repo", phases=["Lay the ground", "<name>"], stops=[2])

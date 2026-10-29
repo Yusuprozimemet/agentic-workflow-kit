@@ -111,13 +111,14 @@ class TrackRedTest(unittest.TestCase):
         with open(os.path.join(self.dir, path), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
 
-    def track_red(self, text=None, branch="day-01/track-a-double", fix="return x * 2"):
+    def track_red(self, text=None, branch="day-01/track-a-double", fix="return x * 2", runner=None):
         """Commit main with the spec, put the track's fix in the working tree, and run the check."""
         self.write("specs/day-01-double.md", text or spec())
         self.git("add", ".")
         self.git("commit", "-q", "-m", "base")
         self.write("app.py", f"def double(x):\n    {fix}\n")
-        run = subprocess.run([sys.executable, SCRIPT, "--branch", branch], cwd=self.dir,
+        extra = [] if runner is None else ["--runner", runner]
+        run = subprocess.run([sys.executable, SCRIPT, "--branch", branch, *extra], cwd=self.dir,
                              capture_output=True, text=True, encoding="utf-8")
         return run.returncode, run.stdout + run.stderr
 
@@ -127,6 +128,23 @@ class TrackRedTest(unittest.TestCase):
         self.assertIn("seen red: tests.test_app.T.test_double_a_string (C1.1) on ", out)
         self.assertIn("→ FAILED (failures=1); on the head → OK", out)
         self.assertIn("1 of 1 tests", out)
+
+    def test_unittest_named_as_the_runner_checks_as_with_none_named(self):
+        code, out = self.track_red(runner="unittest")
+        self.assertEqual(code, 0, out)
+        self.assertIn("→ FAILED (failures=1); on the head → OK", out)
+
+    def test_an_empty_runner_is_not_configured_and_runs_nothing(self):
+        # CI passes vars.TRACK_RED_RUNNER, empty when the repository has not set it.
+        code, out = self.track_red(fix="return x", runner="")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(out.split(":")[0], "not configured", out)
+        self.assertNotIn("seen red", out)
+
+    def test_a_runner_it_does_not_support_is_a_configuration_error(self):
+        code, out = self.track_red(runner="pytest")
+        self.assertEqual(code, 2, out)
+        self.assertIn("TRACK_RED_RUNNER `pytest` is not supported; the only runner is unittest", out)
 
     def test_a_branch_that_is_not_a_track_is_not_applicable(self):
         code, out = self.track_red(branch="tooling/word-rule-edge-cases")

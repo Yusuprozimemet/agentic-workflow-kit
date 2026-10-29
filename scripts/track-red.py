@@ -1,10 +1,12 @@
 """Run each test a track's `new` criteria name, on the code before the track and on the track, and
 print one line per test.
 
-    python scripts/track-red.py --branch <day-NN/track-x-slug> [--base main]
+    python scripts/track-red.py --branch <day-NN/track-x-slug> [--base main] [--runner unittest]
 
 A `new` criterion must fail on the code before the day (specs/README.md); the `seen red:` record was
-missing from #15 and #18. CI runs this on every PR ("Track tests seen red"). It runs the tests again;
+missing from #15 and #18. CI runs this on every PR ("Track tests seen red") with `--runner` set to the
+repository variable TRACK_RED_RUNNER: empty, the variable unset, is "not configured" and checks
+nothing; `unittest`, the only runner it has, checks; anything else cannot run. It runs the tests again;
 it cannot show the track's author did. What it checks comes from the spec, never the diff (#27 added
 tests that pin what holds, and is not a track):
 
@@ -124,8 +126,17 @@ def main(args=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--branch", required=True)
     p.add_argument("--base", default="main")
+    p.add_argument("--runner", default="unittest")
     a = p.parse_args(args)
     sys.stdout.reconfigure(encoding="utf-8")  # the arrow; a Windows console's default is cp1252
+    if not a.runner:
+        print("not configured: TRACK_RED_RUNNER is not set, so no track's tests are run; "
+              "a Python project with unittest tests sets it to unittest")
+        return 0
+    if a.runner != "unittest":
+        print(f"track-red.py: TRACK_RED_RUNNER `{a.runner}` is not supported; the only runner is unittest",
+              file=sys.stderr)
+        return 2
     os.chdir(git("rev-parse", "--show-toplevel").strip())
 
     m = TRACK_BRANCH.match(a.branch)
