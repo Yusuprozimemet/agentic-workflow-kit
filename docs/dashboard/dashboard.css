@@ -76,6 +76,8 @@ section.panel { background: var(--surface); border: 1px solid var(--ring); borde
 
 .finding { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .wrap > * { min-width: 0; }
+/* A box holding a scrolling table, like #evidence-checks, otherwise takes the table's width as its minimum. */
+section.panel > * { min-width: 0; }
 .finding h3 { margin: 0; font: 600 15px/1.3 var(--body); }
 .finding p { font-size: 14px; color: var(--ink-2); }
 table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin-top: 10px; }
@@ -168,6 +170,8 @@ tr:has(+ tr.found) td { border-bottom: 0; }
 .found code { color: var(--code); }
 .caveats { margin: 14px 0 0; }
 .finding ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--ink-2); display: grid; gap: 4px; }
+/* A test id, command or path in a list item has no space to break at: at phone width it widened the panel. */
+section.panel li { overflow-wrap: anywhere; }
 tr.sel td { background: var(--surface-2); }
 .method { font-size: 14px; color: var(--ink-2); display: grid; gap: 10px; max-width: 76ch; }
 .method b { color: var(--ink); }
