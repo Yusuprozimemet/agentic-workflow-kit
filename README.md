@@ -17,6 +17,8 @@ that measures it. It holds the agent briefs (`.claude/agents/`), the spec rules
    agents, `specs/README.md`, the PR template, `docs/workflow.md`, `scripts/spec-drift.py`). Fill
    `plan.md`'s `<name>` and `<NN>`, and `spec-drift.config.json`: every field is empty until the
    project has what it names (services, moved paths, an infra workflow, PR areas, frozen files).
+   `test_count` is absent: added as `{"files": "<path regex>", "test": "<line regex>"}`, "Frozen
+   files stay unedited" also fails a PR whose count of matching lines falls (`scripts/invariants.py`).
 3. Add a workflow that runs the project's own tests: the kit's CI checks the workflow, not the
    code. Require it with the others below.
 4. Write each day's spec from [specs/_template.md](specs/_template.md), as
@@ -26,6 +28,15 @@ that measures it. It holds the agent briefs (`.claude/agents/`), the spec rules
 5. Optional: a tracker key, as a repository variable `JIRA_KEY` (Settings, Secrets and
    variables, Actions, Variables). "Compare the names" in `.github/workflows/pr-checks.yml`
    reads it; unset, no key is checked.
+6. Optional, for Python `unittest` tests: a repository variable `TRACK_RED_RUNNER` set to
+   `unittest`. "Track tests seen red" then runs each test a track's `new` criteria name, on the
+   code before the track and on the track (`scripts/track-red.py`). Unset, it reports "not
+   configured" and passes; any other value fails it as a configuration error. It finds tests by
+   `unittest` discovery under `tests/`; `scripts/seen-red.py`, which it runs them with, copies only
+   the changed files under `tests/` onto the old code, and `scripts/evidence.py` looks a named test
+   up as a Python class under `tests/`. Another language keeps the `seen red:` record by hand
+   (`specs/README.md`), with `python scripts/seen-red.py -- <its test command>` if its tests live
+   under `tests/`.
 
 On GitHub, in this order:
 
@@ -50,8 +61,14 @@ On GitHub, in this order:
   "Require a pull request before merging" on the settings page: the API ties it to a review rule.
 - "Every service is wired into compose and Prometheus" checks nothing until `services/` exists,
   and passes. A project with no services leaves it out of the required checks, or deletes the job.
+- The kit has no workflow for the project's own tests: each project adds one (for example
+  `.github/workflows/tests.yml`) before Day 1 and requires its check by name, as above. The
+  kit's workflows test only its own tools.
+- "Track tests seen red" reports on every pull request; with `TRACK_RED_RUNNER` set (item 6
+  above), require it by name too.
 
-Locally: Python with `numpy`, `node` for the page tests, and `gh`, logged in.
+Locally: Python with `numpy` (and `pyyaml` for `scripts/test_service_wiring.py`), `node` for the
+page tests, and `gh`, logged in.
 
 ## A session's prompt
 

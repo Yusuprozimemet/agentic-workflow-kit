@@ -64,7 +64,7 @@ class BreakTest(unittest.TestCase):
         self.assertEqual(run.stdout.strip(), "broken: the guard removed → AssertionError: expected ok but was broken")
 
     def test_an_arrow_in_what_is_refused_before_anything_changes(self):
-        # spec-drift.py reads <what> up to the first arrow: wordtally PR #1's "if not paths: → if False:".
+        # spec-drift.py reads <what> up to the first arrow: a pilot's "if not paths: → if False:".
         for what in ("if not paths: → if False:", "66 -> 67"):
             run = self.run_break("// ok", "// broken", what=what)
             self.assertEqual(run.returncode, 2, what)
@@ -72,14 +72,14 @@ class BreakTest(unittest.TestCase):
             self.assertEqual(self.contents(), self.original)
 
     def test_a_git_warning_is_not_what_the_check_reported(self):
-        # wordtally PR #1: git diff --exit-code on Windows ends with git's CRLF warning on stderr.
+        # a pilot: git diff --exit-code on Windows ends with git's CRLF warning on stderr.
         diff = [sys.executable, "-c", "import sys; print(' 1 file changed, 1 insertion(+)'); "
                 "sys.exit(\"warning: in the working copy of 'a.py', LF will be replaced by CRLF\")"]
         run = self.run_break("// ok", "// broken", command=diff)
         self.assertEqual(run.stdout.strip(), "broken: the guard removed → 1 file changed, 1 insertion(+)")
 
     def test_a_temporary_path_in_the_report_is_written_tmp(self):
-        # wordtally PR #4: unittest's repr of a path under the user's temp directory, its start cut.
+        # a pilot: unittest's repr of a path under the user's temp directory, its start cut.
         full = os.path.join(tempfile.gettempdir(), "tmp2ewplof6", "a.txt")
         said = f"AssertionError: {full!r} != '[27 chars]1\\\\AppData\\\\Local\\\\Temp\\\\tmp2ewplof6\\\\a.txt' in {full}"
         run = self.run_break("// ok", "// broken", command=[sys.executable, "-c", f"import sys; sys.exit({said!r})"])
@@ -123,7 +123,7 @@ class BreakTest(unittest.TestCase):
         self.assertFalse(os.path.exists(LOCK))
 
     def test_a_command_that_starts_but_never_runs_the_check_is_known(self):
-        # wordtally Day 3: `bash` was WSL's, and break.py printed broken: lines for checks never run.
+        # a pilot, Day 3: `bash` was WSL's, and break.py printed broken: lines for checks never run.
         script = load()
         wsl = "<3>WSL (9) ERROR: CreateProcessCommon:559: execvpe(/bin/bash) failed: No such file or directory\n"
         self.assertEqual(script.not_run(1, wsl), wsl.strip())
@@ -138,7 +138,7 @@ class BreakTest(unittest.TestCase):
         self.assertEqual(self.contents(), self.original)
 
     def test_expect_stdout_judges_the_check_by_its_output(self):
-        # wordtally Days 4, 5: `grep -c` prints 0 and exits 1 when no test was edited.
+        # a pilot, Days 4 and 5: `grep -c` prints 0 and exits 1 when no test was edited.
         script = load()
         self.assertFalse(script.caught(1, "0\n", "^0$"))
         self.assertTrue(script.caught(1, "3\n", "^0$"))

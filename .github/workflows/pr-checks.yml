@@ -1,6 +1,6 @@
 name: PR checks
 
-# Five gates on every pull request:
+# Six gates on every pull request:
 #
 # 1. The description uses the template. GitHub only auto-fills the template in
 #    the web "compose" form and in `gh pr create` with no --body. A pull request
@@ -15,8 +15,9 @@ name: PR checks
 #
 # 3. The frozen files stay unedited: the project file's `frozen` patterns, such as
 #    migrations that have run and the tests that show the code still behaves after
-#    a change. Additions and pure renames pass, so a move stays
-#    possible; an edit or a delete fails and names the file (scripts/invariants.py).
+#    a change. Additions and pure renames within the frozen set pass, so a move stays
+#    possible; an edit, a delete or a move out of the set fails and names the file, and
+#    so does a drop in the project file's `test_count` (scripts/invariants.py).
 #
 # 4. Every service is wired: built in compose with a healthcheck that allows its start, and
 #    scraped by Prometheus on its management port (scripts/service-wiring.py). Each extraction
@@ -26,6 +27,12 @@ name: PR checks
 #    reads a day's progress from branch names and Jira from the keys; in the project the kit was copied from, three PRs that
 #    disagreed showed a wrong state after they merged (a `track-b` branch for track B1, one Jira key against another,
 #    a `claude/...` branch).
+#
+# 6. A track's new tests are seen red (scripts/track-red.py): each test its spec's `new` criteria
+#    name fails by assertion where the branch started and passes on it. A pilot of the kit merged two tracks without the record.
+#    Opt-in: it runs Python unittest tests only, so it checks a track when the repository variable
+#    TRACK_RED_RUNNER is `unittest`. Unset, it reports "not configured" and passes; any other value
+#    fails as a configuration error. Its self-tests run in spec-drift-tests.yml whatever the setting.
 #
 # Recovery is automatic for the first two and the fifth's title and description: editing the description fires the `edited`
 # event and re-runs these checks. No new commit needed.
@@ -176,3 +183,25 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           JIRA_KEY: ${{ vars.JIRA_KEY }}
         run: python scripts/pr-names.py "$BASE_SHA" "$HEAD_SHA"
+
+  seen-red:
+    name: Track tests seen red
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}  # the branch itself, not the merge commit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run each new criterion's test on the base and the head
+        # The base is where the branch started, as the size check's three-dot diff counts from.
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TRACK_RED_RUNNER: ${{ vars.TRACK_RED_RUNNER }}
+        run: >-
+          python scripts/track-red.py --branch "$PR_BRANCH" --runner "$TRACK_RED_RUNNER"
+          --base "$(git merge-base "$BASE_SHA" "$HEAD_SHA")"

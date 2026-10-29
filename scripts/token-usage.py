@@ -1,4 +1,4 @@
-"""Count the Claude Code tokens spent on this repository, per date, migration day and model.
+"""Count the Claude Code tokens spent on this repository, per date, migration day, model and agent.
 
 Reads the session transcripts Claude Code keeps on this machine (~/.claude/projects/<this
 repository's path>, subagents included) and writes totals only, no prompt or reply text, to
@@ -30,21 +30,43 @@ DAY_BRANCH = re.compile(r"^day-(\d+)/")
 DATED = re.compile(r"-\d{8}$")
 
 
+def long_path(path):
+    # Windows refuses a path past MAX_PATH (260 characters) unless it is absolute and starts with
+    # \\?\: open() raises, and glob skips a folder past the limit without a word. glob keeps the
+    # prefix on every path it yields, so prefixing the root reaches every open. UNC paths are left as they are.
+    if os.name != "nt" or path.startswith("\\\\"):
+        return path
+    return "\\\\?\\" + os.path.abspath(path)
+
+
 def transcripts(root):
     # Claude Code names a project's folder after its path, every character but letters and digits
     # turned into "-"; a worktree of this repository, under its .claude/worktrees/, gets the same name
     # and "--". A sibling folder whose name only starts with this one's is another project.
     name = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(os.path.join(HERE, os.pardir))).lower()
-    for folder in glob.glob(os.path.join(root, "*")):
+    for folder in glob.glob(os.path.join(long_path(root), "*")):
         base = os.path.basename(folder).lower()
         if base == name or base.startswith(name + "--"):
             yield from glob.glob(os.path.join(folder, "**", "*.jsonl"), recursive=True)
+
+
+def agent(path):
+    # A subagent's transcript, subagents/agent-<id>.jsonl, has its type in agent-<id>.meta.json beside it.
+    meta = path[:-len(".jsonl")] + ".meta.json"
+    if os.path.basename(os.path.dirname(path)) != "subagents":
+        return "main"
+    try:
+        with open(meta, encoding="utf-8") as f:
+            return json.load(f).get("agentType") or "unknown"
+    except (OSError, ValueError):
+        return "unknown"
 
 
 def count(files):
     # The usage is complete only on a reply's last line, so the last line per key overwrites the others.
     replies, totals = {}, collections.defaultdict(lambda: dict.fromkeys(FIELDS, 0))
     for path in files:
+        who = agent(path)
         with open(path, encoding="utf-8") as f:
             for line in f:
                 try:
@@ -56,14 +78,14 @@ def count(files):
                 model = msg and DATED.sub("", msg.get("model") or "")
                 if not usage or not model.startswith("claude"):
                     continue
-                replies[(msg.get("id"), entry.get("requestId"))] = entry
-    for entry in replies.values():
+                replies[(msg.get("id"), entry.get("requestId"))] = (who, entry)
+    for who, entry in replies.values():
         msg = entry["message"]
         usage = msg["usage"]
         model = DATED.sub("", msg.get("model") or "")
         when = datetime.datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
         day = DAY_BRANCH.match(entry.get("gitBranch") or "")
-        t = totals[(when.astimezone().date().isoformat(), int(day.group(1)) if day else None, model)]
+        t = totals[(when.astimezone().date().isoformat(), int(day.group(1)) if day else None, model, who)]
         t["input"] += usage.get("input_tokens", 0)
         t["cache_write"] += usage.get("cache_creation_input_tokens", 0)
         t["cache_read"] += usage.get("cache_read_input_tokens", 0)
@@ -80,12 +102,20 @@ def main():
     totals = count(transcripts(args.transcripts))
     if os.path.exists(args.out):
         with open(args.out, encoding="utf-8") as f:
-            for r in json.load(f):
-                t = totals[(r["date"], r["day"], r["model"])]
-                for k in FIELDS:
-                    t[k] = max(t[k], r[k])
-    rows = [dict(date=d, day=n, model=m, **t) for (d, n, m), t in totals.items()]
-    rows.sort(key=lambda r: (r["date"], r["day"] or 0, r["model"]))
+            kept = json.load(f)
+        for r in (r for r in kept if "agent" in r):
+            t = totals[(r["date"], r["day"], r["model"], r["agent"])]
+            for k in FIELDS:
+                t[k] = max(t[k], r[k])
+        # A row written before agents were counted holds every agent's tokens: what it has beyond
+        # the agents counted for its date, day and model is kept as unknown, not given to one of them.
+        for r in (r for r in kept if "agent" not in r):
+            counted = [t for key, t in totals.items() if key[:3] == (r["date"], r["day"], r["model"])]
+            t = totals[(r["date"], r["day"], r["model"], "unknown")]
+            for k in FIELDS:
+                t[k] += max(0, r[k] - sum(c[k] for c in counted))
+    rows = [dict(date=d, day=n, model=m, agent=a, **t) for (d, n, m, a), t in totals.items()]
+    rows.sort(key=lambda r: (r["date"], r["day"] or 0, r["model"], r["agent"]))
     with open(args.out, "w", encoding="utf-8", newline="\n") as f:
         f.write("[\n" + ",\n".join(json.dumps(r, separators=(",", ":")) for r in rows) + "\n]\n")
     out = sum(r["output"] for r in rows)

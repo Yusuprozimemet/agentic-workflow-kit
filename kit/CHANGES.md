@@ -1357,3 +1357,144 @@ All decided by the maintainer in the Batch 0 PR, each under its item: 47, 48, 49
 - Item 67: how was `agent-workflow.png` made?
 - Items 55, 56: keep the infra and deployment panels (off), as proposed, or remove them, which
   loses the 53-box comparison and one suite?
+
+## v2: Wordtally's tooling and dashboard
+
+Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4ce7`, the kit at
+`6418ac3` (tree of `3f478ab`), file-level base `563fc31` (matched Wordtally's first snapshot
+`df0c205` for every shared script, dashboard file and `pr-checks.yml`). Manifest:
+[`v2-manifest.md`](v2-manifest.md).
+
+### 76. Where both sides' behaviour met (steps 1-2)
+
+- **Python test classes, both sides.** Wordtally (`69c419b`) and the kit (`b1b62c0`) each taught
+  `test_state` to find Python classes. Kept the kit's: test paths only, indented classes, pytest
+  skips. Wordtally's four page regressions were already in the kit, so its copies were dropped.
+- **`evidence.py` against the kit's `break.py`.** The kit writes a temporary directory, its whole
+  path, as `<tmp>`; `evidence.py` now applies the same rule to both reports before comparing.
+  The kit refuses an arrow in `--what`, so a recorded break with one cannot run again:
+  `evidence.py` reports it as could not run, with the refusal, not as passed. Changed behaviour:
+  Wordtally's test expected such a line to pass.
+- **Token rows from before agents were counted.** Wordtally's `token-usage.py` read `agent` from
+  every kept row (a `KeyError` on the kit's older rows). A row without it keeps, as `unknown`,
+  what it holds beyond the agents counted for its date, day and model: no count is lost and no
+  agent is guessed.
+- **`.gitignore`:** `spec-drift.json`, the dashboard's generated data, and `.env`.
+- **The page comparison** (`kit/compare-page.py`, and its test in `test_spec_drift.py`) reported
+  8 boxes changed or new after these steps. Reviewed box by box in step 5 and saved with
+  `--write` there (item 79).
+
+### 77. A new project starts empty; the track check is opt-in (step 3)
+
+- **What a copy starts with.** Checked on a scratch commit of the candidate (`kit/starter-check.py`,
+  5 of 5 steps, 50 boxes drawn): `token-usage.json` is `[]`; no `evidence-checks.json` (the page
+  says "Not checked: no report", where a `{}` or `[]` would have read as a run); no
+  `spec-drift.json` or cache; `specs/` holds only the README and template; the project file's
+  settings are empty and `test_count` is absent, now described in the README's setup.
+- **`TRACK_RED_RUNNER`.** "Track tests seen red" ran Wordtally's `unittest` discovery on every PR,
+  which a project in another language, or with no `tests/`, would fail. `track-red.py` takes
+  `--runner`, which CI fills from the repository variable: empty is "not configured" and passes,
+  `unittest` checks, anything else exits 2 as a configuration error. Run by hand without it, the
+  check is unchanged. The job still runs and reports on every PR. Its self-tests moved to
+  "Dashboard metric tests", which runs them whatever the variable says, with their paths among
+  its triggers. Seen red: the three new tests failed on the script before the option
+  (`unrecognized arguments: --runner`).
+  - ```broken: track-red.py treats an empty runner as unittest → AssertionError: 2 != 0 : track-red.py: TRACK_RED_RUNNER `` is not supported; the only runner is unittest```
+  - `broken: track-red.py accepts pytest → AssertionError: 0 != 2 : seen red: tests.test_app.T.test_double_a_string (C1.1) on 7d769f1 → FAILED (failures=1); on the head → OK`
+- **Tokens with no agent on the page.** The agents chart drew such rows as a bar named
+  "unknown", and the implementer's sentence counted them among "the checking agents the rest".
+  The bar now reads "agent not recorded", and the sentence gives its share before the rest. Every
+  row of jobmatch's saved data has no agent, so its page shows one such bar. Seen red: the new
+  page test failed with the bar named `unknown`.
+  - `broken: the implementer sentence counts no unknown tokens → AssertionError: False is not true : <b>The implementer</b> (which writes the track code from a brief) used <b>20.0%</b> of the context read (100 of 500) and <b>20.0%</b> of the output (200 of 1k); the main sessions (specs, review, the breaks on purpose, the pull requests) <b>30.0%</b> of the output; the checking agents the rest.`
+- **Language limits, in the README:** `track-red.py` discovers `unittest` tests under `tests/`;
+  `seen-red.py` copies only changed files under `tests/`; `evidence.py` looks named tests up as
+  Python classes under `tests/`. Other languages keep the `seen red:` record by hand. General
+  runner adapters are a separate change.
+
+### 78. Instructions and CI match what the kit does (step 4)
+
+- **Ported from Wordtally,** after comparing each retained document with its copy there; the
+  kit already had "One session per step", the implementer brief and the re-count rule.
+  - The phase-end audits run on fresh `main` after the phase's last closing PR has merged,
+    never inside it: CLAUDE.md step 6 and the auditors' table, `docs/workflow.md`, the
+    plan-auditor's description and the three end-of-phase auditors' timing lines.
+  - The auditors' hook, with its limits: it blocks the git and `gh` commands it recognises as
+    writes and, at the auditor's stop, finds what git shows changed; it reads commands, not
+    what a program does, so it is not a sandbox.
+  - `seen-red.py` in CLAUDE.md "The implementer" and `specs/README.md`, for tests under
+    `tests/`, with the stash route for any other layout and the CI opt-in.
+  - A pitfall: on a CRLF tree, `git diff --exit-code` under `break.py` reports git's CRLF
+    warning; run `git -c core.safecrlf=false diff`.
+  - What stayed Wordtally's: its commands, paths, frozen tests, model and Pages URL, and the
+    wording the kit has since replaced (the defect-rater's "merged or not", the template's
+    Evidence line). The manifest says so row by row.
+- **No Wordtally day or PR in the code a copy keeps.** Its PR numbers (#15, #18, #27, #46) left
+  `track-red.py`, `seen-red.py`, `auditor-guard.py` and `pr-checks.yml`; its days left
+  `evidence.py`'s comments, the relabel panel's sentence on Days 1 and 3 (now: a day whose Notes
+  quote no counts is not counted), and the test comments and fixtures that named it.
+  `starter-check.py` searches for `wordtally` too; `CLAUDE.md` and `specs/README.md` keep their
+  marked evidence from it, exempt as the source project's is. The page-prose test lists the
+  removed sentence's words.
+  - `broken: the relabel panel's Day 1 and Day 3 sentence put back → AssertionError: Lists differ: ['Day 1 does not', 'Day 3 tells'] != []`
+  - `broken: wordtally left out of the starter scan's markers → AssertionError: the probe line not found: []`
+
+    The probe: a scratch clone of the candidate with one commit adding `docs/probe.md`, "Built
+    after Wordtally."; `starter-check.py` stopped at "5. failed: 1 lines in 1 files name the
+    source project: docs/probe.md", and the break ran a check that `hits()` finds that line.
+- **CI.** "Drift and gap move when they should" runs every `scripts/test_*.py` in a loop, each
+  in its own log group, all run, the job failing if any did: `test_infra_summary.py` ran nowhere
+  before, and a new test file now runs without an edit to the workflow. Its trigger paths are
+  every script and the page's HTML, CSS and JS, besides the agents, settings, project file and
+  page fixtures. A new job, "Token counts on Windows", runs `test_token_usage.py` on
+  `windows-latest`, where the long-path regression bites; on Linux it passes either way. The
+  gate needs it and the starter job; in a copy without `kit/` the starter's step is skipped and
+  the job passes. Check names are unchanged. The README says each project adds its own test
+  workflow and requires its check, and requires "Track tests seen red" once
+  `TRACK_RED_RUNNER` is set.
+  - `broken: the long-path prefix never added → AssertionError: {'main': 3} != {'main': 3, 'implementer': 7}`
+
+    Run on Windows. The loop, run locally under Git Bash, ran all 12 files and exited 1 on
+    `test_spec_drift.py`'s one known failure, the page comparison that step 5 reviews.
+  - Missed, mine: the loop's job installed only `numpy`, and `service-wiring.py` imports `yaml`.
+    Locally PyYAML was installed, so the miss showed only on the PR's first CI run (7 of 7
+    `test_service_wiring.py` tests failed, exit 1). The job now installs `pyyaml` too, as
+    `pr-checks.yml`'s wiring job does, and the README names it.
+
+### 79. The page comparison reviewed, and the page at phone width (step 5)
+
+- **Every test file fails when a test does.** Each of the 12 `scripts/test_*.py` ends in
+  `unittest.main()`. A temporary copy of each with one failing test added exited 1; the same
+  copies with a passing test exited 0.
+- **The comparison's baseline holds.** `main`'s `dashboard.js` (and `f66c095`'s) draws the source
+  project's saved data to exactly the saved hashes, 54 boxes. Of the 8 boxes that differ, all
+  change in `2fa694d`, `token-agents` again in `88b969d`; step 4 (`db92366`) changed none.
+
+  | Box | Change | Why the new version is right |
+  |---|---|---|
+  | `evidence` | the column reads "Seen red, recorded" | it counts the `broken:` record, not proof that the tests failed (Wordtally `10bee7e`) |
+  | `evidence-checks` (new) | "Not checked: no report" | the saved data has no evidence report |
+  | `readout` | "Spec names in code, all places"; "Spec names in production" shows "–"; the gap against shuffled counts (95%: 45.3–48.5°); two lines on what the numbers do not measure | the data predates production coverage; the band is the data's own `gap_chance_band` (Wordtally `0ebb970`, `f04a96a`) |
+  | `relabel` (new) | every day "not counted: the Notes give no counts" | the data predates the blind relabel |
+  | `token-bars`, `token-legend` | 9 `claude-haiku-5-5` rows in Haiku's colour, were grey as "other" | `MODEL_VAR` names that model now; only fills changed (Wordtally `f1a8db6`) |
+  | `token-implementer` | empty, was "17.4% … 18.3%" | the old sentence took every Haiku row for the implementer; it now counts by `agent`, and 0 of 135 rows have one, so nothing is guessed (item 76) |
+  | `token-agents` (new) | one bar, "agent not recorded 13.00M" | no row records an agent; the bar was "unknown" until item 77 |
+
+  Saved with `kit/compare-page.py --write` in its own commit; then 57 of 57 boxes the same.
+- **The page at 375 px.** Drawn in headless Edge at 1280 and 375 px: the empty starter, Wordtally's
+  generated data and the source project's saved data. No script error, failed panel, NaN or
+  undefined. At 375 px two pages scrolled sideways: the source project's to 420 px, from test ids
+  and commands in "Named tests not running on main" (as on `main`), and Wordtally's to 650 px,
+  from those, an 82-character temp path in "Failed or could not run", and `#evidence-checks`
+  taking its table's width as its minimum. `dashboard.css`: a panel's boxes may shrink
+  (`min-width: 0`, as the page's outer boxes already could) and its list items break anywhere.
+  Page width at 375 px, Wordtally's and the source project's: 650 and 420 before, 484 and 375 with
+  the list rule alone, 375 and 375 with both; the empty starter 375 throughout; 1280 px unchanged.
+- **Follow-ups, seen and not fixed:**
+  - The agents chart's labels shrink with its SVG and are unreadable at 375 px; every chart on the
+    page scales this way, this one most.
+  - The empty starter's next step reads "Every day is done." with 0 days. It is in
+    `spec-drift.py` since the kit's first copy (`5507876`), not new in v2.
+  - The empty starter's "Who spent them" is a heading with nothing under it, and its relabel
+    table holds only an "All counted" row of dashes; the token panel's empty state above covers
+    both, but each could say so itself.

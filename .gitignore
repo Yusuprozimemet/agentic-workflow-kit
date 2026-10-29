@@ -1,3 +1,7 @@
-# --- dashboard: what scripts/spec-drift.py read from git, kept between runs ---
+# --- dashboard: what scripts/spec-drift.py read from git, kept between runs, and its output ---
 .spec-drift-cache.json
+spec-drift.json
 __pycache__/
+
+# --- local secrets ---
+.env

@@ -122,6 +122,62 @@ class SpecDriftTest(unittest.TestCase):
         self.assertEqual((rows[2]["name_coverage"], rows[2]["jaccard"]), (1.0, 0.5))  # bar_table: code only
         self.assertEqual((rows[1]["names_kept"], rows[2]["names_kept"]), (0, 1))
 
+    def test_a_file_under_specs_is_never_code_whatever_its_extension(self):
+        # A break manifest copies the spec's names: at #25 one moved the gap with no code changed.
+        rows = self.repo.merge({"src/Foo.java": "class FooService {}\n"}).rows()
+        rows = self.repo.merge({"specs/breaks/day-01.json": '{"names": ["FooService", "bar_table"]}\n',
+                                "specs/notes.py": "bar_table = 1\n"}).rows()
+        for field in ("gap_full", "name_coverage", "jaccard", "coverage"):
+            self.assertEqual(rows[2][field], rows[1][field], field)
+        self.assertEqual(rows[2]["name_coverage"], 0.5)  # bar_table is only under specs/
+
+    def test_a_name_in_a_test_or_a_script_still_counts_as_code(self):
+        rows = self.repo.merge({"tests/test_foo.py": "FooService = None\n", "scripts/bar.py": "bar_table = 1\n"}).rows()
+        self.assertEqual(rows[1]["name_coverage"], 1.0)
+
+    def test_a_name_only_in_a_test_or_a_script_is_code_but_not_production(self):
+        self.addCleanup(sd.CACHE.clear)
+        rows = self.repo.merge({"tests/test_foo.py": "FooService = None\n", "scripts/bar.py": "bar_table = 1\n",
+                                "experiments/e1/cases.json": '{"names": "FooService bar_table"}\n'}).rows()
+        self.assertEqual((rows[1]["name_coverage"], rows[1]["prod_name_coverage"]), (1.0, 0.0))
+        self.assertEqual((rows[1]["spec_names"], rows[1]["names_in_code"], rows[1]["names_in_prod"]), (2, 2, 0))
+        self.assertEqual(sd.CACHE["code"][self.repo.snaps[1]["sha"]],
+                         {"FooService": {"tests/test_foo.py": 1, "experiments/e1/cases.json": 1},
+                          "bar_table": {"scripts/bar.py": 1, "experiments/e1/cases.json": 1}})
+
+    def test_a_name_outside_production_is_listed_once_with_each_place_and_path(self):
+        rows = self.repo.merge({"tests/test_foo.py": "FooService = None\n", "scripts/foo.py": "FooService = 1\n",
+                                "scripts/foo2.py": "FooService = 2\n"}).rows()
+        self.assertEqual(rows[1]["names_outside_prod"],
+                         {"FooService": {"test": ["tests/test_foo.py"], "tooling": ["scripts/foo.py", "scripts/foo2.py"]}})
+        self.assertEqual(rows[1]["names_absent"], ["bar_table"])
+        rows = self.repo.merge({"src/Foo.java": "class FooService {}\n"}).rows()
+        self.assertEqual((rows[2]["names_outside_prod"], rows[2]["names_absent"]), ({}, ["bar_table"]))
+        rows = self.repo.merge({"src/Foo.java": None}).rows()
+        self.assertEqual(list(rows[3]["names_outside_prod"]), ["FooService"])
+        rows = self.repo.merge({"tests/test_foo.py": None, "scripts/foo.py": None, "scripts/foo2.py": None}).rows()
+        self.assertEqual((rows[4]["names_outside_prod"], rows[4]["names_absent"]), ({}, ["FooService", "bar_table"]))
+
+    def test_a_name_in_production_raises_production_coverage_and_its_removal_lowers_it(self):
+        self.repo.merge({"tests/test_foo.py": "FooService = None\n"})
+        rows = self.repo.merge({"src/Foo.java": "class FooService {}\n"}).rows()
+        self.assertEqual([r["prod_name_coverage"] for r in rows], [0.0, 0.0, 0.5])
+        self.assertEqual([r["names_in_prod"] for r in rows], [0, 0, 1])
+        rows = self.repo.merge({"src/Foo.java": None}).rows()
+        self.assertEqual((rows[3]["name_coverage"], rows[3]["prod_name_coverage"]), (0.5, 0.0))
+
+    def test_a_line_is_split_where_it_was_before_the_path_was_kept(self):
+        # str.splitlines also ends a line at a form feed; git grep does not, so after a comment the name still counts.
+        rows = self.repo.merge({"src/Foo.java": "// note\x0cclass FooService {}\n"}).rows()
+        self.assertEqual((rows[1]["name_coverage"], rows[1]["names_in_prod"]), (0.5, 1))
+
+    def test_production_coverage_skips_comments_and_with_no_spec_name_is_not_measured(self):
+        rows = self.repo.merge({"src/Foo.java": "// FooService\nclass Foo {} // bar_table\n"}).rows()
+        self.assertEqual((rows[1]["prod_name_coverage"], rows[1]["names_in_prod"]), (0.0, 0))
+        rows = self.repo.merge({"plan.md": "# Plan\n", "specs/day-01-x.md": "# Day 01\n",
+                                "src/Foo.java": "class FooService { bar_table b; }\n"}).rows()
+        self.assertEqual((rows[2]["prod_name_coverage"], rows[2]["name_coverage"], rows[2]["spec_names"]), (None, None, 0))
+
     def test_a_failed_blob_read_names_the_commit_and_the_path(self):
         sha = self.repo.snaps[0]["sha"]
 
@@ -188,6 +244,8 @@ class SpecDriftTest(unittest.TestCase):
                           ("scripts/test_spec_drift.py", "test"), ("data/tests/conftest.py", "test"), ("web/a.spec.ts", "test"),
                           ("scripts/spec-drift.py", "tooling"), (".github/workflows/ci.yml", "tooling"),
                           ("docs/dashboard/dashboard.js", "tooling"), ("backend/app/src/main/java/x/Latest.java", "prod"),
+                          ("app/count.py", "prod"), ("tests/contract/test_word_rule.py", "test"),
+                          ("experiments/jev/e1/build.py", "tooling"), ("experiments/jev/e1/test_build.py", "test"),
                           ("docker-compose.yml", "prod"), ("docs/dashboard/token-usage.json", None),
                           ("docs/dashboard/deployment.json", None),
                           ("frontend/package-lock.json", None), ("screenshots/a.png", None)]:
@@ -315,7 +373,7 @@ class SpecDriftTest(unittest.TestCase):
         self.assertIsInstance(p["script_edited"], bool)
 
     def test_before_the_first_commit_the_data_names_no_commit(self):
-        # wordtally's first run: git rev-parse HEAD exited 128 in a repository with no commit yet.
+        # a pilot's first run: git rev-parse HEAD exited 128 in a repository with no commit yet.
         empty = Repo()
         self.addCleanup(empty.close)
         script = os.path.join(empty.path, "spec-drift.py")
@@ -326,7 +384,7 @@ class SpecDriftTest(unittest.TestCase):
         self.assertEqual((p["commit"], p["script_edited"]), (None, True))
 
     def test_the_spec_rules_and_template_are_not_specs_for_the_vocabulary(self):
-        # wordtally: 5 of the 8 names "missing" from its code were the source project's examples there.
+        # a pilot: 5 of the 8 names "missing" from its code were the source project's examples there.
         before = self.repo.inside(lambda blobs: sd.trajectory([dict(s) for s in self.repo.snaps], blobs)[2])
         self.repo.merge({"specs/README.md": "Name `AccountDeletionIT` and `savedCount`.\n",
                          "specs/_template.md": "- [ ] C28.1 **new** — `SameSite` is set.\n"})
@@ -453,7 +511,7 @@ class EvidenceTest(unittest.TestCase):
         self.assertEqual(set(self.state()[0]["tests"].values()), {"missing"})
 
     def test_a_python_test_is_found_by_its_class_in_any_test_file(self):
-        # wordtally: CliTest lives in tests/test_cli.py, and every criterion's tests read "missing".
+        # a pilot: CliTest lives in tests/test_cli.py, and every criterion's tests read "missing".
         self.repo.merge({"tests/test_cli.py": "import unittest\n\n\nclass CliTest(unittest.TestCase):\n"
                                               "    def test_counts(self):\n        pass\n",
                          "tests/test_rule.py": "class RuleTest:\n    @pytest.mark.skipif(True, reason='x')\n"
@@ -466,7 +524,7 @@ class EvidenceTest(unittest.TestCase):
                                  "HelperTest": "missing"})  # src/helper.py is not a test file
 
     def test_a_python_test_that_calls_skip_test_is_skippable(self):
-        # wordtally PR #20: a test can skip itself from its body, as CI on a missing tool does.
+        # a pilot: a test can skip itself from its body, as CI on a missing tool does.
         self.repo.merge({"tests/test_cli.py": "import unittest\n\n\nclass CliTest(unittest.TestCase):\n"
                                               "    def test_bash(self):\n        self.skipTest('no bash')\n"})
         state = self.repo.inside(lambda blobs: sd.test_state({"CliTest.test_bash"}, self.repo.snaps[-1]["sha"], blobs))
@@ -734,7 +792,7 @@ class HandOffTest(unittest.TestCase):
         self.assertEqual(sd.unopened_tracks([dict(number=1, headRefName="day-32/track-c1-x", body=body)]), [])
 
     def test_a_notes_item_that_only_cites_its_days_hand_off_is_not_one(self):
-        # wordtally Day 1: a Note ending "(H1.2)" was listed as H1.2 a second time, to no day.
+        # a pilot, Day 1: a Note ending "(H1.2)" was listed as H1.2 a second time, to no day.
         repo = Repo().merge({
             "specs/day-01-a.md": "## Notes\n- The condition is in one place, so Day 03 decides it (H01.2).\n"
                                  "- **Hand-off** H01.2 → Day 03: the stop decides it.\n",
@@ -983,7 +1041,7 @@ class PageProseTest(unittest.TestCase):
     # What the prose said of the project it was built on: its services and layout, its days, PRs and criteria, its cloud.
     MARKERS = ["monolith", "identity", "job-service", "backend/", "saved_jobs", "SavedJobCounts", "GatewayHarnessIT",
                "infra-ci", "Terraform", "LocalStack", "AWS", "Day 35", "Days 1–4", "Days 38–40", "C35.16", "H28.1",
-               "#55", "#298", "#310"]
+               "#55", "#298", "#310", "wordtally", "Day 1 does not", "Day 3 tells"]
 
     def test_the_prose_names_none_of_the_project_it_was_built_on(self):
         with open(os.path.join(HERE, "..", "docs", "dashboard", "index.html"), encoding="utf-8") as f:
@@ -1040,6 +1098,42 @@ class PageTest(unittest.TestCase):
         eyebrow, _ = page([page_row(0, None, "origin", 50)], days, [12, 18, 17, 36, 40], current_day=12)
         self.assertIn("· Day 12 of 6 ·", eyebrow)
 
+    def test_the_readout_places_the_gap_against_its_shuffled_band_endpoints_inside(self):
+        for gap, band, place in ((40, [35, 50], "inside"), (35, [35, 50], "inside"), (50, [35, 50], "inside"),
+                                 (21.02, [35.69, 50.92], "below"), (50.01, [35, 50], "above")):
+            row = dict(page_row(0, None, "origin", gap), code_churn=0, gap_chance_band=band)
+            error, panels, _ = drawn([row])
+            self.assertIsNone(error)
+            self.assertIn(f"<dd>{place} the shuffled-count reference band</dd>", panels["readout"], (gap, band))
+        for gap, band in ((None, [35, 50]), (40, None)):  # no spec name in the code yet; no band
+            error, panels, _ = drawn([dict(page_row(0, None, "origin", gap), code_churn=0, gap_chance_band=band)])
+            self.assertIn("<dd>comparison unavailable</dd>", panels["readout"], (gap, band))
+
+    def test_the_readout_shows_both_name_shares_with_their_counts_and_the_names_behind_them(self):
+        row = dict(page_row(0, None, "origin", 40), code_churn=0, name_coverage=0.75, prod_name_coverage=0.25,
+                   spec_names=4, names_in_code=3, names_in_prod=1, names_absent=["gone_name"],
+                   names_outside_prod={"test_only": {"test": ["tests/test_a.py"], "tooling": ["scripts/a.py"]},
+                                       "other_one": {"other": ["x/<y>.txt"]}})
+        error, panels, _ = drawn([row])
+        self.assertIsNone(error)
+        self.assertIn("<dt>Spec names in code, all places</dt><dd>75.0% <small>3/4</small></dd>", panels["readout"])
+        self.assertIn("<dt>Spec names in production</dt><dd>25.0% <small>1/4</small></dd>", panels["readout"])
+        self.assertIn('<code>test_only</code> <span class="chip">test</span> <code class="path">tests/test_a.py</code>'
+                      ' <span class="chip">tooling</span> <code class="path">scripts/a.py</code>', panels["readout"])
+        self.assertIn('<code class="path">x/&lt;y&gt;.txt</code>', panels["readout"])
+        self.assertIn("Present only outside production <span class=\"num\">(2)</span>", panels["readout"])
+        self.assertIn("Absent from all scanned code <span class=\"num\">(1)</span>", panels["readout"])
+        self.assertIn("Test and tool names may legitimately be absent from production.", panels["readout"])
+        empty = dict(row, name_coverage=None, prod_name_coverage=None, spec_names=0, names_in_code=0, names_in_prod=0,
+                     names_absent=[], names_outside_prod={})
+        error, panels, _ = drawn([empty])
+        self.assertEqual(panels["readout"].count("<dd>not measured: no extracted spec names</dd>"), 2)
+        old = {k: v for k, v in row.items() if k not in ("spec_names", "names_outside_prod", "names_absent")}
+        error, panels, _ = drawn([old])  # data from before the counts were kept
+        self.assertIsNone(error)
+        self.assertIn("<dt>Spec names in code, all places</dt><dd>75.0%</dd>", panels["readout"])
+        self.assertNotIn("Present only outside production", panels["readout"])
+
     def test_a_short_history_draws_every_panel_or_says_why_not(self):
         # The kit's main: direct commits, then PRs on no day branch; a flat gap, no service code,
         # 54 test lines and no production lines, and two specs whose days have no PRs.
@@ -1094,6 +1188,21 @@ class PageTest(unittest.TestCase):
         self.assertEqual(panels["deployment-head"], '<p class="load-error">Nothing deployed yet: the panel fills when '
                                                     'a live check has written docs/dashboard/deployment.json.</p>')
         self.assertEqual(panels["deployment-checks"], "")
+
+    def test_tokens_with_no_agent_are_drawn_as_unknown_and_not_given_to_the_checking_agents(self):
+        # token-usage.py keeps a row from before agents were counted as "unknown"; an older file has no field.
+        def tok(agent, output):
+            return dict(date="2026-10-12", day=1, model="claude-opus-4-1", agent=agent, input=100,
+                        cache_write=0, cache_read=0, output=output, replies=1)
+        tokens = [tok("main", 300), tok("implementer", 200), tok("unknown", 300), tok("spec-auditor", 100)]
+        tokens.append({k: v for k, v in tok("", 100).items() if k != "agent"})
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=tokens)
+        self.assertIsNone(error)
+        bars = re.findall(r'text-anchor="end"[^>]*>([^<]+)<', panels["token-agents"])
+        self.assertEqual(bars, ["agent not recorded", "main sessions", "implementer", "spec-auditor"])
+        self.assertTrue(re.sub("<[^>]+>", "", panels["token-implementer"]).endswith(
+            "the main sessions (specs, review, the breaks on purpose, the pull requests) 30.0% of the output; "
+            "tokens with no agent recorded 40.0%; the checking agents the rest."), panels["token-implementer"])
 
     def test_the_name_phases_and_stops_come_from_the_data(self):
         days = [dict(a_day(n), status="ready", phase=p, title="t", prs=[]) for n, p in ((1, 0), (2, 0), (3, 1))]
@@ -1204,6 +1313,110 @@ class PageTest(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
 
+def a_report(close, rev, checks, state="clean", **more):
+    """An evidence.py --json report of Day 01, checked at close on its spec and breaks file at rev."""
+    day = dict(spec=dict(path="specs/day-01-x.md", sha256="0" * 64, state=state, revision=rev), day="01",
+               close_sha=close, verify_base_sha=None, checks=checks,
+               breaks=dict(path="specs/breaks/day-01.json", sha256=None, state="missing", revision=None))
+    return dict(dict(schema=1, runner=dict(revision="r" * 40, dirty=False), generated="2026-10-29T10:00:00+00:00",
+                     ref="main", ref_sha=close, days=[day]), **more)
+
+
+def a_check(kind, status, label="C1.1", diagnostic=None):
+    return dict(id=f"day-01-x.md/{label}", kind=kind, criterion="C1.1", sha=None, status=status, label=label,
+                diagnostic=diagnostic)
+
+
+class EvidenceReportTest(unittest.TestCase):
+    """The committed evidence report: read, never replayed, and current only on main's inputs."""
+
+    def setUp(self):
+        self.repo = Repo().merge({"specs/day-01-x.md": "# Day 01\n"}).merge({"app/a.py": "x = 1\n"})
+        self.addCleanup(self.repo.close)
+        self.close = self.repo.git("rev-parse", "HEAD").strip()
+        self.days = [dict(day=1, status="done", file="specs/day-01-x.md", prs=[dict(number=1, kind="close")]),
+                     dict(day=2, status="done", file="specs/day-02-y.md", prs=[]),
+                     dict(day=3, status="active", file="specs/day-03-z.md", prs=[])]
+        page = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, page, True)
+        self.addCleanup(setattr, sd, "PAGE", sd.PAGE)
+        sd.PAGE = page
+
+    def read(self, report):
+        if report is not None:
+            with open(os.path.join(sd.PAGE, "evidence-checks.json"), "w", encoding="utf-8") as f:
+                f.write(report if isinstance(report, str) else json.dumps(report))
+        return self.repo.inside(lambda _: sd.evidence_checks(self.days, self.repo.snaps))
+
+    def test_no_report_is_absent_not_a_pass(self):
+        self.assertEqual(self.read(None), dict(state="absent"))
+
+    def test_a_report_on_mains_inputs_is_current_and_counted_by_kind_and_status(self):
+        checks = [a_check("named_test", "passed"), a_check("named_test", "not_applicable"),
+                  a_check("break", "failed", "C1.2 broken: x", "reported 'y'"), a_check("runner", "error", "w", "no worktree")]
+        got = self.read(a_report(self.close, self.close, checks))
+        self.assertEqual(got["state"], "loaded")
+        one, two = got["days"]
+        self.assertEqual((one["state"], one["why"]), ("current", []))
+        self.assertEqual(one["counts"]["named_test"], dict(passed=1, failed=0, error=0, not_applicable=1))
+        self.assertEqual(one["counts"]["break"]["failed"], 1)
+        self.assertEqual([p["label"] for p in one["problems"]], ["C1.2 broken: x", "w"])
+        self.assertEqual(two, dict(day=2, state="not checked"))  # finished, left out; Day 3 is not finished
+
+    def test_a_report_checked_elsewhere_is_stale(self):
+        first = self.repo.snaps[0]["sha"]
+        self.assertIn("checked at close", self.read(a_report(first, self.close, []))["days"][0]["why"][0])
+        self.assertIn("was edited when checked", self.read(a_report(self.close, self.close, [], state="edited"))["days"][0]["why"][0])
+        self.repo.merge({"specs/day-01-x.md": "# Day 01, edited\n"})
+        got = self.read(a_report(self.close, self.close, []))["days"][0]
+        self.assertEqual(got["state"], "stale")
+        self.assertEqual(got["why"], [f"specs/day-01-x.md changed since {self.close[:7]}"])
+
+    def test_a_report_this_cannot_read_is_invalid_with_its_reason(self):
+        for report, why in (("{not json", "JSONDecodeError"), (dict(a_report(self.close, self.close, []), schema=2), "schema 2"),
+                            (a_report(self.close, self.close, [a_check("verify", "skipped")]), "status 'skipped'"),
+                            (dict(schema=1), "KeyError")):
+            got = self.read(report)
+            self.assertEqual(got["state"], "invalid", why)
+            self.assertIn(why, got["diagnostic"])
+
+
+@unittest.skipUnless(shutil.which("node"), "needs node")
+class EvidenceReportPageTest(unittest.TestCase):
+    """The page draws the report as spec-drift.py read it, and never a missing observation as a pass."""
+    ROW = dict(page_row(0, None, "origin", 40), code_churn=0)
+
+    def test_no_report_and_an_unreadable_one_say_so(self):
+        _, panels, _ = drawn([self.ROW])
+        self.assertIn("Not checked: no report.", panels["evidence-checks"])
+        _, panels, _ = drawn([self.ROW], evidence_checks=dict(state="invalid", diagnostic="ValueError: <b>"))
+        self.assertIn("Report unavailable: ValueError: &lt;b&gt;", panels["evidence-checks"])
+
+    def test_each_kind_is_a_share_of_what_ran_and_stale_and_unchecked_days_are_marked(self):
+        n = lambda p, f, e, na: dict(passed=p, failed=f, error=e, not_applicable=na)
+        ec = dict(state="loaded", generated="2026-10-29T10:00", ref="main", ref_sha="abcdef0123", runner=dict(revision="1234567890"),
+                  days=[dict(day=1, state="current", why=[], counts=dict(named_test=n(3, 1, 0, 2), verify=n(0, 0, 0, 1)),
+                             problems=[dict(kind="break", status="failed", label="<script>x", diagnostic=None)]),
+                        dict(day=2, state="stale", why=["checked at close aaaaaaa, main's is bbbbbbb"], counts={}, problems=[]),
+                        dict(day=3, state="not checked")])
+        error, panels, _ = drawn([self.ROW], evidence_checks=ec)
+        self.assertIsNone(error)
+        box = panels["evidence-checks"]
+        self.assertIn('<td class="r none">3/4 passed · 2 n/a</td>', box)
+        self.assertIn('<td class="r pre">– · 1 n/a</td>', box)  # nothing ran: no share
+        self.assertIn('<td class="r pre">none</td>', box)
+        self.assertIn("stale</span> checked at close aaaaaaa", box)
+        self.assertIn("not checked: the report leaves this day out", box)
+        self.assertIn("&lt;script&gt;x", box)
+        self.assertNotIn("<script>", box)
+
+    def test_the_report_changes_no_other_panel(self):
+        _, without, _ = drawn([self.ROW])
+        _, with_it, _ = drawn([self.ROW], evidence_checks=dict(state="invalid", diagnostic="x"))
+        self.assertEqual({k: v for k, v in without.items() if k != "evidence-checks"},
+                         {k: v for k, v in with_it.items() if k != "evidence-checks"})
+
+
 def a_day(n, ticked=1, total=1, kinds=(), titles=()):
     return dict(day=n, status="provisional", criteria=dict(ticked=ticked, total=total),
                 prs=[dict(kind=k, title=t) for k, t in zip(kinds, list(titles) + [""] * len(kinds))],
@@ -1274,7 +1487,7 @@ Go on.
         self.assertEqual((sd.phases("# Plan\n"), sd.stops("# Plan\n")), ([], []))
 
     def test_a_course_corrections_entry_naming_the_phase_lifts_its_stop(self):
-        # wordtally Day 4: the stop's decisions went under the template's "Course corrections",
+        # a pilot, Day 4: the stop's decisions went under the template's "Course corrections",
         # and Days 2, 4 and 5 ran under "Day 03 is done: stop".
         plan = ("# Plan\n\n## Course corrections\n\n<!-- A stop's decision, e.g. after Phase 0. -->\n\n{}\n"
                 "## Day-by-day specs\n\n1. Phase 0: Days 3, 1. **Stop and evaluate.**\n2. Phase 1: Days 2, 4.\n")

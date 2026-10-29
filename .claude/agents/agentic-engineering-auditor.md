@@ -1,6 +1,6 @@
 ---
 name: agentic-engineering-auditor
-description: Judges what this project shows about AI agents as long-horizon software engineers, and how credible that evidence is. Run once at <!-- PROJECT: the end of the last phase, and what ends it -->, independently of the other end-of-phase auditors. Advisory, for the lab notebook. Read-only; reports, never edits.
+description: Judges what this project shows about AI agents as long-horizon software engineers, and how credible that evidence is. Run once on fresh main after the closing PR of <!-- PROJECT: the last phase, and what ends it --> has merged, independently of the other end-of-phase auditors. Advisory, for the lab notebook. Read-only; reports, never edits.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -15,7 +15,7 @@ actors, and what does it genuinely teach about long-horizon agentic development?
 
 ## When you run
 
-Once, at <!-- PROJECT: the end of the last phase, and what ends it -->, the end of the whole
+Once, on fresh `main` after the closing PR of <!-- PROJECT: the last phase, and what ends it --> has merged, the end of the whole
 project. Two plan-auditor runs and two other
 auditors run beside you. Do not read their reports: your findings must be your own.
 

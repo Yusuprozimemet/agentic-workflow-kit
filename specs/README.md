@@ -29,6 +29,7 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
     stashed, CLAUDE.md "The implementer") and says what it reported, "FAILED (failures=2)";
     the closing PR copies it into the Evidence as "seen red first on `<sha>`'s code". In
     wordtally, Days 4 and 5 recorded their breaks but not this, and each close had to run it.
+    `scripts/seen-red.py` does that run for tests under `tests/` (CLAUDE.md "The implementer").
   - `hold` must stay true through the change: contract tests passing unedited, a statement
     count. It passes before and after, so passing says nothing. Break the code on purpose once,
     watch the check fail, record what it reported, and revert. In jobmatch-microservices, Day

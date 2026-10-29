@@ -101,6 +101,18 @@ for every lesson, the source with CR removed (`tr -d '\r' < <source> | sha256sum
 the git blob (`git show HEAD:lessons/<file> | sha256sum`; `kit/lessons/<file>` since `dashboard/data-out`), 9 of 9. Lessons are read, never executed,
 so LF in git is kept; the byte-for-byte rule is for the repository files, and those 48 match.
 
+## v2: Wordtally
+
+v2 brought in Wordtally's tooling and dashboard (github.com/Yusuprozimemet/wordtally), the
+kit's first pilot. Its files are recorded file by file in [v2-manifest.md](v2-manifest.md), not in
+the table above, and the decisions in [CHANGES.md](CHANGES.md), items 76-79.
+
+- Wordtally: `82b4ce7c254e768c3e25c90832021b1e6beff4f0` (merge of its #50, 2026-10-29).
+- Common base: `563fc31db040fb16afbed6e6fb7ef7c90acd2674`, the kit when Wordtally started (merge
+  of the kit's #18, 2026-10-28). For every file changed on both sides it equals Wordtally's first
+  snapshot `df0c2059a8717f0c283d8fa12eb0b1a843610282`; merged files were merged against it.
+- The kit side: `6418ac3bd96363bc538b83ad61984affd0450116`.
+
 ## Notes
 
 - Changes after the copy are recorded in each changed file's row: "Modified in Batch N: <what>".

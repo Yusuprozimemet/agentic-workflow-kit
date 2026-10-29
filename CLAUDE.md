@@ -45,8 +45,10 @@ maintainer, and nothing starts after a phase ends until they say so.
    [public one](<!-- PROJECT: GitHub Pages URL -->) by itself (`.github/workflows/dashboard.yml`). On fresh
    `main`, run `python scripts/spec-drift.py` and report the next step it prints. The page on
    GitHub Pages is the only dashboard; nothing else is republished.
-6. **When a phase's last day closes,** run the plan-auditor on the phase that just ended and on
-   the next, report, and stop.
+6. **When a phase's last closing PR has merged,** after step 5, on fresh `main`: run the
+   plan-auditor on the phase that just ended and on the next (at <!-- PROJECT: the end of the last
+   phase -->, the three end-of-phase auditors too), report, and stop. They never run inside the
+   closing PR: they read what merged.
 
 Tracks may run in a different order from the spec's table when one depends on another; say so in
 the PR.
@@ -80,18 +82,28 @@ own specs: in this repository that session has read past its own errors more tha
 |---|---|---|
 | first day of a phase, before anything else | plan-auditor | Do this phase's specs still deliver what `plan.md` wants, on today's code? |
 | every day, before the spec-change PR | spec-auditor | Is every claim and check in this day's spec true, and can each check fail? |
-| a phase's last day has closed | plan-auditor | What did the phase change that the next one must know? |
+| a phase's last closing PR has merged, on fresh `main` | plan-auditor | What did the phase change that the next one must know? |
 | a stopping point `plan.md` names, before going on | plan-auditor, on the whole plan | Is `plan.md` still the right plan, and what has piled up that no day owns? |
-| <!-- PROJECT: the end of the last phase, and what ends it --> | security-ops-auditor, agentic-engineering-auditor, architecture-auditor | Can the workflow take more autonomy safely; what does it show about agents; do its gates hold? |
+| the closing PR of <!-- PROJECT: the last phase, and what ends it --> has merged, on fresh `main` | security-ops-auditor, agentic-engineering-auditor, architecture-auditor | Can the workflow take more autonomy safely; what does it show about agents; do its gates hold? |
 | every close, after the Notes are written | defect-rater, on `relabel.py`'s blind file | Does a reader who did not write the day tag its defects the same way? |
 | any time, by hand | either | "use the plan-auditor on Phase 3" |
 
 Both check hand-offs: what earlier days' Notes and test comments defer to a later day. Nothing
 else carries them forward, and that is where most gaps have come from.
 
-The three end-of-phase auditors run once, on Opus, at <!-- PROJECT: the end of the last
-phase, and what ends it -->, beside the plan-auditor on the last phase and on the whole plan. Each runs from a fresh context and reads none of
+The three end-of-phase auditors run once, on Opus, on fresh `main` after the closing PR of
+<!-- PROJECT: the last phase, and what ends it --> has merged, beside the plan-auditor on the last phase and on the whole plan. Each runs from a fresh context and reads none of
 the others' reports: their disagreement is part of the result.
+
+"Read-only" is enforced as far as a hook can: `.claude/settings.json` runs
+`scripts/auditor-guard.py` on every Bash command and every subagent's stop. For the five
+auditors with Bash it blocks a git command that changes a repository and a `gh` command that is
+not a read, and at the auditor's stop it compares HEAD, the refs, the stash and `git status` with
+what they were and sends the auditor back once if they changed; the main session and other agents
+pass. It is not a sandbox: it reads the command, not what a program does (`python -c` that writes
+a file gets through), and the stop sees only what git shows in this repository. The hooks sit in
+the project settings, not the agents' frontmatter: the VS Code extension's Claude Code (2.1.312)
+ignored frontmatter hooks. An edit to `.claude/` takes effect in the next session, not this one.
 
 Their findings are advice to the maintainer. What becomes a PR is the maintainer's call.
 
@@ -105,10 +117,15 @@ and writes the PR. Specs, audits, spec-change PRs and closing PRs stay with the 
 implementer never commits or pushes.
 
 A brief that carries the spec's exact expected outputs lets the implementer finish in one pass.
-Every track PR shows its new tests failing first (`specs/README.md`); without a Track 0 or an
-extra commit, stash the code change (`git stash push -- <the code's directory>`), run the new
-tests on `main`'s code, compare with what the spec says fails today, `git stash pop`, and put
-what they reported in the PR.
+Every track PR shows its new tests failing first (`specs/README.md`). When the tests live under
+`tests/`, `python scripts/seen-red.py -- <the test command>` runs the branch's `tests/` on
+`main`'s code in a scratch worktree and prints the `seen red: ... → <what it reported>` line for
+the PR; exit 1 means they pass there. Otherwise, without a Track 0 or an extra commit, stash the
+code change (`git stash push -- <the code's directory>`), run the new tests on `main`'s code,
+compare with what the spec says fails today, `git stash pop`, and put what they reported in the
+PR. CI's "Track tests seen red" re-runs each `new` criterion's test this way only when the
+repository variable `TRACK_RED_RUNNER` is `unittest` (README, setup); unset, it reports "not
+configured" and passes.
 
 Re-count any number the implementer reports (lines, tests, entries in a file) before it goes in
 a PR: in wordtally, Day 4's report said a list held 40 words; it held 45.
@@ -183,6 +200,8 @@ Breaks on purpose:
 - A check judged by what it prints, not its exit code (`grep -c` exits 1 at 0, a count): pass
   `--expect-stdout <regex>`, its output without the break, and see the regex match once
   unbroken; no wrapper script.
+- On a CRLF tree, a `git diff --exit-code` check prints git's CRLF warning, and `break.py`
+  reports that warning as the check's line: run `git -c core.safecrlf=false diff ...`.
 
 The dashboard script and the PR checks:
 
