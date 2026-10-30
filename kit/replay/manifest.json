@@ -112,6 +112,134 @@
       "origin": "PR #108 merge after the fix. git log 2d2e00f..origin/main -- specs/day-16-* shows only closing commit 08390f4; inspected its diff: criteria retain their requirements, with ticks and closing evidence only. Closing Notes record implementation/process events, not a later defect in this corrected spec. Inspected defects.md (including aggregated Days 1-13 against Day 10 Notes) and audit-findings.md: no later defect attributed to this post-fix spec. Evidence horizon: 7cbae28920b08953f63a8c05ff549dcd89b7a910.",
       "key": "keys/dev-day16-post-fix.json",
       "verified": null
+    },
+    {
+      "id": "held-day03",
+      "kind": "clean",
+      "split": "held-out",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "e5bcbc26fe236148c4e2892181daae4a17bce628"
+      },
+      "spec": "specs/day-03-profile-jobs-tests.md",
+      "task": "Audit Day 3: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "Held-out: provenance is in the private key.",
+      "key": {
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "verified": null
+    },
+    {
+      "id": "held-day06",
+      "kind": "clean",
+      "split": "held-out",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "7b427186baf53b5ae6c8b545692e75e808abe859"
+      },
+      "spec": "specs/day-06-maven-modules.md",
+      "task": "Audit Day 6: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "Held-out: provenance is in the private key.",
+      "key": {
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "verified": null
+    },
+    {
+      "id": "held-day07",
+      "kind": "historical-defect",
+      "split": "held-out",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "c72496e0e25b7243442e7f5862117b3b06b53943"
+      },
+      "spec": "specs/day-07-move-code-enforce-boundaries.md",
+      "task": "Audit Day 7: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "Held-out: provenance is in the private key.",
+      "key": {
+        "sha256": "ecd61be3f9f04a06e1c884d3aa00594421cbc5e20297a9f42ac51b674f621e55"
+      },
+      "verified": null
+    },
+    {
+      "id": "held-day08",
+      "kind": "broken-check",
+      "split": "held-out",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "c8a291fd678dad15743a7b9e077b588ff6b0f969"
+      },
+      "spec": "specs/day-08-remove-saved-count-join.md",
+      "task": "Audit Day 8: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "Held-out: provenance is in the private key.",
+      "key": {
+        "sha256": "82e90bf9bf5c589ed29958ff44611baa38fce70827b97ab0ef09ba431c1680f9"
+      },
+      "verified": null
+    },
+    {
+      "id": "held-day14",
+      "kind": "historical-defect",
+      "split": "held-out",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "bcb860eebacddc11e5332b2dbbf1b1319d62831f"
+      },
+      "spec": "specs/day-14-google-without-session.md",
+      "task": "Audit Day 14: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "Held-out: provenance is in the private key.",
+      "key": {
+        "sha256": "15ce0245e134843bf9d783aa4146632128dafc79b9314b2b2caff4e26f2138f3"
+      },
+      "verified": null
+    },
+    {
+      "id": "held-day18",
+      "kind": "cross-day",
+      "split": "held-out",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "c641439bc70e6e9568430ac1e72079e8c073a013"
+      },
+      "spec": "specs/day-18-job-service-internal-api.md",
+      "task": "Audit Day 18: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "Held-out: provenance is in the private key.",
+      "key": {
+        "sha256": "4961f5b1f990f8b7961786ebad4c0b63eadf1be8983347ff3aa0de88612f8d7b"
+      },
+      "verified": null
+    },
+    {
+      "id": "held-day19",
+      "kind": "cross-day",
+      "split": "held-out",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "54283b8d139d86327f48f4f2e6a093cc036d730c"
+      },
+      "spec": "specs/day-19-http-clients.md",
+      "task": "Audit Day 19: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "Held-out: provenance is in the private key.",
+      "key": {
+        "sha256": "622f3dd8edca3645ba0623ae213f0aeab87dc493fe44ce640ce5c3f71f185519"
+      },
+      "verified": null
+    },
+    {
+      "id": "held-day25",
+      "kind": "broken-check",
+      "split": "held-out",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "e4be87e009652f21e0746fa28b905ed28199f10d"
+      },
+      "spec": "specs/day-25-application-service.md",
+      "task": "Audit Day 25: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "Held-out: provenance is in the private key.",
+      "key": {
+        "sha256": "ae231ce09b29ef8d885457792d3f8db9566b5276a50d3e4eb2f6ac9505aa57ad"
+      },
+      "verified": null
     }
   ]
 }

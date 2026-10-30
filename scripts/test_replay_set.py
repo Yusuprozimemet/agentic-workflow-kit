@@ -67,8 +67,8 @@ class ReplayTest(unittest.TestCase):
             status = self.replay.main(['check'])
         output = out.getvalue()
         self.assertEqual(status, 0, output)
-        self.assertIn('8 cases\n', output)
-        self.assertIn('development=8 held-out=0 historical-defect=3 broken-check=2 cross-day=1 clean=2\n', output)
+        self.assertIn('16 cases\n', output)
+        self.assertIn('development=8 held-out=8 historical-defect=5 broken-check=4 cross-day=3 clean=4\n', output)
 
     def test_splits(self):
         dev = dict(self.case)
