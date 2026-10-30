@@ -171,7 +171,8 @@ removing the maintainer from consequential decisions.
    saved outputs, per-case scores, review time and token use. A manifest and a results table
    are enough to start. This evaluates the auditor's detection ability; it does not by itself
    establish the value of the whole engineering workflow.
-   The [replay format and rules](replay/README.md) exist; cases are pending.
+   The [replay format and rules](replay/README.md) and 16 cases exist; a reduced baseline of 7
+   is in [results](replay/results.md).
 
 3. **Run one small comparison after the baseline exists.** For an initial estimate of the whole
    workflow's value, use three bounded implementation tasks, each attempted with the kit and
