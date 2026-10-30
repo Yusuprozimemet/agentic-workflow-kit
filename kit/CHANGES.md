@@ -1765,3 +1765,47 @@ checked against its git history, its PRs and CI runs, and its live page's data
   verification; baseline run and results table; automating auditor runs or snapshot export;
   changes to replay-set.py, its README rules or the spec-auditor; workflow comparison;
   dashboard changes.
+
+### 89. Pin eight held-out replay cases with private answer keys
+
+- **Assessment recommendation 2's held-out cases:** two historical-defect cases (Days 7,
+  14), two broken-check cases (8, 25), two cross-day cases (18, 19), and two clean cases
+  (3, 6). Keys and separate provenance files live in
+  `../agentic-workflow-kit-replay-keys/`; only each key's file-byte sha256 is committed.
+  A key committed to this public repository would not be held out.
+- **Chosen by item 88's rules:** defect snapshots are first parents of their fixing merges;
+  clean snapshots are spec-change merges with no later criteria correction or recorded spec
+  defect. Reviewed PR changes, subsequent spec history and the defect records; findings come
+  only from PR changes, never auditor output. Days 10, 15, 16, 21, 24, 27, 28 and 38 were
+  excluded, and each added day appears once. Public origins are opaque; actual provenance and
+  clean-bar evidence are beside the private keys. Snapshots and spec paths exist in jobmatch:
+
+| Case | Kind | Day | Snapshot commit |
+|---|---|---|---|
+| held-day03 | clean | 3 | `e5bcbc26fe236148c4e2892181daae4a17bce628` |
+| held-day06 | clean | 6 | `7b427186baf53b5ae6c8b545692e75e808abe859` |
+| held-day07 | historical-defect | 7 | `c72496e0e25b7243442e7f5862117b3b06b53943` |
+| held-day08 | broken-check | 8 | `c8a291fd678dad15743a7b9e077b588ff6b0f969` |
+| held-day14 | historical-defect | 14 | `bcb860eebacddc11e5332b2dbbf1b1319d62831f` |
+| held-day18 | cross-day | 18 | `c641439bc70e6e9568430ac1e72079e8c073a013` |
+| held-day19 | cross-day | 19 | `54283b8d139d86327f48f4f2e6a093cc036d730c` |
+| held-day25 | broken-check | 25 | `e4be87e009652f21e0746fa28b905ed28199f10d` |
+
+- **Every key remains unverified** until the maintainer verifies it, including the development
+  keys. The maintainer must keep a backup of `../agentic-workflow-kit-replay-keys/`:
+  this repository cannot restore a lost key. Every private key matches its fingerprint and
+  parses; no auditor, snapshot export, scoring or baseline run was performed.
+- **Existing committed-manifest assertions updated; no test added.** The baseline and final
+  suites each ran 317 tests. The exact test was
+  `scripts.test_replay_set.ReplayTest.test_committed_manifest`; the mutation failed in its
+  status assertion, not setup, and the manifest was restored:
+
+  > broken: held-out sha256 shortened → AssertionError: 1 != 0 : held-day07: held-out key requires only sha256
+
+  The first mutation attempt selected the shared clean-key hash; the runner refused the
+  nonunique replacement without changing the file. Repeated with a unique hash, under UTF-8,
+  the recorded line contains the U+2192 arrow.
+- **Still deferred:** maintainer key verification (development and held-out); backing up the
+  private keys (the maintainer's); baseline run and its results table; automating the auditor
+  run or the snapshot export; any change to `replay-set.py`, its README rules or the
+  spec-auditor; workflow comparison; dashboard changes.
