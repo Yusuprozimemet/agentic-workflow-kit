@@ -54,6 +54,18 @@ CAPITALISED = spec().replace("**new**", "**New**")
 
 
 class ParseTest(unittest.TestCase):
+    def test_day_template_names_tests_and_assigns_criteria_to_tracks(self):
+        path = os.path.join(os.path.dirname(SCRIPT), "..", "specs", "_template.md")
+        with open(path, encoding="utf-8") as f:
+            text = f.read().replace("NN", "01")
+        self.assertEqual(track_red.unread(text), [])
+        self.assertEqual(track_red.criteria(text)["C01.1"],
+                         ("new", ["ExampleTest.test_new_behavior"]))
+        self.assertEqual(track_red.owned(text, "a"),
+                         ({"C01.1": ("new", ["ExampleTest.test_new_behavior"])}, []))
+        self.assertEqual(track_red.owned(text, "b"),
+                         ({"C01.2": ("hold", [])}, []))
+
     def test_only_the_test_field_is_read_not_a_name_the_criterion_replaces(self):
         found = track_red.criteria(spec())
         self.assertEqual(found, {"C1.1": ("new", ["T.test_double_a_string"]), "C1.2": ("hold", ["T.test_double"])})

@@ -30,6 +30,11 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
     the closing PR copies it into the Evidence as "seen red first on `<sha>`'s code". In
     wordtally, Days 4 and 5 recorded their breaks but not this, and each close had to run it.
     `scripts/seen-red.py` does that run for tests under `tests/` (CLAUDE.md "The implementer").
+    Give every `new` criterion a `Test:` field with backticked test names immediately after
+    the colon, for example Test: `ExampleTest.test_new_behavior`. Replace the template's
+    example with a real test. Separate multiple names with commas or "and". `Evidence:`
+    records the result; it does not replace `Test:`. Name the criterion IDs in the owning
+    track's Work cell (for example `C01.1` or `C01.1–C01.3`); with one track, it owns all criteria.
   - `hold` must stay true through the change: contract tests passing unedited, a statement
     count. It passes before and after, so passing says nothing. Break the code on purpose once,
     watch the check fail, record what it reported, and revert. In jobmatch-microservices, Day
@@ -82,7 +87,9 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
   pins that public effect within the bound, as, in jobmatch-microservices,
   `SavedCountAfterDeletionIT` does. A wait raised to quiet a flaky test is
   the same change.
-- **Tracks inside a day run in parallel. Days run in order.** Day N assumes N-1 is merged.
+- **Tracks and days run in order.** Branch each track from fresh `main` after the previous
+  track merged; never stack branches. Track 0 lands first. Dependencies may change the table's
+  order; explain that in the PR. Day N assumes N-1 is merged.
 - **Record every defect in the day's *Notes* when it is found**, one `Defect` line each, with
   three fields:
   - `found:` where, exactly one of `auditor`, `spec-change PR` (before any code); `review`,
@@ -127,6 +134,36 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
 - Changing a spec is normal. Change it in a PR *before* the work, not after.
 - Specs written before the `new`/`hold` rule get their criteria tagged in that day's
   spec-change PR, when the spec is read against the code.
+
+## Evidence at the close
+
+The closing PR ticks criteria with evidence and copies the earlier PRs' breaks. Commit a break
+manifest at `specs/breaks/day-NN.json`: a JSON list with one object per recorded mutation.
+Each object has `what` (the text between "broken:" and the last arrow), `file` (a path from the
+repository root), `find`, `replace` and `command` (an argument list run from that root):
+
+```json
+[{"what":"the total left out","file":"app.py","find":"return total","replace":"return 0","command":["python","-m","unittest","tests.test_app.CliTest.test_counts"]}]
+```
+
+Use the actual arguments from the earlier break, not this illustrative mutation. Optional
+`at` names the historical commit when the close no longer contains the text to edit;
+`passes: true` marks a near miss that must pass with the mutation in. On Windows, `bash` in
+the command means Git's Bash. See [`scripts/evidence.py`](../scripts/evidence.py) for the format.
+Write `[]` when there are no mutations to replay, and retain the reasons for inapplicable checks.
+
+After the closing PR merges, on fresh `main`, run
+`python scripts/evidence.py specs/day-NN-slug.md --ref main --json evidence.json`.
+Retain the report and inspect each result: named tests are checked for existence under `tests/`,
+Verify commands are executed, and recorded breaks are replayed at historical commits.
+Replay finds a **merged closing commit**; it is a manual post-merge check that blocks the next
+step, not a pre-merge gate for the closing PR. Supplied CI does not enforce it.
+
+Keep three evidence states separate: **missing** means required evidence or its report is absent;
+**stale** means a saved report's spec, break inputs or closing commit no longer match;
+**failed** means replay ran and a check did not hold. None permits advancement. Execution errors
+also block advancement; an explicit inapplicable result needs its reason. A historical replay
+does not replace the project's tests on current code.
 
 ## Layout
 
