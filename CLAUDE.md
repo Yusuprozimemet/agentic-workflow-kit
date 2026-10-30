@@ -43,13 +43,18 @@ maintainer, and nothing starts after a phase ends until they say so.
    [`specs/README.md`](specs/README.md#evidence-at-the-close)). After this closing PR merges,
    on fresh `main`, run
    `python scripts/evidence.py specs/day-NN-slug.md --ref main --json evidence.json` and retain
-   the report. Replay finds a **merged closing commit**: this is a manual post-merge check
-   that blocks the next step, not a pre-merge gate. Keep **missing** evidence/report, **stale**
+   the report for local runs. CI replays automatically after the merge; check its run in step 5.
+   Replay finds a **merged closing commit**. Keep **missing** evidence/report, **stale**
    inputs or closing commit, and **failed** replay checks separate; resolve each before
    advancing. Execution errors also block advancement; review reasons for inapplicable checks.
 4. **After opening any PR, stop and wait for the maintainer to say "merged".** Do not start the
    next step, and do not start a new phase, until told.
-5. **After every "merged", refresh the dashboard before the next step:** the merge rebuilds the
+5. **After a closing PR's "merged", check evidence before advancing:** run
+   `gh run list --workflow evidence.yml --commit <sha>` for its merge commit, then
+   `gh run view <run-id> --exit-status`. Require a completed successful run; a failed, missing,
+   pending or cancelled run blocks the next step. Inspect its checks and retain its evidence
+   artifact. This post-merge gate cannot block its own merge and is not a required status check.
+   **After every "merged", refresh the dashboard before the next step:** the merge rebuilds the
    [public one](<!-- PROJECT: GitHub Pages URL -->) by itself (`.github/workflows/dashboard.yml`). On fresh
    `main`, run `python scripts/spec-drift.py` and report the next step it prints. The page on
    GitHub Pages is the only dashboard; nothing else is republished.

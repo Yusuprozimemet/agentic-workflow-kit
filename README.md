@@ -44,8 +44,9 @@ Control activation in a copied kit (CI checks must also be required in branch pr
   is configured; applies to track PRs with owned `new` criteria and named tests under `tests/`.
 - **Frozen files:** active only once `spec-drift.config.json` has `frozen` patterns (empty by
   default); optional `test_count` configures the additional count check.
-- **Evidence replay:** manual, after the closing merge, using `scripts/evidence.py` with the
-  break manifest and `--json` report; see [closing instructions](specs/README.md#evidence-at-the-close).
+- **Evidence replay:** active by default after the closing merge, in `evidence.yml`, using
+  `scripts/evidence.py` with the break manifest and `--json` report. Its post-merge result blocks
+  advancement; see [closing instructions](specs/README.md#evidence-at-the-close).
 - **Auditor guard hook:** active by default in Claude Code sessions that load
   `.claude/settings.json`; guards the configured auditors' commands and stop state. It is a
   command guard, not a sandbox (`CLAUDE.md`, "The auditors").

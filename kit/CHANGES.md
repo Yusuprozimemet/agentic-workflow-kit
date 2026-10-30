@@ -1655,3 +1655,31 @@ checked against its git history, its PRs and CI runs, and its live page's data
 - **Deferred follow-ups:** **Evidence replay CI gate** (respect the post-merge requirement)
   and **Closing criterion wording check** (compare with the accepted pre-track spec).
   **Dashboard changes** and **Broader refactoring** are also named follow-ups, outside this PR.
+
+### 85. Replay a closed day's evidence in CI before advancement
+
+- **Item 84's evidence gate follow-up,** addressing the assessment's evidence tooling row.
+  `closing_spec()` in `scripts/evidence.py` reuses the closing-branch pattern from
+  `close_commit()`: an actual merge returns its one day spec, an ordinary merge or direct
+  commit returns no spec, and a closing merge with zero or two specs fails naming the day.
+  The lookup reads the spec paths at the given commit; replay behavior and reports are unchanged.
+- **The Evidence replay workflow** runs on pushes to `main`, with full history and Python.
+  `scripts/close-evidence.py` skips only a non-closing merge, otherwise calls the existing
+  replay CLI, preserving each marked check and its exit status. The JSON report is uploaded
+  even when replay fails. Manual dispatch optionally selects a previously closed day.
+- **Advancement checks the run for the merge SHA.** `CLAUDE.md` and `specs/README.md` give
+  the run-list and run-view commands, require completed success, and keep the local replay
+  command. README lists replay as active by default. This is post-merge: it cannot block its
+  own merge and is not a required status check.
+- **Five throwaway-repository tests, each broken at its assertion:**
+  - broken: the closing spec lookup always skips a matching spec → AssertionError: None != 'specs/day-07-example.md'
+  - broken: an ordinary merge treated as a close → AssertionError: 'unexpected spec' is not None
+  - broken: a direct commit treated as a close → AssertionError: 'unexpected spec' is not None
+  - broken: a closing merge with no spec skipped → AssertionError: ValueError not raised
+  - broken: a closing merge with two specs skipped → AssertionError: ValueError not raised
+  The workflow YAML cannot be unit-tested here. Its command run locally on fresh `main`'s
+  HEAD printed "not a closing merge". Four initial mutation commands were misquoted by
+  PowerShell before the checks ran; rerunning with argument lists produced the assertions above.
+- **Still deferred:** pre-merge replay with candidate/base revisions; the closing criterion
+  wording check against the accepted pre-track spec; dashboard changes; making the gate a
+  required status check (a post-merge run cannot be one); broader refactoring.
