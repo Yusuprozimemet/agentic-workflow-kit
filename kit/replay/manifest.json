@@ -1,4 +1,117 @@
 {
   "version": 1,
-  "cases": []
+  "cases": [
+    {
+      "id": "dev-day21-harness-routing",
+      "kind": "historical-defect",
+      "split": "development",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "13f80acbbd5af73f73d7770c3889b9def54e98df"
+      },
+      "spec": "specs/day-21-matching-service-deployable.md",
+      "task": "Audit Day 21: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "PR #211 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
+      "key": "keys/dev-day21-harness-routing.json",
+      "verified": null
+    },
+    {
+      "id": "dev-day24-network-checks",
+      "kind": "historical-defect",
+      "split": "development",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "aaea61cea480918faf147a00fea6f46e98f78018"
+      },
+      "spec": "specs/day-24-matching-http-dependencies.md",
+      "task": "Audit Day 24: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "PR #250 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
+      "key": "keys/dev-day24-network-checks.json",
+      "verified": null
+    },
+    {
+      "id": "dev-day27-consumer-isolation",
+      "kind": "historical-defect",
+      "split": "development",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "c8bc2c4c3c2c56aea3f21cac269e4bb472ec52a5"
+      },
+      "spec": "specs/day-27-user-deleted-cascade.md",
+      "task": "Audit Day 27: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "PR #261 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
+      "key": "keys/dev-day27-consumer-isolation.json",
+      "verified": null
+    },
+    {
+      "id": "dev-day28-review-ownership",
+      "kind": "cross-day",
+      "split": "development",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "e8d5426ba253c1c70a30265b85fafa534f68edfe"
+      },
+      "spec": "specs/day-28-identity-service.md",
+      "task": "Audit Day 28: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "PR #319 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
+      "key": "keys/dev-day28-review-ownership.json",
+      "verified": null
+    },
+    {
+      "id": "dev-day15-proxy-passes",
+      "kind": "broken-check",
+      "split": "development",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "1467716207865c68888cb62e882d88a5ae3a338c"
+      },
+      "spec": "specs/day-15-api-gateway.md",
+      "task": "Audit Day 15: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "PR #96 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
+      "key": "keys/dev-day15-proxy-passes.json",
+      "verified": null
+    },
+    {
+      "id": "dev-day38-actuator-masked",
+      "kind": "broken-check",
+      "split": "development",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "30c1d4a98aec05487fb86e902515f052d89a5801"
+      },
+      "spec": "specs/day-38-platform-grants-and-tracing.md",
+      "task": "Audit Day 38: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "PR #119 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
+      "key": "keys/dev-day38-actuator-masked.json",
+      "verified": null
+    },
+    {
+      "id": "dev-day10-post-fix",
+      "kind": "clean",
+      "split": "development",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "9e5fcd2918625bccca3699c33d3bce2f48ee511a"
+      },
+      "spec": "specs/day-10-resolve-user-at-edge.md",
+      "task": "Audit Day 10: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "PR #58 merge after the fix. git log 9e5fcd2..origin/main -- specs/day-10-* shows only closing commit 4a5189d; inspected its diff: criteria retain their requirements, with ticks and closing evidence only. Closing Notes record implementation/process events, not a later defect in this corrected spec. Inspected defects.md (including aggregated Days 1-13 against Day 10 Notes) and audit-findings.md: no later defect attributed to this post-fix spec. Evidence horizon: 7cbae28920b08953f63a8c05ff549dcd89b7a910.",
+      "key": "keys/dev-day10-post-fix.json",
+      "verified": null
+    },
+    {
+      "id": "dev-day16-post-fix",
+      "kind": "clean",
+      "split": "development",
+      "source": {
+        "repo": "jobmatch-microservices",
+        "commit": "2d2e00f6a0eca52cfa6351205d8c8c8012252bdd"
+      },
+      "spec": "specs/day-16-cutover.md",
+      "task": "Audit Day 16: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
+      "origin": "PR #108 merge after the fix. git log 2d2e00f..origin/main -- specs/day-16-* shows only closing commit 08390f4; inspected its diff: criteria retain their requirements, with ticks and closing evidence only. Closing Notes record implementation/process events, not a later defect in this corrected spec. Inspected defects.md (including aggregated Days 1-13 against Day 10 Notes) and audit-findings.md: no later defect attributed to this post-fix spec. Evidence horizon: 7cbae28920b08953f63a8c05ff549dcd89b7a910.",
+      "key": "keys/dev-day16-post-fix.json",
+      "verified": null
+    }
+  ]
 }

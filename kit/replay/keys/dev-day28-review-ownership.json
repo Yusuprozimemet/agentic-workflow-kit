@@ -1,0 +1,37 @@
+[
+  {
+    "id": "F1",
+    "statement": "PR #319: Every-service-healthy requires an identity healthcheck nobody owns after the Helm rewrite.",
+    "severity": "blocking",
+    "full": "Name missing identity compose healthcheck, gateway service_started, and assign implementation before closing C28.5.",
+    "partial": "Identify unowned identity readiness check."
+  },
+  {
+    "id": "F2",
+    "statement": "PR #319: Review omits job-service and application-service backend package names.",
+    "severity": "major",
+    "full": "Name both services as missing from the package review.",
+    "partial": "Name one omitted service package."
+  },
+  {
+    "id": "F3",
+    "statement": "PR #319: Review omits identity/application dummy AWS credentials.",
+    "severity": "major",
+    "full": "Name both services credentials as review items.",
+    "partial": "Name one omitted service credential set."
+  },
+  {
+    "id": "F4",
+    "statement": "PR #319: Review omits matching_user and analytics_user CONNECT on identity_db and inconsistent role setups.",
+    "severity": "major",
+    "full": "Name both roles and disagreement between db-init, harness and db-setup copies.",
+    "partial": "Identify extra CONNECT grants or divergent role sources."
+  },
+  {
+    "id": "F5",
+    "statement": "PR #319: Public API review omits Saved Jobs and top-matches, not only Jobs.",
+    "severity": "major",
+    "full": "Name both omitted endpoint groups and identity-only springdoc as the cause.",
+    "partial": "Name one omitted endpoint group."
+  }
+]

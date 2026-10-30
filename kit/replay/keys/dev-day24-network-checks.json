@@ -1,0 +1,72 @@
+[
+  {
+    "id": "F1",
+    "statement": "PR #250: Verify calls protected top-matches without login, producing 401; cached backend key sets also bound the outage check.",
+    "severity": "blocking",
+    "full": "Require login/cookie and check before cached key sets expire, or isolate the dependency failure.",
+    "partial": "Identify missing authentication in Verify."
+  },
+  {
+    "id": "F2",
+    "statement": "PR #250: A generic 503 also passes with an unseeded mart and identity healthy.",
+    "severity": "major",
+    "full": "Require identity-specific account-check detail, distinguishing postings failure.",
+    "partial": "Explain that an unrelated dependency can cause the expected 503."
+  },
+  {
+    "id": "F3",
+    "statement": "PR #250: Three criteria lack tags; identity failure and too-few-skills already hold.",
+    "severity": "major",
+    "full": "Identify all three untagged criteria and correctly classify the two already-true holds.",
+    "partial": "Identify missing tags or an already-true criterion."
+  },
+  {
+    "id": "F4",
+    "statement": "PR #250: The existing trace test sees neither gateway nor identity and supplies its own trace id.",
+    "severity": "major",
+    "full": "Require all four hops, including identity existence/profile and gateway spans, from one request.",
+    "partial": "Identify missing gateway or identity trace coverage."
+  },
+  {
+    "id": "F5",
+    "statement": "PR #250: Track A has no measurable cache decision criterion or threshold.",
+    "severity": "major",
+    "full": "Require measured internal/server means and a profile-cache threshold fixed before measuring.",
+    "partial": "Notice Track A lacks an acceptance criterion."
+  },
+  {
+    "id": "F6",
+    "statement": "PR #250: Retry is both excluded and assigned to Track A, and Day 19 shortlist retry is unowned.",
+    "severity": "major",
+    "full": "Resolve scope contradiction and include PostingShortlistClient beside both identity clients in the measured decision.",
+    "partial": "Identify either contradiction or omitted shortlist hand-off."
+  },
+  {
+    "id": "F7",
+    "statement": "PR #250: Shared persistence cleanup is already done; source copies are not a shared dependency.",
+    "severity": "minor",
+    "full": "Identify no remaining persistence dependency and remove the redundant cleanup track.",
+    "partial": "Notice cleanup is already true."
+  },
+  {
+    "id": "F8",
+    "statement": "PR #250: The end-of-phase phase-4 tag has no criterion.",
+    "severity": "major",
+    "full": "Name the phase-4 tag requirement and maintainer ownership.",
+    "partial": "Notice missing end-of-phase tagging."
+  },
+  {
+    "id": "F9",
+    "statement": "PR #250: Promptly has no failure-time bound and a stubbed 503 does not test refused or hanging existence calls.",
+    "severity": "major",
+    "full": "Require a numeric bound (3 s from current timeouts) and refused/hanging existence-call checks.",
+    "partial": "Identify missing time bound or insufficient failure test."
+  },
+  {
+    "id": "F10",
+    "statement": "PR #250: Day 23 left the matching role/schema/password/grants without an owner; V14 needs the role.",
+    "severity": "major",
+    "full": "Identify these leftovers and assign a review owner without simply dropping the V14 prerequisite.",
+    "partial": "Identify unowned matching database leftovers."
+  }
+]
