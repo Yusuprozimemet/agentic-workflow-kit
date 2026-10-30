@@ -1,0 +1,16 @@
+[
+  {
+    "id": "F1",
+    "statement": "PR #211: No track wires MATCHING_SERVICE_URL into the harness gateway at cutover.",
+    "severity": "blocking",
+    "full": "Name Gateway missing MATCHING_SERVICE_URL and assign the change to E1 when matching moves.",
+    "partial": "Notice gateway top-matches still routes to the monolith."
+  },
+  {
+    "id": "F2",
+    "statement": "PR #211: Services.url defaults matching-service to the monolith even if its owner entry changes.",
+    "severity": "blocking",
+    "full": "Name Services.url default routing and the need for the matching container default at E1.",
+    "partial": "Notice direct harness routing still targets the monolith."
+  }
+]

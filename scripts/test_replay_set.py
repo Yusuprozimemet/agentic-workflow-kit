@@ -61,6 +61,15 @@ class ReplayTest(unittest.TestCase):
         self.assertEqual(self.run_cli()[0], 0)
         self.assertIn('no cases', self.run_cli()[1])
 
+    def test_committed_manifest(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = self.replay.main(['check'])
+        output = out.getvalue()
+        self.assertEqual(status, 0, output)
+        self.assertIn('8 cases\n', output)
+        self.assertIn('development=8 held-out=0 historical-defect=3 broken-check=2 cross-day=1 clean=2\n', output)
+
     def test_splits(self):
         dev = dict(self.case)
         self.held()

@@ -1,0 +1,9 @@
+[
+  {
+    "id": "F1",
+    "statement": "PR #119: An anonymous public actuator check sees 401 whether actuator is exposed or absent.",
+    "severity": "major",
+    "full": "Use a valid token and require 404 with upstream untouched; explain anonymous 401 masks public actuator exposure.",
+    "partial": "Identify that 401 does not prove actuator is absent."
+  }
+]

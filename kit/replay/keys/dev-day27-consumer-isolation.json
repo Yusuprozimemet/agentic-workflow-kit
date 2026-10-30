@@ -1,0 +1,72 @@
+[
+  {
+    "id": "F1",
+    "statement": "PR #261: Verify invokes a nonexistent matching-service Maven wrapper and omits harness image builds.",
+    "severity": "blocking",
+    "full": "Name missing wrapper, use backend wrapper with -f, and build job/matching harness images.",
+    "partial": "Identify the nonexistent wrapper."
+  },
+  {
+    "id": "F2",
+    "statement": "PR #261: A live consumer in a cached context can steal UserDeletedRelayIT messages.",
+    "severity": "blocking",
+    "full": "Require consumers off by default, explicitly enabled only in isolated consumer contexts.",
+    "partial": "Identify interference with relay tests on shared queues."
+  },
+  {
+    "id": "F3",
+    "statement": "PR #261: Repeat and poison checks cannot prove failure on shared queues: 30 s visibility and shared DLQs.",
+    "severity": "major",
+    "full": "Use private queue/DLQ pairs, short visibility and explicit bounded drain/redrive assertions.",
+    "partial": "Identify shared queue interference or DLQ timing beyond the wait."
+  },
+  {
+    "id": "F4",
+    "statement": "PR #261: Provisional criteria omit red evidence and deliberate breaks.",
+    "severity": "major",
+    "full": "Require red-today evidence and a reachable break for the criteria, rather than declaring the draft ready.",
+    "partial": "Identify missing red evidence or breaks."
+  },
+  {
+    "id": "F5",
+    "statement": "PR #261: The no-user-attribute hold has no implementing test.",
+    "severity": "major",
+    "full": "Require an exact written DynamoDB attribute-set test in Track 0.",
+    "partial": "Identify the nonexistent hold test."
+  },
+  {
+    "id": "F6",
+    "statement": "PR #261: Matching consumer repeat and poison paths have no criterion.",
+    "severity": "major",
+    "full": "Require repeat draining and poison-to-DLQ while a following valid event is processed for matching too.",
+    "partial": "Identify missing matching failure-path coverage."
+  },
+  {
+    "id": "F7",
+    "statement": "PR #261: Consumer compose wiring and end-to-end queue draining are unchecked.",
+    "severity": "major",
+    "full": "Require both consumers enabled with queue URLs, matching LocalStack dependency and compose deletion/drain checks.",
+    "partial": "Identify missing compose coverage."
+  },
+  {
+    "id": "F8",
+    "statement": "PR #261: The existence-cache hold never exercises a cached profile followed by identity 404.",
+    "severity": "major",
+    "full": "Require cached profile then identity 404 to return 422 and break by skipping existence on cache hit.",
+    "partial": "Identify that profile cache hits may bypass existence."
+  },
+  {
+    "id": "F9",
+    "statement": "PR #261: app test-scoped SQS overrides compile scope and leaves SQS out of the runtime jar.",
+    "severity": "blocking",
+    "full": "Name Maven scope override and move SQS to applications compile scope.",
+    "partial": "Identify missing runtime SQS dependency."
+  },
+  {
+    "id": "F10",
+    "statement": "PR #261: The store table omits DLQs retaining userId for four days.",
+    "severity": "major",
+    "full": "Include both DLQs, state retention explicitly and hand retention/alarm to Day 28 review.",
+    "partial": "Identify omitted personal data in DLQs."
+  }
+]

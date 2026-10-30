@@ -1744,3 +1744,24 @@ checked against its git history, its PRs and CI runs, and its live page's data
 - **Still deferred:** the 12–20 cases (including clean, broken-check and cross-day cases);
   maintainer key verification; baseline run and results table; automating auditor runs or
   snapshot export; automatic model matching; workflow comparison; dashboard changes.
+
+### 88. Commit eight development replay cases and their answer keys
+
+- **Assessment recommendation 2's first cases:** three historical-defect cases (Days 21,
+  24, 27), two broken-check cases (15, 38), one cross-day case (28), and two clean cases
+  (10, 16). The four earlier replay days now have written keys instead of an unstated count.
+  The 29 findings come only from real spec-change PR diffs and descriptions, never replay
+  output. Each has a severity and full/partial rubric; clean keys are empty.
+- **Snapshots:** first parents of the fix PR merges, except clean cases at the fix merge.
+  All eight commits and spec paths exist in the local jobmatch clone. Clean candidates require
+  no later criteria correction or recorded spec defect; Days 10 and 16 have only closing
+  ticks/evidence and Notes afterwards. Their origins state the reviewed history horizon.
+- **Every key is unverified:** all verification fields are null until the maintainer checks
+  the cited PRs and records themselves. No auditor, export or scoring run was performed.
+- **One committed-manifest test, with the exact test named in the mutation command:**
+  broken: committed snapshot commit shortened → AssertionError: 1 != 0 : dev-day21-harness-routing: invalid source/commit
+  The deliberate break failed in the status assertion, not setup; the manifest was restored.
+- **Still deferred:** held-out cases and their private keys (next PR); maintainer key
+  verification; baseline run and results table; automating auditor runs or snapshot export;
+  changes to replay-set.py, its README rules or the spec-auditor; workflow comparison;
+  dashboard changes.

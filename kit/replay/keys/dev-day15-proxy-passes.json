@@ -1,0 +1,9 @@
+[
+  {
+    "id": "F1",
+    "statement": "PR #96: Gateway authentication checks pass through an unchecked proxy because the backend supplies the 401.",
+    "severity": "blocking",
+    "full": "Explain pass-through false confidence and require recording upstream assertions that refused requests never reach it.",
+    "partial": "Identify backend authentication masking missing gateway authentication."
+  }
+]
