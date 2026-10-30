@@ -184,6 +184,7 @@ removing the maintainer from consequential decisions.
    treat differences as exploratory because task selection and run variation can dominate such
    a small sample. Repeated trials and independent raters are later upgrades, not prerequisites
    for this first estimate or for completing the replay set.
+   Not run: [deferred for token cost](CHANGES.md#91-defer-the-workflow-comparison-and-keep-or-simplify-for-token-cost).
 
 4. **Measure benefit and burden together.** Record behavior acceptance, severe missed defects,
    false alarms, human review minutes, corrective edits, elapsed time, and model/tool cost.
@@ -198,6 +199,7 @@ removing the maintainer from consequential decisions.
    bookkeeping, reduce low-yield audits and ceremony while retaining the checks that catch real
    faults. Once the standard is stable, compare another model against it. That is the point at
    which owning the evaluation starts to provide evidence for model choice.
+   Not decided: it waits for the comparison, which is [deferred](CHANGES.md#91-defer-the-workflow-comparison-and-keep-or-simplify-for-token-cost).
 
 For a future knowledge-work application, the transferable part is this discipline. A forecast
 needs factual checks, source reconciliation, explicit assumptions, expert judgment about risks,

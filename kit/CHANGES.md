@@ -1850,3 +1850,24 @@ checked against its git history, its PRs and CI runs, and its live page's data
   - the workflow comparison;
   - keep-or-simplify;
   - dashboard changes.
+
+### 91. Defer the workflow comparison and keep-or-simplify for token cost
+
+- **Assessment recommendations 3, 4 and 5 are not run,** by the maintainer's decision: the
+  maintainer cannot afford their token cost. The kit stays as it is, and no component is kept
+  or cut on evidence it does not have.
+- **Why the cost is too high.** The reduced baseline (item 90) ran only the auditor, once on
+  each of 7 cases, and cost 6,004,251 tokens; 586,430 without cache reads. Recommendation 3
+  asks for six full implementation runs: three tasks, each once with the kit and once without.
+  A run with the kit includes at least one auditor run, the implementation, and the review and
+  closing steps, so this estimate puts the comparison at several times the baseline's cost,
+  before any human review time. This is an estimate, not a measurement.
+- **What can be said without it.** The replay baseline measures the auditor's detection on 7
+  cases, one example per kind; it is not evidence about the whole workflow's value. The
+  assessment's question, whether the kit's ceremony earns its cost on unseen tasks, stays open.
+- **A cheaper route, if one is wanted later:** one task instead of three, run once per
+  condition, with the budget, acceptance checks and assistance rule written down before either
+  run. It gives one paired example, not an estimate.
+- **No code or tests changed,** so there was nothing to break on purpose.
+- **Still deferred:** the workflow comparison, keep-or-simplify, comparing another model, and
+  everything item 90 left deferred.
