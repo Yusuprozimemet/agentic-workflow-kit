@@ -38,6 +38,24 @@ that measures it. It holds the agent briefs (`.claude/agents/`), the spec rules
    (`specs/README.md`), with `python scripts/seen-red.py -- <its test command>` if its tests live
    under `tests/`.
 
+Control activation in a copied kit (CI checks must also be required in branch protection below):
+
+- **Track tests seen red:** active only once the repository variable `TRACK_RED_RUNNER=unittest`
+  is configured; applies to track PRs with owned `new` criteria and named tests under `tests/`.
+- **Frozen files:** active only once `spec-drift.config.json` has `frozen` patterns (empty by
+  default); optional `test_count` configures the additional count check.
+- **Evidence replay:** manual, after the closing merge, using `scripts/evidence.py` with the
+  break manifest and `--json` report; see [closing instructions](specs/README.md#evidence-at-the-close).
+- **Auditor guard hook:** active by default in Claude Code sessions that load
+  `.claude/settings.json`; guards the configured auditors' commands and stop state. It is a
+  command guard, not a sandbox (`CLAUDE.md`, "The auditors").
+- **Diff limit:** active by default in PR CI; `MAX_CHANGED_LINES=400` in
+  `.github/workflows/pr-checks.yml` (the workflow allows a documented override).
+- **Project behavior tests:** active only once the project adds its own test workflow and
+  requires that check in branch protection.
+
+A green "not configured" check is not proof that project behavior was checked.
+
 On GitHub, in this order:
 
 - Before the first push, Pages with source "GitHub Actions": every merge to `main` republishes

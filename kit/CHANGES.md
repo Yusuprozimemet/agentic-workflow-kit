@@ -1633,3 +1633,25 @@ checked against its git history, its PRs and CI runs, and its live page's data
   - `broken: the Oversized: line never matched → AssertionError: 1 != 0 : ::error::512 changed lines exceeds the limit of 400.`
 - **Item 74's last bullet is ticked** on this test, without waiting for a project's PR over 400
   lines.
+
+### 84. Align the starter instructions with the existing controls
+
+- **The bounded cleanup from [the assessment](ASSESSMENT.md), step 1.** Its concrete gaps
+  showed a template without the runner's required field, conflicting track order, omitted
+  replay instructions and controls that could pass without checking project behavior.
+  The assessment ships with this PR; no later assessment step is started.
+- **The template names its test and owning tracks.** `specs/_template.md` now has a `Test:`
+  field and criterion IDs in the Work cells. `specs/README.md` explains the parser's format
+  and requires sequential tracks from fresh `main`, matching `CLAUDE.md`. Other mentions of
+  parallel tracks are historical defect records, preserved as such.
+- **Closing instructions require a manifest and post-merge replay.** `CLAUDE.md` and
+  `specs/README.md` give the real CLI and distinguish missing, stale and failed evidence.
+  Replay needs a merged closing commit and blocks advancement manually; it is not a supplied
+  CI gate. README setup lists default, configured and manual controls explicitly.
+- **Seen red:** the new template parsing/ownership test failed against the unchanged template
+  on `main`: "AssertionError: Tuples differ: ('new', []) != ('new', ['ExampleTest.test_new_behavior'])".
+  It passes with the example filled in; the deliberate break also failed and was restored:
+  - broken: the template Test: field removed → AssertionError: Tuples differ: ('new', []) != ('new', ['ExampleTest.test_new_behavior'])
+- **Deferred follow-ups:** **Evidence replay CI gate** (respect the post-merge requirement)
+  and **Closing criterion wording check** (compare with the accepted pre-track spec).
+  **Dashboard changes** and **Broader refactoring** are also named follow-ups, outside this PR.

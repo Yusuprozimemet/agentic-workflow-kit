@@ -38,7 +38,15 @@ maintainer, and nothing starts after a phase ends until they say so.
    day's defects blind: `python scripts/relabel.py blind specs/day-NN-*.md --out <dir>`, give
    `<dir>/blind.md` to the **defect-rater** agent, save its JSON as `<dir>/labels.json`, run
    `python scripts/relabel.py compare <dir>`, and put its lines in the PR with a decision on each
-   disagreement: the tag kept, and why, or changed in the Notes.
+   disagreement: the tag kept, and why, or changed in the Notes. Commit the break manifest
+   `specs/breaks/day-NN.json` with the actual mutation arguments (format and example in
+   [`specs/README.md`](specs/README.md#evidence-at-the-close)). After this closing PR merges,
+   on fresh `main`, run
+   `python scripts/evidence.py specs/day-NN-slug.md --ref main --json evidence.json` and retain
+   the report. Replay finds a **merged closing commit**: this is a manual post-merge check
+   that blocks the next step, not a pre-merge gate. Keep **missing** evidence/report, **stale**
+   inputs or closing commit, and **failed** replay checks separate; resolve each before
+   advancing. Execution errors also block advancement; review reasons for inapplicable checks.
 4. **After opening any PR, stop and wait for the maintainer to say "merged".** Do not start the
    next step, and do not start a new phase, until told.
 5. **After every "merged", refresh the dashboard before the next step:** the merge rebuilds the

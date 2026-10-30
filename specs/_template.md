@@ -15,12 +15,13 @@
 
 | Track | Owner | Work |
 |---|---|---|
-| A | | |
-| B | | |
+| A | | CNN.1 |
+| B | | CNN.2 |
 
 ## Acceptance criteria
 - [ ] CNN.1 **new** — <checkable by someone who did not write the code>. Red today: <how it
       fails on the code as it is, e.g. "the grep finds two">.
+      Test: `ExampleTest.test_new_behavior`.
       Evidence: <test> (#n), seen red first on `<sha>`'s code.
 - [ ] CNN.2 **hold** — <true before the change and must stay true after it>.
       broken: <what was broken> → <what the check reported>
