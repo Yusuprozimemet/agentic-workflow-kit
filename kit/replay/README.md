@@ -1,7 +1,7 @@
 # Frozen replay set
 
 This evaluates the spec-auditor's detection ability on frozen snapshots. It does not by
-itself measure the value of the whole workflow. The format and rules exist; cases are pending.
+itself measure the value of the whole workflow. The format, the rules and 16 cases exist; a reduced baseline of 7 is in [results](results.md).
 
 ## Cases and keys
 
