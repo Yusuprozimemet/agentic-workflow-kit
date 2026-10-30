@@ -1326,7 +1326,7 @@ def next_step(days, open_prs, order, stop, lines=None):
     by_day = {d["day"]: d for d in days}
     left = [d for d in order if d in PLACEHOLDERS or d not in by_day or by_day[d]["status"] not in FINISHED]
     if not left:
-        return "Every day is done."
+        return "Every day is done." if days else "No day specs yet: fill in plan.md, then write the first day's spec (specs/README.md)."
     if left[0] in PLACEHOLDERS:
         line = (lines or {}).get(left[0], "")
         first = re.search(r"numbered from (\d+)", line)

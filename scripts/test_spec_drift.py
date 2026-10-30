@@ -1198,11 +1198,36 @@ class PageTest(unittest.TestCase):
         tokens.append({k: v for k, v in tok("", 100).items() if k != "agent"})
         error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=tokens)
         self.assertIsNone(error)
-        bars = re.findall(r'text-anchor="end"[^>]*>([^<]+)<', panels["token-agents"])
+        bars = re.findall(r'class="hbar-label">([^<]+)<', panels["token-agents"])
         self.assertEqual(bars, ["agent not recorded", "main sessions", "implementer", "spec-auditor"])
         self.assertTrue(re.sub("<[^>]+>", "", panels["token-implementer"]).endswith(
             "the main sessions (specs, review, the breaks on purpose, the pull requests) 30.0% of the output; "
             "tokens with no agent recorded 40.0%; the checking agents the rest."), panels["token-implementer"])
+
+    def test_the_agents_chart_labels_are_text_at_the_page_font_size(self):
+        # In an SVG scaled to the screen they shrank with it: about 4 px at 375 px wide.
+        tokens = [dict(date="2026-10-12", day=1, model="claude-opus-5-5", agent=a, input=100, cache_write=0,
+                       cache_read=0, output=o, replies=1) for a, o in (("main", 300), ("implementer", 200))]
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=tokens)
+        self.assertIsNone(error)
+        self.assertNotIn("<svg", panels["token-agents"])
+        self.assertEqual(re.findall(r'class="hbar-label">([^<]+)<', panels["token-agents"]), ["main sessions", "implementer"])
+        self.assertEqual(re.findall(r'class="hbar-value num">([^<]+)<', panels["token-agents"]), ["300", "200"])
+
+    def test_with_no_tokens_who_spent_them_says_what_is_missing(self):
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=[])
+        self.assertIsNone(error)
+        self.assertEqual(panels.get("token-agents"), '<p class="load-error">No agents to show: there are no token counts '
+                                                 'to split by agent.</p>')
+
+    def test_with_no_finished_day_the_relabel_table_says_what_is_missing(self):
+        # It held only an "All counted" row of dashes.
+        days = [dict(a_day(1), status="ready", phase=0, title="t", prs=[])]
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], days, [1])
+        self.assertIsNone(error)
+        relabel = panels.get("relabel", "")
+        self.assertNotIn("All counted", relabel)
+        self.assertIn("No finished day yet: a day is counted once its Notes quote", relabel)
 
     def test_the_name_phases_and_stops_come_from_the_data(self):
         days = [dict(a_day(n), status="ready", phase=p, title="t", prs=[]) for n, p in ((1, 0), (2, 0), (3, 1))]
@@ -1648,6 +1673,12 @@ The cleanup day first.
                          'Day 38: write its day spec (plan.md: "New day specs, numbered from 38.")')
         days = sd.settle([a_day(28, kinds=["close"]), a_day(29)], [28, 29])
         self.assertIn("stop and evaluate", sd.next_step(days, [], [28, 29], 28))
+
+    def test_with_no_day_specs_the_next_step_is_not_that_every_day_is_done(self):
+        # The empty starter read "Every day is done." with 0 days.
+        self.assertEqual(sd.next_step([], [], [], None),
+                         "No day specs yet: fill in plan.md, then write the first day's spec (specs/README.md).")
+        self.assertEqual(sd.next_step(sd.settle([a_day(1, kinds=["close"])], [1]), [], [1], None), "Every day is done.")
 
     def test_numbered_tracks_are_their_own_and_a_split_track_is_its_letter(self):
         tracks_section = """| Track | Owner | Work |
