@@ -52,6 +52,8 @@ Control activation in a copied kit (CI checks must also be required in branch pr
   command guard, not a sandbox (`CLAUDE.md`, "The auditors").
 - **Diff limit:** active by default in PR CI; `MAX_CHANGED_LINES=400` in
   `.github/workflows/pr-checks.yml` (the workflow allows a documented override).
+- **Criteria keep their wording:** active by default in PR CI; criterion wording, tags and
+  IDs must match the merge base except on `day-NN/spec-<slug>` spec-change branches.
 - **Project behavior tests:** active only once the project adds its own test workflow and
   requires that check in branch protection.
 

@@ -132,6 +132,9 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
   lists what no later day picks up, and any track a PR announces ("E1c, next") that no branch
   ever names.
 - Changing a spec is normal. Change it in a PR *before* the work, not after.
+  Criterion wording, tags and IDs change only in a spec-change PR on `day-NN/spec-<slug>`.
+  CI's "Criteria keep their wording" job enforces this against the branch's merge base on
+  every other PR, including tracks, closing PRs and tooling PRs.
 - Specs written before the `new`/`hold` rule get their criteria tagged in that day's
   spec-change PR, when the spec is read against the code.
 

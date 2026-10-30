@@ -1,6 +1,6 @@
 name: PR checks
 
-# Six gates on every pull request:
+# Seven gates on every pull request:
 #
 # 1. The description uses the template. GitHub only auto-fills the template in
 #    the web "compose" form and in `gh pr create` with no --body. A pull request
@@ -33,6 +33,8 @@ name: PR checks
 #    Opt-in: it runs Python unittest tests only, so it checks a track when the repository variable
 #    TRACK_RED_RUNNER is `unittest`. Unset, it reports "not configured" and passes; any other value
 #    fails as a configuration error. Its self-tests run in spec-drift-tests.yml whatever the setting.
+#
+# 7. Criteria keep their wording, tags and IDs outside spec-change PRs (criteria-wording.py).
 #
 # Recovery is automatic for the first two and the fifth's title and description: editing the description fires the `edited`
 # event and re-runs these checks. No new commit needed.
@@ -205,3 +207,23 @@ jobs:
         run: >-
           python scripts/track-red.py --branch "$PR_BRANCH" --runner "$TRACK_RED_RUNNER"
           --base "$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+
+  criteria-wording:
+    name: Criteria keep their wording
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compare accepted criteria with the head
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: >-
+          python scripts/criteria-wording.py --branch "$PR_BRANCH"
+          --base "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" --head "$HEAD_SHA"
