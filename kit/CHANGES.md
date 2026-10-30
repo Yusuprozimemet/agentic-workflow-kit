@@ -1114,8 +1114,8 @@ workflow (`test_pr_names.py`: 16 of 17, now 17).
 
 ### 74. What the pilot (step 4) must exercise
 
-**Closed** (item 81). One thing is left: the `Oversized:` path never ran (item 81). The hand-off
-panel's bug the pilot showed is **fixed** (item 82).
+**Closed** (item 81). The `Oversized:` path, left open there, is **done** by a kit test (item
+83). The hand-off panel's bug the pilot showed is **fixed** (item 82).
 
 Each of these has never run in the kit; the pilot runs each once:
 
@@ -1130,8 +1130,9 @@ Each of these has never run in the kit; the pilot runs each once:
   and unassigned (item 81).
 - `break.py` on the pilot's code, its `broken:` line in a track PR, and the page reading it as
   "recorded" (item 38). **Done** (its #4).
-- A PR over 400 lines failing "Diff stays reviewable", then passing with `Oversized:`. **Still
-  open**: no pilot PR went over 400 lines (item 81).
+- A PR over 400 lines failing "Diff stays reviewable", then passing with `Oversized:`. **Done**
+  by a kit test, not a project: no pilot PR went over 400 lines (item 81), and
+  `scripts/test_diff_limit.py` runs the step's own text (item 83).
 - The panels a day fills: "Pull requests per day", the gap angle moving, the `new`/`hold` tags
   and the evidence behind the ticks, a hand-off with an ID picked up by the next day. **Done**,
   Days 1-5; H1.2 picked up by Day 3 (its #7), H1.1 and H3.1 by Day 2 (its #11). The panel's
@@ -1565,7 +1566,7 @@ checked against its git history, its PRs and CI runs, and its live page's data
   Day 2 out of order, and `stop_after` 3, as did the data rebuilt at #5 and #7. The stop's
   decisions went into `plan.md`'s Course corrections in #10 (`46b9423`), before Day 2's spec
   in #11.
-- **`Oversized:`: still open.** It never happened, and nothing else has run it.
+- **`Oversized:`: fixed in item 83.** It never happened in the pilot, and nothing else had run it.
   - No Wordtally PR went over 400 lines: the largest, #41 and #46, changed 398 each. Day 4's
     track, the one item 74 expected, was #15 at 71 lines: its stopword list is 45 words, and
     its `plan.md` says "One list shows the mechanism".
@@ -1610,3 +1611,25 @@ checked against its git history, its PRs and CI runs, and its live page's data
     not a failure. It now has one, as the other hand-off tests do.
   - The first break named the test in `SpecDriftTest`, where it is not, and reported
     "FAILED (errors=1)". It was rerun on `HandOffTest`.
+
+### 83. The `Oversized:` path, run by a test (item 81's leftover)
+
+- **A test of the workflow's own text.** `scripts/test_diff_limit.py` reads the `run:` block of
+  "Enforce the limit, unless an override is documented" from `pr-checks.yml` and runs it in bash
+  (Git's own on Windows, found as `evidence.py` finds it), with `CHANGED`, the workflow's
+  `MAX_CHANGED_LINES` and `PR_BODY` set. `pr-checks.yml` is unchanged. The step that counts the
+  lines needs a pull request and is not run. Five tests:
+  - 12 and 400 lines pass, "within the limit of 400".
+  - 401 lines and no `Oversized:` line fail with the `::error::` line.
+  - 512 lines with "Oversized: <reason>" on a line of a CRLF body pass, with the `::warning::`
+    line and no error.
+  - 512 lines with an empty "Oversized:" fail: alone, with trailing spaces, and in a CRLF body,
+    where the carriage return is not a reason.
+  - The limit is 400.
+- **`pr-checks.yml` joins the test workflow's `PATHS`,** so a PR that edits the step runs the
+  test.
+- **Seen red:** none on `main`, where the step is the same text; the breaks show the tests fail.
+  - `broken: the Oversized: regex without its \S, so an empty reason counts → AssertionError: 0 != 1 : ::warning::512 changed lines exceeds 400, but an 'Oversized:' reason is documented in the description.`
+  - `broken: the Oversized: line never matched → AssertionError: 1 != 0 : ::error::512 changed lines exceeds the limit of 400.`
+- **Item 74's last bullet is ticked** on this test, without waiting for a project's PR over 400
+  lines.
