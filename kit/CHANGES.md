@@ -1490,7 +1490,7 @@ Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4
   (`min-width: 0`, as the page's outer boxes already could) and its list items break anywhere.
   Page width at 375 px, Wordtally's and the source project's: 650 and 420 before, 484 and 375 with
   the list rule alone, 375 and 375 with both; the empty starter 375 throughout; 1280 px unchanged.
-- **Follow-ups, seen and not fixed:**
+- **Follow-ups, seen and not fixed here; all three fixed in item 80:**
   - The agents chart's labels shrink with its SVG and are unreadable at 375 px; every chart on the
     page scales this way, this one most.
   - The empty starter's next step reads "Every day is done." with 0 days. It is in
@@ -1498,3 +1498,39 @@ Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4
   - The empty starter's "Who spent them" is a heading with nothing under it, and its relabel
     table holds only an "All counted" row of dashes; the token panel's empty state above covers
     both, but each could say so itself.
+
+### 80. Item 79's follow-ups: the agents chart at phone width, and the empty starter's words
+
+- **The agents chart is HTML, not an SVG.** Its 11 px labels sat in a 1000-unit `viewBox`, so at
+  375 px, with the box 286 px wide, they drew at about 11 × 286 / 1000 ≈ 3 px (worked out, not
+  measured). Each agent is now a row of one grid: label, bar (one segment per model, as before),
+  number; the labels are 13 px at every width, and under 520 px each sits above its bar. The
+  other charts still scale with their SVG; none has labels this long beside its bars.
+  - `broken: the agents chart drawn inside a scaled SVG again → AssertionError: '<svg' unexpectedly found in '<svg viewBox="0 0 1000 68"><foreignObject width="1000" height="68"><div class="hbars" role="img" aria-label="Output tokens by agent"><div class="hbar-row" data-i="0"><span class="hbar-label">main sessions</span><span class="hbar-track"><i style="width:100.00%;background:var(--m-opus)"></i></span><span class="hbar-value num">300</span></div><div class="hbar-row" data-i="1"><span class="hbar-label">implementer</span><span class="hbar-track"><i style="width:66.67%;background:var(--m-opus)"></i></span><span class="hbar-value num">200</span></div></div>'`
+- **No day specs is not "Every day is done."** With no days, `next_step()` now reads "No day
+  specs yet: fill in plan.md, then write the first day's spec (specs/README.md)."; a run whose
+  days are all finished still reads "Every day is done.".
+  - `broken: the next step with no day specs says every day is done → AssertionError: 'Every day is done.' != "No day specs yet: fill in plan.md, then [41 chars]md)."`
+- **The empty starter says what is missing.** With no token counts, "Who spent them" reads "No
+  agents to show: there are no token counts to split by agent."; with no finished day, the
+  relabel table reads "No finished day yet: a day is counted once its Notes quote
+  `relabel.py compare`." in place of an "All counted" row of dashes.
+  - `broken: no empty state under Who spent them → AssertionError: None != '<p class="load-error">No agents to show:[45 chars]</p>'`
+  - `broken: the relabel table's empty state removed → AssertionError: 'No finished day yet: a day is counted once its Notes quote' not found in ''`
+- **Seen red:** the four new tests and the moved label check failed on `main`'s code.
+- **The page comparison.** One box changed, `token-agents`: on the source project's saved data,
+  the same bar, "agent not recorded 13.00M", with the same five model fills in the same order,
+  drawn as HTML; the other 56 boxes byte-identical. Saved with `kit/compare-page.py --write` in
+  its own commit; then 57 of 57 boxes the same.
+- **At 375 and 1280 px,** in headless Edge: the empty starter, Wordtally's generated data and the
+  source project's saved data. Each page is 360 px wide at 375 (the viewport less its scrollbar)
+  and 1265 at 1280, so none scrolls sideways; the agents labels are 13 px at both; no script
+  error, failed panel, NaN or undefined.
+- **Missed, mine:**
+  - `--window-size=375,900` in this Edge's `--headless=new` gave a 564 px viewport, and my first
+    run read as 375 px. Each page now loads in a 375 px `iframe` and reports `innerWidth` with
+    its measurements.
+  - Two new tests first read their box as `panels[...]`: on `main`'s code, and under the relabel
+    break, the box was never written, and the test errored with a `KeyError` (the first relabel
+    break reported "FAILED (errors=1)"), which proves nothing. They read it with `.get` now and
+    fail on the value. One break was refused: its `--find` text occurs twice.
