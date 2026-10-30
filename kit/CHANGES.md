@@ -1114,6 +1114,9 @@ workflow (`test_pr_names.py`: 16 of 17, now 17).
 
 ### 74. What the pilot (step 4) must exercise
 
+**Closed** (item 81). Two things are left: the `Oversized:` path never ran, and the hand-off panel
+has a bug the pilot showed (both in item 81).
+
 Each of these has never run in the kit; the pilot runs each once:
 
 - A day end to end on `day-NN/` branches: the spec-change PR, one track PR, the closing PR.
@@ -1123,16 +1126,18 @@ Each of these has never run in the kit; the pilot runs each once:
 - `relabel.py blind` and `compare`, with at least one tagged `Defect`. **Done**, Day 1: 6
   Defects, 5 tags changed after the compare (finding 20).
 - `token-usage.py` on the pilot's own transcripts, and the Tokens panel filling. `token-usage.py`
-  **done** (Day 1's close); the panel open until a later step reads it.
+  **done** (Day 1's close); the panel **done**: its live page holds 26 token rows, Days 1-5
+  and unassigned (item 81).
 - `break.py` on the pilot's code, its `broken:` line in a track PR, and the page reading it as
   "recorded" (item 38). **Done** (its #4).
-- A PR over 400 lines failing "Diff stays reviewable", then passing with `Oversized:`. Open
-  (its Day 4).
+- A PR over 400 lines failing "Diff stays reviewable", then passing with `Oversized:`. **Still
+  open**: no pilot PR went over 400 lines (item 81).
 - The panels a day fills: "Pull requests per day", the gap angle moving, the `new`/`hold` tags
-  and the evidence behind the ticks, a hand-off with an ID picked up by the next day. Open
-  (its H1.2 goes to Day 3).
-- A plan whose order is not by number, with a stop on a day under 10 (item 39). Open: in its
-  `plan.md`, not yet reached.
+  and the evidence behind the ticks, a hand-off with an ID picked up by the next day. **Done**,
+  Days 1-5; H1.2 picked up by Day 3 (its #7), H1.1 and H3.1 by Day 2 (its #11). The panel has
+  a bug between days (item 81).
+- A plan whose order is not by number, with a stop on a day under 10 (item 39). **Done**: Days
+  1, 3, 2, 4, 5, a stop after Day 3, decided in its #10 before Day 2's spec (#11).
 
 ### 75. What the pilot found
 
@@ -1534,3 +1539,52 @@ Plan: Wordtally `docs/agentic-workflow-kit-v2-plan.md`. Sources: Wordtally `82b4
     break, the box was never written, and the test errored with a `KeyError` (the first relabel
     break reported "FAILED (errors=1)"), which proves nothing. They read it with `.get` now and
     fail on the value. One break was refused: its `--find` text occurs twice.
+
+### 81. Item 74's checklist, read from the pilot's history
+
+Wordtally ran Days 2-5 after item 74's open bullets were written (its #20, `69c419b`). Each was
+checked against its git history, its PRs and CI runs, and its live page's data
+(`window.SPEC_DRIFT`), read only. Its main was at `82b4ce7`.
+
+- **The Tokens panel: done.** The live page's `tokens` holds 26 rows (date, day, model, agent,
+  counts) for Days 1-5 and replies with no day. `docs/dashboard/token-usage.json` was refreshed
+  at each close (Day 4's `1959891`, Day 5's `54302e8`).
+- **The day panels: done.** On the live page, all five days are done.
+  - "Pull requests per day": Day 1 #1, #4, #5; Day 3 #7-#10; Day 2 #11-#13; Day 4 #14-#16;
+    Day 5 #17-#19. The stops' estimate against actual reads 3 → 3 for each day.
+  - The gap angle moves over 50 points with 20 distinct values, 64.26 at #1 to 46.08 at #50.
+  - The tags: Day 1 9 criteria (7 `new`, 2 `hold`), Day 2 4 (3, 1), Day 3 5 (3, 2), Day 4 4
+    (2, 2), Day 5 5 (3, 2); every one ticked, with 8, 3, 3, 2 and 3 evidence tests.
+  - Hand-offs: Day 1's Notes give H1.1 to Day 2 and H1.2 to Day 3; Day 3's spec (#7) says
+    "H1.2 is picked up here"; Day 2's spec (#11) says "H1.1 and H3.1 are picked up here". The
+    kit's `hand_offs()`, run on Wordtally's tree as each merge left it, reads H1.2 → Day 3
+    "(picked up)" at #7 and H1.1, H3.1 → Day 2 "(picked up)" at #11. The live page's list is
+    empty, as it should be: every day is finished.
+- **The order and the stop: done.** `plan.md` reads "1. Phase 0: Days 1, 3. **Stop and
+  evaluate.**" and "2. Phase 1: Days 2, 4-5."; the live page has the order [1, 3, 2, 4, 5],
+  Day 2 out of order, and `stop_after` 3, as did the data rebuilt at #5 and #7. The stop's
+  decisions went into `plan.md`'s Course corrections in #10 (`46b9423`), before Day 2's spec
+  in #11.
+- **`Oversized:`: still open.** It never happened, and nothing else has run it.
+  - No Wordtally PR went over 400 lines: the largest, #41 and #46, changed 398 each. Day 4's
+    track, the one item 74 expected, was #15 at 71 lines: its stopword list is 45 words, and
+    its `plan.md` says "One list shows the mechanism".
+  - #40 is the only PR that names `Oversized:`, and says why it did not use one: its evidence
+    report, 891 lines indented, was rewritten to one check per line (104) before the push.
+    Its "Diff stays reviewable" run (40873088727) passed at 127 lines.
+  - None of its 254 CI runs failed. The `Oversized:` branch of `pr-checks.yml` (line 123) has
+    never run, and no `scripts/test_*.py` covers it.
+- **Found, not fixed: a hand-off to a day whose spec is not written yet.** `hand_offs()` in
+  `scripts/spec-drift.py` counts a day as ahead only when its spec file exists (`d in text`),
+  not when `plan.md` puts it after the current day. A day writes its own spec, so between days
+  the panel is wrong:
+  - At #5 (Day 1 done, no Day 3 or Day 2 spec), H1.1 and H1.2 both come out with no target, and
+    the page draws them under "No later day picks these up", though `plan.md` has Days 3 and 2
+    ahead.
+  - At #10 (Day 3 done, no Day 2 spec), H1.1 is not on the panel at all, still not picked up:
+    Day 3's spec mentions its ID, which counts as a citation, so the "no later day" entry is
+    dropped too.
+  - Seen by calling the kit's `hand_offs()` with each day's status as it was at #5, #7, #10 and
+    #11: a rebuild at an old commit reads GitHub's PRs as they are now, and the Dashboard runs'
+    Pages artifacts from then have expired.
+- **Checks:** Markdown only, so no test, break or page comparison.
