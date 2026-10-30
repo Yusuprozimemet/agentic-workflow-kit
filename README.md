@@ -7,6 +7,39 @@ that measures it. It holds the agent briefs (`.claude/agents/`), the spec rules
 [CLAUDE.md](CLAUDE.md) gives the working order, [plan.md](plan.md) the goal, and
 [docs/workflow.md](docs/workflow.md) draws it.
 
+## What it does
+
+The kit is a working order and the checks that hold an agent to it, not a generator. A spec
+says what a day must make true; the kit's question is whether each claim of "done" can be shown.
+
+- **A plan and day specs.** `plan.md` holds the goal in phases; each day is
+  `specs/day-NN-<slug>.md`, with criteria that keep their ID (`C12.3`) and wording outside a
+  spec-change PR (CI: "Criteria keep their wording").
+- **Every criterion is `new` or `hold`, and every check has been seen to fail.** A `new` check
+  fails on the code before the day (`scripts/seen-red.py`, `scripts/track-red.py`); a `hold`
+  check is broken on purpose once (`scripts/break.py`), and the PR records what it reported.
+- **Evidence replayed after the close.** The closing PR ticks each criterion with its test and
+  PR and commits a break manifest; after the merge, `evidence.yml` re-runs the Verify commands and
+  the recorded breaks at their commits (`scripts/evidence.py`). A failed, stale or missing replay
+  blocks the next day.
+- **Separate agents with fresh contexts.** A plan-auditor and a spec-auditor read the specs
+  against the code before any work, an implementer on a smaller model writes the code, a
+  defect-rater relabels the day's defects blind (`scripts/relabel.py`), and three end-of-phase
+  auditors judge the whole. Auditors only read: a hook blocks their writing git and `gh`
+  commands (`scripts/auditor-guard.py`). The main session reviews, breaks, commits and writes the
+  PR; the maintainer merges.
+- **Small PRs in order.** One PR per track, from fresh `main`, under 400 changed lines; names,
+  the template and frozen files checked in CI (`.github/workflows/pr-checks.yml`).
+- **A measured record.** Every defect is one `Defect` line (`found:`, `cause:`, `made:`); every
+  deferral a `Hand-off` ID a later day must cite. The dashboard (`scripts/spec-drift.py`) draws
+  spec and code drift, breaks, evidence, hand-offs no day picked up, and tokens per day
+  (`scripts/token-usage.py`).
+
+It comes from a 43-day split of a monolith into services (its record is under `kit/`): 475 defect
+entries, 455 of them in the agent's own specs, drafts and tooling. It was then piloted for five
+days on a small Python CLI. What that evidence does and does not show is in
+[kit/ASSESSMENT.md](kit/ASSESSMENT.md): a case study, not a comparison with a simpler workflow.
+
 ## Starting a project from it
 
 1. Copy the kit without its history, from the kit's folder:
@@ -121,6 +154,13 @@ for this repository only:
 - [kit/SOURCE.md](kit/SOURCE.md): where every file came from, at which commit, with its hash, and
   how it has changed since.
 - [kit/CHANGES.md](kit/CHANGES.md): the changes proposed and made, each with its decision.
+- [kit/v2-manifest.md](kit/v2-manifest.md): each file's treatment when the pilot's tooling came
+  back into the kit.
+- [kit/ASSESSMENT.md](kit/ASSESSMENT.md): what the kit's evidence establishes, what it does not,
+  and the next steps; the whole-workflow comparison is deferred for token cost (CHANGES item 91).
+- [kit/replay/](kit/replay/README.md): a frozen replay set of 16 cases for the spec-auditor,
+  development and held-out, with a checker and scorer; a reduced baseline of 7 is in
+  [results](kit/replay/results.md).
 - The source project's `CLAUDE.md`, `plan.md`, lab notebook and other data, in a folder of
   `kit/` named after it, and two of its day specs in [kit/examples/](kit/examples/), kept as
   references. They are not instructions for this repository. [kit/lessons/](kit/lessons/): the
