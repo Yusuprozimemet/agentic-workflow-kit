@@ -152,12 +152,17 @@ Use the actual arguments from the earlier break, not this illustrative mutation.
 the command means Git's Bash. See [`scripts/evidence.py`](../scripts/evidence.py) for the format.
 Write `[]` when there are no mutations to replay, and retain the reasons for inapplicable checks.
 
-After the closing PR merges, on fresh `main`, run
+After the closing PR's "merged", CI runs the Evidence replay workflow automatically. Check the
+run for that merge commit with `gh run list --workflow evidence.yml --commit <sha>`, then
+`gh run view <run-id> --exit-status`. Require a completed successful run before the next step;
+a failed, missing, pending or cancelled run blocks advancement. Inspect the checks and retain
+the evidence artifact. For a local run on fresh `main`, use
 `python scripts/evidence.py specs/day-NN-slug.md --ref main --json evidence.json`.
 Retain the report and inspect each result: named tests are checked for existence under `tests/`,
 Verify commands are executed, and recorded breaks are replayed at historical commits.
-Replay finds a **merged closing commit**; it is a manual post-merge check that blocks the next
-step, not a pre-merge gate for the closing PR. Supplied CI does not enforce it.
+Replay finds a **merged closing commit**; the post-merge gate cannot block its own closing PR's
+merge and is not a required status check. The workflow's manual dispatch accepts an optional
+day number to replay a previously closed day on `main`.
 
 Keep three evidence states separate: **missing** means required evidence or its report is absent;
 **stale** means a saved report's spec, break inputs or closing commit no longer match;

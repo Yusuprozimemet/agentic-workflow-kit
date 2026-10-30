@@ -39,6 +39,7 @@ changes no file outside the worktree but that report.
 """
 import argparse
 import datetime
+import fnmatch
 import hashlib
 import json
 import os
@@ -72,9 +73,27 @@ def git(*args, check=True):
                           errors="replace", check=check).stdout
 
 
+def close_pattern(day):
+    return re.compile(rf"^Merge pull request #\d+ from \S+/day-{day}/close-the-day(?:-\S*)?$")
+
+
+def closing_spec(commit):
+    """Spec at a closing merge, None otherwise; ambiguous/missing specs raise ValueError."""
+    parents, subject = git("show", "-s", "--format=%P%n%s", commit).splitlines()[:2]
+    match = close_pattern(r"(?P<day>\d{2})").match(subject)
+    if len(parents.split()) < 2 or not match:
+        return None  # This commit does not close a day.
+    day = match.group("day")
+    specs = [p for p in git("ls-tree", "-r", "--name-only", commit, "--", "specs").splitlines()
+             if fnmatch.fnmatchcase(p, f"specs/day-{day}-*.md") and p.count("/") == 1]
+    if len(specs) != 1:
+        raise ValueError(f"day-{day}: expected one spec, found {len(specs)}")
+    return specs[0]
+
+
 def close_commit(day, ref):
     """The latest merge on ref of the day's close branch, or None."""
-    merge = re.compile(rf"^Merge pull request #\d+ from \S+/day-{day}/close-the-day(?:-\S*)?$")
+    merge = close_pattern(day)
     for line in git("log", "--merges", "--first-parent", "--format=%H %s", ref).splitlines():
         sha, subject = line.split(" ", 1)
         if merge.match(subject):
