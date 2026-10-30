@@ -774,6 +774,26 @@ class HandOffTest(unittest.TestCase):
             (None, "H01.2", False),             # Day 02 finished without citing it
             (None, "H01.3", False)])            # no day takes it; H01.4 is cited by Day 03's Notes
 
+    def test_a_day_plan_md_puts_ahead_takes_its_hand_off_before_its_spec_is_written(self):
+        # a pilot, order 1, 3, 2, 4, 5: at its #5 H1.1 and H1.2 sat under "No later day picks these
+        # up"; at its #10 H1.1 was gone, as Day 3's spec cites its ID.
+        repo = Repo().merge({
+            "specs/day-01-a.md": "## Notes\n- **Hand-off** H1.1 → Day 2: the stopwords.\n"
+                                 "- **Hand-off** H1.2 → Day 3: the exit code.\n",
+            "specs/day-03-c.md": "# Day 03\n\nH1.2 is picked up here; H1.1 stays with Day 2.\n",
+            "src/Foo.java": "// Day 01 wrote this.\n",
+        })
+        one = dict(day=1, file="specs/day-01-a.md", status="done")
+        three = dict(day=3, file="specs/day-03-c.md", status="done")
+        try:
+            found = [repo.inside(lambda blobs: sd.hand_offs(days, [1, 3, 2, 4, 5], repo.snaps[-1]["sha"], blobs))
+                     for days in ([one], [one, three])]
+        finally:
+            repo.close()
+        self.assertEqual([[(h["to"], h["id"], h["picked"]) for h in f] for f in found], [
+            [(3, "H1.2", False), (2, "H1.1", False)],   # at #5: Days 3 and 2 have no spec yet
+            [(2, "H1.1", False)]])                      # at #10: Day 3 done; Day 2 has no spec yet
+
     def test_a_track_a_pr_announces_that_no_branch_names_is_the_next_step(self):
         prs = [dict(number=298, headRefName="day-25/track-e1b-x", body="**E1c** (next). Not Day 21's E1d; `grep -A3`."),
                dict(number=297, headRefName="day-25/track-e1a-x", body="Track E1 splits; B1 stays."),
