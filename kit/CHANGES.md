@@ -1809,3 +1809,44 @@ checked against its git history, its PRs and CI runs, and its live page's data
   private keys (the maintainer's); baseline run and its results table; automating the auditor
   run or the snapshot export; any change to `replay-set.py`, its README rules or the
   spec-auditor; workflow comparison; dashboard changes.
+
+### 90. Record a reduced replay baseline: 7 of 16 cases, judged by an agent
+
+- **Assessment recommendation 2's baseline run.** The spec-auditor was run once on each of 7
+  cases. The brief was jobmatch's own at `7cbae28920b08953f63a8c05ff549dcd89b7a910`, sha256
+  `506dc155c89a746d5a9994d6a216e4a83b897fa9d37d0db5cae41bafc2524db6`, and the kit commit was
+  `6cc16edf1a7d8d9d38453d4ace27e18e7e0fabde`. Each case was exported history-free, the prompt
+  was only "Audit Day N.", and the case was not re-run. The auditor took 38.9 minutes and
+  6,004,251 tokens in all; without cache reads, 586,430. The scores and the per-case costs are
+  in [results](replay/results.md). Outputs, the judging sheet and the run JSON stay outside the
+  repository.
+- **Key verification, recorded on this branch:** "Codex trace check, accepted by Yusup
+  Rozimemet", 2026-10-30, with no key edits. The agent that wrote the keys also checked them.
+  No person independently re-derived any key.
+- **Reduced scope, by the maintainer:**
+  - Development: the first three development cases were run.
+  - Held-out: the first held-out case of each kind, in manifest order. This rule was fixed
+    before any held-out output existed.
+  - dev-day28-review-ownership was interrupted by the maintainer and not re-run.
+  - The other eight cases were cut for time and token cost.
+  - With one case per kind, each result is an example, not a rate.
+- **Judged by an agent, not a person.** The implementing agent hit its rate limit, so the
+  maintainer asked the reviewing agent to judge.
+  - That agent had seen the development keys before, but not the held-out keys.
+  - It read each output in full before reading its key.
+  - Where an output met only part of a full rubric, it chose the stricter reading.
+  - Its review minutes are an agent's, and must not be compared with a person's.
+- **The held-out cases are held out only from this run.** Each snapshot SHA leads to its fix PR
+  through public history. Held-out scores are published only as a total over the four cases.
+- **No code or tests changed,** so there was nothing to break on purpose. The scorer accepted
+  the run JSON and refused nothing.
+- **The comparison must re-run the same 7 cases,** with the same scoring. If it uses more of the
+  set, it first runs the 9 cases left out here, at this baseline's revision.
+- **Still deferred:**
+  - the 9 cases not run;
+  - judging by a person, or by a second rater;
+  - proposing the valid findings outside the keys as verified key edits;
+  - automating the auditor run or the snapshot export;
+  - the workflow comparison;
+  - keep-or-simplify;
+  - dashboard changes.

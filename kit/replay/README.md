@@ -62,3 +62,5 @@ Precision = matched / (matched + false alarms), where matched = full + partial.
 Zero denominators print "n/a". Totals sum counts before computing ratios.
 Valid findings outside the key are reported without raising recall or counting as false alarms;
 propose them for a verified key edit before the next run. Duplicates do not affect scores.
+
+Runs so far, and how far each one goes, are in [results.md](results.md).

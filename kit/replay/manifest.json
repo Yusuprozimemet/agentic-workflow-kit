@@ -13,7 +13,10 @@
       "task": "Audit Day 21: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
       "origin": "PR #211 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
       "key": "keys/dev-day21-harness-routing.json",
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "dev-day24-network-checks",
@@ -27,7 +30,10 @@
       "task": "Audit Day 24: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
       "origin": "PR #250 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
       "key": "keys/dev-day24-network-checks.json",
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "dev-day27-consumer-isolation",
@@ -41,7 +47,10 @@
       "task": "Audit Day 27: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
       "origin": "PR #261 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
       "key": "keys/dev-day27-consumer-isolation.json",
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "dev-day28-review-ownership",
@@ -55,7 +64,10 @@
       "task": "Audit Day 28: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
       "origin": "PR #319 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
       "key": "keys/dev-day28-review-ownership.json",
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "dev-day15-proxy-passes",
@@ -69,7 +81,10 @@
       "task": "Audit Day 15: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
       "origin": "PR #96 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
       "key": "keys/dev-day15-proxy-passes.json",
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "dev-day38-actuator-masked",
@@ -83,7 +98,10 @@
       "task": "Audit Day 38: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
       "origin": "PR #119 spec diff and description; snapshot is the first parent of its merge. Findings are grounded in the PR changes, not the earlier replay.",
       "key": "keys/dev-day38-actuator-masked.json",
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "dev-day10-post-fix",
@@ -97,7 +115,10 @@
       "task": "Audit Day 10: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
       "origin": "PR #58 merge after the fix. git log 9e5fcd2..origin/main -- specs/day-10-* shows only closing commit 4a5189d; inspected its diff: criteria retain their requirements, with ticks and closing evidence only. Closing Notes record implementation/process events, not a later defect in this corrected spec. Inspected defects.md (including aggregated Days 1-13 against Day 10 Notes) and audit-findings.md: no later defect attributed to this post-fix spec. Evidence horizon: 7cbae28920b08953f63a8c05ff549dcd89b7a910.",
       "key": "keys/dev-day10-post-fix.json",
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "dev-day16-post-fix",
@@ -111,7 +132,10 @@
       "task": "Audit Day 16: run every spec check against the snapshot, try to break each hold, and report defects and unowned hand-offs.",
       "origin": "PR #108 merge after the fix. git log 2d2e00f..origin/main -- specs/day-16-* shows only closing commit 08390f4; inspected its diff: criteria retain their requirements, with ticks and closing evidence only. Closing Notes record implementation/process events, not a later defect in this corrected spec. Inspected defects.md (including aggregated Days 1-13 against Day 10 Notes) and audit-findings.md: no later defect attributed to this post-fix spec. Evidence horizon: 7cbae28920b08953f63a8c05ff549dcd89b7a910.",
       "key": "keys/dev-day16-post-fix.json",
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "held-day03",
@@ -127,7 +151,10 @@
       "key": {
         "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
       },
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "held-day06",
@@ -143,7 +170,10 @@
       "key": {
         "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
       },
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "held-day07",
@@ -159,7 +189,10 @@
       "key": {
         "sha256": "ecd61be3f9f04a06e1c884d3aa00594421cbc5e20297a9f42ac51b674f621e55"
       },
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "held-day08",
@@ -175,7 +208,10 @@
       "key": {
         "sha256": "82e90bf9bf5c589ed29958ff44611baa38fce70827b97ab0ef09ba431c1680f9"
       },
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "held-day14",
@@ -191,7 +227,10 @@
       "key": {
         "sha256": "15ce0245e134843bf9d783aa4146632128dafc79b9314b2b2caff4e26f2138f3"
       },
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "held-day18",
@@ -207,7 +246,10 @@
       "key": {
         "sha256": "4961f5b1f990f8b7961786ebad4c0b63eadf1be8983347ff3aa0de88612f8d7b"
       },
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "held-day19",
@@ -223,7 +265,10 @@
       "key": {
         "sha256": "622f3dd8edca3645ba0623ae213f0aeab87dc493fe44ce640ce5c3f71f185519"
       },
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     },
     {
       "id": "held-day25",
@@ -239,7 +284,10 @@
       "key": {
         "sha256": "ae231ce09b29ef8d885457792d3f8db9566b5276a50d3e4eb2f6ac9505aa57ad"
       },
-      "verified": null
+      "verified": {
+        "by": "Codex trace check, accepted by Yusup Rozimemet",
+        "date": "2026-10-30"
+      }
     }
   ]
 }
