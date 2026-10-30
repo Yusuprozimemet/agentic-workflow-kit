@@ -1712,3 +1712,35 @@ checked against its git history, its PRs and CI runs, and its live page's data
   `main` printed "no day spec was touched" and "0 criterion/spec differences".
 - **Still deferred:** judging whether rewording is substantive; checking `plan.md`;
   pre-merge evidence replay with candidate/base revisions; dashboard changes.
+
+### 87. Define the replay format and tally human judgments
+
+- **Assessment recommendation 2's replay format, without cases.** The embryonic-benchmark
+  paragraph identifies an unstated partial-credit rule behind "approximately 20/27" and no
+  precision estimate. The README defines kinds, splits, severity, verification and run records;
+  the empty versioned manifest, checker and scorer fix the format before the baseline.
+- **Full and partial remain separate,** with strict and lenient recall, missed blocking,
+  false alarms and precision. Held-out keys stay outside this public repository and are
+  pinned by sha256 of file bytes; unverified keys cannot be scored. Valid findings outside
+  the key stay apart from false alarms. Matching output to the key remains a person's
+  judgment: the scorer only tallies it, without authenticating saved auditor output.
+- **Fifteen temporary-file tests; fourteen assertion failures under deliberate breaks.**
+  Python subprocess argument lists named each exact test when invoking `break.py`:
+  - broken: partial counted as full → AssertionError: 0 != 2 : dev: full=2 partial=0 missed=1
+  - broken: sha256 comparison skipped → AssertionError: 0 != 1 : held: full=1 partial=1 missed=1
+  - broken: unverified case allowed → AssertionError: 0 != 1 : dev: full=1 partial=1 missed=1
+  - broken: valid outside key counted as false alarm → AssertionError: 0 != 2 : dev: full=1 partial=1 missed=1
+  - broken: duplicate case ID allowed → AssertionError: 0 != 1 : 2 cases
+  - broken: bad kind allowed → AssertionError: 0 != 1 : 1 cases
+  - broken: bad split allowed → AssertionError: 0 != 1 : 1 cases
+  - broken: short commit allowed → AssertionError: 0 != 1 : 1 cases
+  - broken: missing development key ignored → AssertionError: 0 != 1 : 1 cases
+  - broken: held-out path allowed → AssertionError: 0 != 1 : 1 cases
+  - broken: unjudged finding allowed → AssertionError: 0 != 1 : dev: full=1 partial=1 missed=0
+  - broken: unknown finding allowed → AssertionError: 0 != 1 : dev: full=2 partial=1 missed=1
+  - broken: invalid key severity allowed → AssertionError: 0 != 1 : 1 cases
+  - broken: clean false alarm ignored → AssertionError: 'false alarms=0 precision=n/a' != 'false alarms=1 precision=0.000000'
+  The first mutation runner could not print its arrow in cp1252; UTF-8 fixed the runner.
+- **Still deferred:** the 12–20 cases (including clean, broken-check and cross-day cases);
+  maintainer key verification; baseline run and results table; automating auditor runs or
+  snapshot export; automatic model matching; workflow comparison; dashboard changes.
