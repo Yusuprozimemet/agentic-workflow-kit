@@ -1683,3 +1683,32 @@ checked against its git history, its PRs and CI runs, and its live page's data
 - **Still deferred:** pre-merge replay with candidate/base revisions; the closing criterion
   wording check against the accepted pre-track spec; dashboard changes; making the gate a
   required status check (a post-merge run cannot be one); broader refactoring.
+
+### 86. Keep accepted criterion wording outside spec-change PRs
+
+- **Item 85's deferred closing criterion wording check,** addressing the assessment row
+  "Closing criteria can be reworded". `scripts/criteria-wording.py` compares changed day specs
+  at the merge base and head by ID, tag and whitespace-normalised statement, including
+  "Red today:" and `Test:`. It reuses `track-red.py`'s `CRITERION`, `section`, `criteria` and
+  unreadable-criteria diagnostics; nothing moved and track-red behavior is unchanged.
+  Ticks and appended evidence/break records pass. Added/deleted specs are reported separately
+  and fail. Changes outside Acceptance criteria are ignored.
+- **Criteria keep their wording** runs on every PR with full history and the merge base;
+  only `day-NN/spec-<slug>` branches are exempt, including no tooling override. README lists
+  it as active by default and the spec rules explain it; `CLAUDE.md` needed no extra clause.
+  It rejects any rewording, cannot judge meaning or whether a change is substantive, and
+  trusts spec-change PRs to the maintainer's review.
+- **Twelve tests; eight deliberate breaks failed at assertions.** `break.py` was invoked
+  with Python subprocess argument lists, naming each exact test, avoiding shell quoting:
+  - broken: statement comparison disabled → AssertionError: Lists differ: [] != ['C07.1: statement changed']
+  - broken: Red today comparison disabled → AssertionError: Lists differ: [] != ['C07.1: statement changed']
+  - broken: Test field comparison disabled → AssertionError: Lists differ: [] != ['C07.1: statement changed']
+  - broken: tag comparison disabled → AssertionError: Lists differ: [] != ['C07.1: tag changed']
+  - broken: removed criterion ignored → AssertionError: Lists differ: [] != ['C07.2: removed']
+  - broken: added criterion ignored → AssertionError: Lists differ: [] != ['C07.3: added']
+  - broken: closing rewording allowed to pass → AssertionError: 0 != 1 : specs/day-07-example.md: C07.1: statement changed
+  - broken: added and deleted specs allowed to pass → AssertionError: 0 != 1 : specs/day-07-example.md: spec deleted
+  The workflow job cannot be unit-tested here. Its command run locally on this branch against
+  `main` printed "no day spec was touched" and "0 criterion/spec differences".
+- **Still deferred:** judging whether rewording is substantive; checking `plan.md`;
+  pre-merge evidence replay with candidate/base revisions; dashboard changes.
