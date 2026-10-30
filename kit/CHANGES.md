@@ -1114,8 +1114,8 @@ workflow (`test_pr_names.py`: 16 of 17, now 17).
 
 ### 74. What the pilot (step 4) must exercise
 
-**Closed** (item 81). Two things are left: the `Oversized:` path never ran, and the hand-off panel
-has a bug the pilot showed (both in item 81).
+**Closed** (item 81). One thing is left: the `Oversized:` path never ran (item 81). The hand-off
+panel's bug the pilot showed is **fixed** (item 82).
 
 Each of these has never run in the kit; the pilot runs each once:
 
@@ -1134,8 +1134,8 @@ Each of these has never run in the kit; the pilot runs each once:
   open**: no pilot PR went over 400 lines (item 81).
 - The panels a day fills: "Pull requests per day", the gap angle moving, the `new`/`hold` tags
   and the evidence behind the ticks, a hand-off with an ID picked up by the next day. **Done**,
-  Days 1-5; H1.2 picked up by Day 3 (its #7), H1.1 and H3.1 by Day 2 (its #11). The panel has
-  a bug between days (item 81).
+  Days 1-5; H1.2 picked up by Day 3 (its #7), H1.1 and H3.1 by Day 2 (its #11). The panel's
+  bug between days (item 81) is **fixed** (item 82).
 - A plan whose order is not by number, with a stop on a day under 10 (item 39). **Done**: Days
   1, 3, 2, 4, 5, a stop after Day 3, decided in its #10 before Day 2's spec (#11).
 
@@ -1574,7 +1574,7 @@ checked against its git history, its PRs and CI runs, and its live page's data
     Its "Diff stays reviewable" run (40873088727) passed at 127 lines.
   - None of its 254 CI runs failed. The `Oversized:` branch of `pr-checks.yml` (line 123) has
     never run, and no `scripts/test_*.py` covers it.
-- **Found, not fixed: a hand-off to a day whose spec is not written yet.** `hand_offs()` in
+- **Found, fixed in item 82: a hand-off to a day whose spec is not written yet.** `hand_offs()` in
   `scripts/spec-drift.py` counts a day as ahead only when its spec file exists (`d in text`),
   not when `plan.md` puts it after the current day. A day writes its own spec, so between days
   the panel is wrong:
@@ -1588,3 +1588,25 @@ checked against its git history, its PRs and CI runs, and its live page's data
     #11: a rebuild at an old commit reads GitHub's PRs as they are now, and the Dashboard runs'
     Pages artifacts from then have expired.
 - **Checks:** Markdown only, so no test, break or page comparison.
+
+### 82. A hand-off to a day whose spec is not written yet (item 81's bug)
+
+- **A day is ahead once `plan.md` puts it in the order.** `hand_offs()` in
+  `scripts/spec-drift.py` counted a day as ahead only when its spec file existed. A day writes
+  its own spec, so between days the next day never had one. A day is now ahead when it is in the
+  order, not finished and not a placeholder; a day with no spec has nothing to pick an item up,
+  so it is listed, not picked up.
+- **The test,** on Wordtally's data (order 1, 3, 2, 4, 5; Day 1's Notes give H1.1 to Day 2 and
+  H1.2 to Day 3):
+  - At its #5 (Day 1 done, no other spec): H1.2 → Day 3 and H1.1 → Day 2, neither picked up.
+    Before the fix both had no target, under "No later day picks these up".
+  - At its #10 (Day 3 done, its spec citing both IDs, no Day 2 spec): H1.1 → Day 2, not picked
+    up. Before the fix it was missing from the list.
+  - **Seen red** on `main`'s code: `AssertionError: Lists differ: [[(None, 'H1.1', False), (None, 'H1.2', False)], []] != [[(3, 'H1.2', False), (2, 'H1.1', False)], [(2, 'H1.1', False)]]`.
+  - `broken: a day counted ahead only once its spec exists → AssertionError: Lists differ: [[(None, 'H1.1', False), (None, 'H1.2', False)], []] != [[(3, 'H1.2', False), (2, 'H1.1', False)], [(2, 'H1.1', False)]]`
+- **The page comparison:** 57 of 57 boxes the same.
+- **Missed, mine:**
+  - The new test's first fixture had no code file, and `git grep` exited 1 on it: an error,
+    not a failure. It now has one, as the other hand-off tests do.
+  - The first break named the test in `SpecDriftTest`, where it is not, and reported
+    "FAILED (errors=1)". It was rerun on `HandOffTest`.
