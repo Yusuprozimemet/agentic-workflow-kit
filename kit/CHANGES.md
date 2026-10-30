@@ -1759,7 +1759,7 @@ checked against its git history, its PRs and CI runs, and its live page's data
 - **Every key is unverified:** all verification fields are null until the maintainer checks
   the cited PRs and records themselves. No auditor, export or scoring run was performed.
 - **One committed-manifest test, with the exact test named in the mutation command:**
-  broken: committed snapshot commit shortened ? AssertionError: 1 != 0 : dev-day21-harness-routing: invalid source/commit
+  broken: committed snapshot commit shortened → AssertionError: 1 != 0 : dev-day21-harness-routing: invalid source/commit
   The deliberate break failed in the status assertion, not setup; the manifest was restored.
 - **Still deferred:** held-out cases and their private keys (next PR); maintainer key
   verification; baseline run and results table; automating auditor runs or snapshot export;
