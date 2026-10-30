@@ -150,6 +150,19 @@ svg .ooo { fill: var(--ooo); font-weight: 600; }
 svg .date { fill: var(--ink-2); font: 500 11px var(--mono); }
 svg .lbl { fill: var(--ink-2); font-size: 12px; font-weight: 500; }
 svg .lbl-strong { fill: var(--ink); font-size: 12.5px; font-weight: 600; }
+.hbars { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr) max-content; gap: 6px 10px; align-items: center; margin: 8px 0; }
+.hbar-row { display: contents; }
+.hbar-label { max-width: 210px; text-align: right; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.hbar-track { display: flex; height: 16px; }
+.hbar-track i { flex: none; height: 100%; }
+.hbar-track i:first-child { border-radius: 3px 0 0 3px; }
+.hbar-track i:last-child { border-radius: 0 3px 3px 0; }
+.hbar-track i:only-child { border-radius: 3px; }
+.hbar-value { font-size: 12px; color: var(--muted); }
+@media (max-width: 520px) {
+  .hbars { grid-template-columns: minmax(0, 1fr) max-content; row-gap: 2px; }
+  .hbar-label { grid-column: 1 / -1; max-width: none; text-align: left; margin-top: 6px; }
+}
 .scroll-x { overflow-x: auto; }
 .axis-note { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
 .hit { fill: transparent; cursor: pointer; }

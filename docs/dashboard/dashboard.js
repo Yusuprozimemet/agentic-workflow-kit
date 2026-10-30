@@ -858,7 +858,11 @@ const kilo = n => n >= 1e6 ? fmt(n / 1e6, 2) + "M" : n >= 1e3 ? fmt(n / 1e3, 0) 
 function drawTokens() {
   const T = DATA.tokens || [];
   const box = document.getElementById("token-bars");
-  if (!T.length) { box.innerHTML = '<p class="load-error">No token counts yet: run <code>python scripts/token-usage.py</code>.</p>'; return; }
+  if (!T.length) {
+    box.innerHTML = '<p class="load-error">No token counts yet: run <code>python scripts/token-usage.py</code>.</p>';
+    document.getElementById("token-agents").innerHTML = '<p class="load-error">No agents to show: there are no token counts to split by agent.</p>';
+    return;
+  }
   const sum = (rows, k) => rows.reduce((a, r) => a + r[k], 0);
   // Every reply re-reads the whole conversation, so context per reply is what a long session costs.
   const ctx = rows => sum(rows, "input") + sum(rows, "cache_write") + sum(rows, "cache_read");
@@ -918,6 +922,7 @@ function drawTokens() {
 }
 
 // One bar per agent, longest first, coloured by the model it ran on (the legend above names them).
+// HTML, not an SVG: an SVG scales its text with the screen, and at phone width the labels were unreadable.
 function drawAgents(T, sum, ctx, perReply, color) {
   const box = document.getElementById("token-agents");
   const label = a => a === "main" ? "main sessions" : a === "unknown" ? "agent not recorded" : a;
@@ -926,34 +931,30 @@ function drawAgents(T, sum, ctx, perReply, color) {
     .map(o => ({ ...o, out: sum(o.rs, "output"), model: [...new Set(o.rs.map(r => r.model))] }))
     .sort((x, y) => y.out - x.out);
   if (!agents.length) { box.innerHTML = ""; return; }
-  const RH = 30, P = { l: 210, r: 70, t: 4, b: 4 }, H = P.t + P.b + RH * agents.length;
-  const top = agents[0].out, lx = v => P.l + v / top * (LW - P.l - P.r);
-  box.innerHTML = "";
-  const svg = el("svg", { viewBox: `0 0 ${LW} ${H}`, role: "img", "aria-label": "Output tokens by agent" }, box);
-  agents.forEach((o, i) => {
-    const y = P.t + i * RH;
-    el("text", { x: P.l - 10, y: y + RH / 2 + 4, "text-anchor": "end" }, svg).textContent = label(o.a);
-    let x = P.l;
-    o.model.forEach(m => {
-      const v = sum(o.rs.filter(r => r.model === m), "output");
-      el("rect", { x, y: y + 7, width: Math.max(1, lx(v) - P.l), height: RH - 14, rx: 3, fill: color(m) }, svg);
-      x += lx(v) - P.l;
-    });
-    el("text", { x: x + 8, y: y + RH / 2 + 4, class: "num" }, svg).textContent = kilo(o.out);
-    const hit = el("rect", { x: 0, y, width: LW, height: RH, fill: "transparent" }, svg);
-    hit.addEventListener("mousemove", ev => showTip(ev, `<b>${esc(label(o.a))}</b>
+  const top = agents[0].out, w = v => fmt(Math.max(0.1, v / top * 100), 2) + "%";
+  box.innerHTML = `<div class="hbars" role="img" aria-label="Output tokens by agent">` + agents.map((o, i) =>
+    `<div class="hbar-row" data-i="${i}"><span class="hbar-label">${esc(label(o.a))}</span><span class="hbar-track">` +
+    o.model.map(m => `<i style="width:${w(sum(o.rs.filter(r => r.model === m), "output"))};background:${color(m)}"></i>`).join("") +
+    `</span><span class="hbar-value num">${kilo(o.out)}</span></div>`).join("") + "</div>";
+  box.querySelectorAll(".hbar-row").forEach(row => {
+    const o = agents[+row.dataset.i];
+    row.addEventListener("mousemove", ev => showTip(ev, `<b>${esc(label(o.a))}</b>
       <div class="row"><span>model</span><span>${o.model.map(m => esc(modelName(m))).join(", ")}</span></div>
       <div class="row"><span>output</span><span>${kilo(o.out)}</span></div>
       <div class="row"><span>input + cache</span><span>${kilo(ctx(o.rs))}</span></div>
       <div class="row"><span>context per reply</span><span>${perReply(o.rs)}</span></div>
       <div class="row"><span>replies</span><span>${sum(o.rs, "replies")}</span></div>`));
-    hit.addEventListener("mouseleave", hideTip);
+    row.addEventListener("mouseleave", hideTip);
   });
 }
 
 // Per finished day, how many tags the blind defect-rater gave the same way; null where the Notes have no counts.
 function drawRelabel() {
   const days = DATA.days.filter(finished).sort((a, b) => rank(a.day) - rank(b.day));
+  if (!days.length) {
+    document.getElementById("relabel").innerHTML = `<tbody><tr><td class="t">No finished day yet: a day is counted once its Notes quote <code>relabel.py compare</code>.</td></tr></tbody>`;
+    return;
+  }
   const F = ["stage", "cause", "made"];
   const cell = p => !p ? `<td class="r pre">–</td>`
     : `<td class="r"><span class="meter"><i style="width:${p[0] / p[1] * 100}%"></i></span>${p[0]} of ${p[1]}</td>`;
