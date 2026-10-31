@@ -9,10 +9,6 @@ Baseline, at `9151c8f`: 6 of 8 copied suites pass. `test_relabel.py` (1 of 8 fai
 `test_spec_drift.py` (1 of 69 failing) fail only because jobmatch files are missing (items 8 and 9).
 `spec-drift.py` crashes in a repository with no remote (item 14).
 
-## Tooling fixes
-
-- Add the missing `unittest.main()` guard to `scripts/test_replay_set.py` so CI's direct script run executes its tests.
-
 ## Small: ignores, text, dangling references
 
 1. **`.gitignore`: `__pycache__/`.** Running `python scripts/test_*.py` leaves
@@ -1900,3 +1896,12 @@ checked against its git history, its PRs and CI runs, and its live page's data
   - `broken: unticked Replaces lines retire earlier criteria → AssertionError: '1 criteria in force, 0 replaced, 1 unticked' not found in '0 criteria in force, 1 replaced, 1 unticked\n\n| Day | ID | Tag | Claim | Tests | Spec file |\n|---:|---|---|---|---|---|\n'`
   - `broken: same or later day replacement is accepted → AssertionError: 0 != 1`
   - `broken: a Replaces: line without — was: is accepted → AssertionError: 0 != 1`
+
+### 93. Run the replay-set tests in CI
+
+- **`scripts/test_replay_set.py` had no `unittest.main()` guard,** so CI's loop, which runs
+  `python "$t"` for each `scripts/test_*.py`, ran none of its 16 tests and passed. Found in the
+  review of item 92. With the guard it reports "Ran 16 tests" and OK; the other 16 test scripts
+  already had it.
+- **Break on purpose:**
+  - `broken: replay test entry-point guard removed → no output`
