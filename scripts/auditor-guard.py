@@ -18,6 +18,11 @@ So `stop` compares the repository with what it was before the auditor's first co
 branch, every ref, the stash and `git status`. A change sends the auditor back to put it back and
 say so; a second stop lets it end, with the change named to the main session.
 
+The settings' command finds this script through CLAUDE_PROJECT_DIR, read in Python so that no
+shell has to expand it, and exits 0 without it: VS Code Copilot reads the same settings, runs the
+hook for every tool and sets no such variable, and a script path that resolved to
+/scripts/auditor-guard.py exited 2 and denied all of its tool calls. Claude Code always sets it.
+
 The repository is CLAUDE_PROJECT_DIR, else the hook's `cwd`. The snapshot is a file per agent in
 the system's temp directory, removed at the stop.
 """

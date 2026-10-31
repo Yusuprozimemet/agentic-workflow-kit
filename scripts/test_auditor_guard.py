@@ -1,7 +1,8 @@
 """scripts/auditor-guard.py blocks an auditor's writing commands and finds what got past it. The
 command tests read command text; the stop tests change a scratch repository between the auditor's
 first command and its stop; the settings tests check that .claude/settings.json wires both hooks,
-that the guard acts for the five auditors, and that it lets the main session and other agents by.
+that the guard acts for the five auditors, and that it lets the main session and other agents by,
+and run the settings' commands through the shell with and without CLAUDE_PROJECT_DIR.
 
     python scripts/test_auditor_guard.py
 """
@@ -137,8 +138,38 @@ class SettingsTest(unittest.TestCase):
         def commands(event, matcher=None):
             return [h["command"] for entry in hooks.get(event, []) if entry.get("matcher") == matcher
                     for h in entry["hooks"]]
-        self.assertRegex(" ".join(commands("PreToolUse", "Bash")), r'auditor-guard\.py" pre$')
-        self.assertRegex(" ".join(commands("SubagentStop")), r'auditor-guard\.py" stop$')
+        self.assertRegex(" ".join(commands("PreToolUse", "Bash")), r'auditor-guard\.py.*" pre$')
+        self.assertRegex(" ".join(commands("SubagentStop")), r'auditor-guard\.py.*" stop$')
+
+    def hook(self, event, data, project_dir):
+        """Run the settings' command for one event through the shell, from a scratch directory."""
+        with open(SETTINGS, encoding="utf-8") as f:
+            command = json.load(f)["hooks"][event][0]["hooks"][0]["command"]
+        scratch = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, scratch, True)
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
+        env.update(TMP=scratch, TEMP=scratch, TMPDIR=scratch)
+        if project_dir is not None:
+            env["CLAUDE_PROJECT_DIR"] = project_dir
+        command = command.replace("python ", f'"{sys.executable}" ', 1)
+        return subprocess.run(command, shell=True, cwd=scratch, env=env, input=json.dumps(data),
+                              capture_output=True, text=True)
+
+    def test_the_hooks_pass_outside_claude_code(self):
+        # VS Code Copilot reads these settings, ignores the matcher, and sets no CLAUDE_PROJECT_DIR
+        data = {"toolName": "run_in_terminal", "toolArgs": {"command": "git status"}}
+        for event in ("PreToolUse", "SubagentStop"):
+            with self.subTest(event=event):
+                self.assertEqual(self.hook(event, data, None).returncode, 0)
+
+    def test_the_hooks_still_block_an_auditor_in_claude_code(self):
+        data = {"agent_type": "spec-auditor", "tool_input": {"command": "git checkout main"}}
+        done = self.hook("PreToolUse", data, os.path.dirname(HERE))
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("auditor-guard: blocked", done.stderr)
+        empty = tempfile.mkdtemp()  # a project without the guard still fails closed
+        self.addCleanup(shutil.rmtree, empty, True)
+        self.assertEqual(self.hook("PreToolUse", data, empty).returncode, 2)
 
     def test_the_guard_acts_for_the_five_auditors(self):
         auditors = set()
