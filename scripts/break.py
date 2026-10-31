@@ -13,11 +13,12 @@ list, with no shell: on Windows, `mvnw` runs as `mvnw.cmd`. A Maven command must
 incremental build can skip the broken source and pass. One break at a time: a second run while one
 is active refuses.
 
-It exits 0 only when the check failed with the break in and the file is back as it was, and prints
+It runs the check first without the break, and refuses if it does not pass. It exits 0 only when
+the check then failed with the break in and the file is back as it was, and prints
 the record for the PR (specs/README.md): `broken: <what> → <what the check reported>`. A check judged
 by what it prints, not its exit code (`grep -c` exits 1 at a count of 0), takes --expect-stdout: it
-failed when the regex no longer matches its stdout. See the regex match once without the break: one
-that never matches catches every break. A command that started but did not run the check (on
+failed when the regex no longer matches its stdout. break.py checks that the regex matches without
+the break itself. A command that started but did not run the check (on
 Windows, `bash` can be WSL's: "execvpe(/bin/bash) failed") is refused, not recorded. <what> holds
 no arrow: spec-drift.py reads the line up to its first one. A temporary directory in the report is
 written <tmp>, so no local path, a user name in it, reaches the PR.
@@ -143,6 +144,17 @@ def main(args=None):
     try:
         os.write(fd, a.file.encode())
         os.close(fd)
+        try:
+            baseline = subprocess.run(argv_for(a.command, a.cwd), cwd=a.cwd, capture_output=True, text=True,
+                                      encoding="utf-8", errors="replace")
+        except FileNotFoundError as e:
+            return refuse(f"the command did not start: {e}")
+        output = baseline.stdout + baseline.stderr
+        said = not_run(baseline.returncode, output)
+        if said:
+            return refuse(f"the command started but the check did not run, so nothing is recorded: {untemp(said)}")
+        if caught(baseline.returncode, baseline.stdout, a.expect_stdout):
+            return refuse(f"the check fails without the break, so a failure with it proves nothing: {untemp(reported(output))}")
         with open(a.file, "wb") as f:
             f.write(original.replace(find, replace))
         try:
