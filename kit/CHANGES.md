@@ -1871,3 +1871,28 @@ checked against its git history, its PRs and CI runs, and its live page's data
 - **No code or tests changed,** so there was nothing to break on purpose.
 - **Still deferred:** the workflow comparison, keep-or-simplify, comparing another model, and
   everything item 90 left deferred.
+
+### 92. Index the criteria that still describe the system
+
+- **The OpenSpec comparison found a living-system-model gap:** the kit records what each day
+  promised, but has no generated view of which promised behaviours still hold. Add
+  `scripts/behaviour-index.py`, which reuses `spec-drift.py`'s criterion parser and lists the
+  ticked criteria not replaced by a later day. The index is generated from the day specs each
+  time; it is not a hand-written record that can drift.
+- **A behaviour change names what it replaces.** The `Replaces:` rule is in the spec rules and
+  template, and both auditors compare the current day or phase with the generated index.
+- **The spec-auditor's brief changed,** so the held-out replay result in
+  [kit/replay/results.md](replay/results.md) is for the brief before this item, not this one.
+- **Not adopted:** the agreement gate already exists in the spec-change PR and CI's "Criteria
+  keep their wording"; OpenSpec's change folders would add a second format; a lighter mode is
+  deferred until the cost of a day is measured.
+- **Written by Codex from a brief, reviewed in the main session,** which found four faults and
+  fixed them with a test each, all three tests seen red on Codex's version: a `Replaces:` line
+  was paired with its criterion by position, so a list link above the first criterion moved it
+  onto the wrong one (each block is now parsed on its own); a `Replaces:` line without
+  `— was:` was ignored without a word (now a problem); files were ordered as strings, so Day 100
+  was listed before Day 99; and the new lines in the briefs and the rules were not wrapped.
+- **Breaks on purpose:**
+  - `broken: unticked Replaces lines retire earlier criteria → AssertionError: '1 criteria in force, 0 replaced, 1 unticked' not found in '0 criteria in force, 1 replaced, 1 unticked\n\n| Day | ID | Tag | Claim | Tests | Spec file |\n|---:|---|---|---|---|---|\n'`
+  - `broken: same or later day replacement is accepted → AssertionError: 0 != 1`
+  - `broken: a Replaces: line without — was: is accepted → AssertionError: 0 != 1`
