@@ -380,6 +380,24 @@ def kind(title, branch, files=None):
     return "other"
 
 
+def other_group(branch):
+    """The branch prefix used to split merges that are not day work."""
+    if "/" not in branch:
+        return "other"
+    prefix = branch.split("/", 1)[0].lower()
+    return prefix or "other"
+
+
+def other_groups(rows):
+    """Group other pull requests by branch prefix, keeping the largest three visible."""
+    counts = collections.Counter(other_group(row["branch"]) for row in rows
+                                 if row["pr"] and row["kind"] == "other")
+    groups = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    if len(groups) > 4:
+        groups = groups[:3] + [("other", sum(count for _, count in groups[3:]))]
+    return [dict(name=name, count=count) for name, count in groups]
+
+
 def angle(x, y):
     """None when either vector is all zeros: it has no direction, so no angle to the other."""
     nx, ny = np.linalg.norm(x), np.linalg.norm(y)
@@ -574,7 +592,7 @@ def trajectory(snaps, blobs, order=()):
         names_absent = [vocab[k] for k in np.flatnonzero(named & ~in_code)]
         ever |= in_code
         chance = chance_angle(spec_v, code_v, known)
-        rows.append(dict(i=i, sha=s["sha"], date=s["date"], pr=s["pr"], title=s["title"], kind=s["kind"],
+        rows.append(dict(i=i, sha=s["sha"], date=s["date"], pr=s["pr"], title=s["title"], branch=s["branch"], kind=s["kind"],
                          day=day if s["pr"] else 0, added=added, deleted=deleted,
                          gap_full=deg(angle(spec_v, code_v)),
                          gap_chance=chance and chance[0], gap_chance_band=chance and chance[1:],
@@ -1529,6 +1547,7 @@ def main():
                                out_of_order=out_of_order(order),
                                removals=removal_history(days, snaps, blobs),
                                hand_offs=handoffs, criteria_index=index, attention=attention,
+                               other_groups=other_groups(rows),
                                vocab_size=vocab, tokens=token_usage(),
                                verification=verification(prs, runs),
                                infra=infra(INFRA_WORKFLOW),

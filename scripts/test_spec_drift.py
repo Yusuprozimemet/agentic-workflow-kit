@@ -1061,6 +1061,55 @@ def drawn(rows=(), days=(), order=(), page=None, **more):
     return out["error"], out["panels"], out["logged"]
 
 
+class OtherGroupsTest(unittest.TestCase):
+    def test_groups_other_merges_by_branch_prefix(self):
+        rows = [
+            dict(pr=1, kind="other", branch="tooling/a"),
+            dict(pr=2, kind="other", branch="tooling/b"),
+            dict(pr=3, kind="other", branch="tooling/c"),
+            dict(pr=4, kind="other", branch="dashboard/a"),
+            dict(pr=5, kind="other", branch="dashboard/b"),
+            dict(pr=6, kind="other", branch="docs/a"),
+            dict(pr=7, kind="other", branch="release"),
+            dict(pr=8, kind="code", branch="day-01/track-a-x"),
+        ]
+        self.assertEqual(sd.other_groups(rows), [
+            {"name": "tooling", "count": 3},
+            {"name": "dashboard", "count": 2},
+            {"name": "docs", "count": 1},
+            {"name": "other", "count": 1},
+        ])
+
+    def test_groups_cap_the_smallest_prefixes(self):
+        rows = [dict(pr=i, kind="other", branch=f"{name}/x")
+                for i, name in enumerate(("a", "a", "a", "b", "b", "c", "d", "e", "f"), 1)]
+        self.assertEqual(sd.other_groups(rows), [
+            {"name": "a", "count": 3},
+            {"name": "b", "count": 2},
+            {"name": "c", "count": 1},
+            {"name": "other", "count": 3},
+        ])
+
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_the_total_bar_draws_groups_and_keeps_old_data(self):
+        rows = [dict(page_row(0, None, "origin", 50), branch=""),
+                dict(page_row(1, 1, "other", 50), branch="tooling/x"),
+                dict(page_row(2, 2, "other", 50), branch="dashboard/x"),
+                dict(page_row(3, 3, "other", 50), branch="docs/x"),
+                dict(page_row(4, 4, "other", 50), branch="release")]
+        error, panels, _ = drawn(rows, other_groups=[{"name": "tooling", "count": 3},
+                                                     {"name": "dashboard", "count": 2},
+                                                     {"name": "<b>x</b>", "count": 1}])
+        self.assertIsNone(error)
+        legend = panels["pr-total-legend"]
+        self.assertIn("tooling · 3", legend)
+        self.assertLess(legend.index("tooling · 3"), legend.index("dashboard · 2"))
+        self.assertIn("&lt;b&gt;x&lt;/b&gt; · 1", legend)
+        error, panels, _ = drawn(rows)
+        self.assertIsNone(error)
+        self.assertIn("Other · 4", panels["pr-total-legend"])
+
+
 @unittest.skipUnless(shutil.which("node"), "needs node")
 class CriterionPanelsTest(unittest.TestCase):
     ROW = dict(page_row(0, None, "origin", 40), code_churn=0)

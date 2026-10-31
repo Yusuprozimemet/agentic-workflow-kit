@@ -382,7 +382,7 @@ function shareBar(box, parts, label) {
   parts.forEach(p => {
     const w = p.value / total * (LW - P.l - P.r);
     if (!w) return;
-    const rect = el("rect", { x: x + 1, y: 4, width: Math.max(1, w - 2), height: H - 8, rx: 3, fill: p.color }, svg);
+    const rect = el("rect", { x: x + 1, y: 4, width: Math.max(1, w - 2), height: H - 8, rx: 3, fill: p.color, ...(p.opacity == null ? {} : { opacity: p.opacity }) }, svg);
     if (w > 54) el("text", { x: x + 10, y: H / 2 + 5, class: "num", style: "fill:var(--surface);font-weight:600" }, svg).textContent = fmt(p.value / total * 100, 0) + "%";
     rect.addEventListener("mousemove", ev => showTip(ev, `<b>${esc(p.name)}</b>${p.tip || ""}<div class="row"><span>share</span><span>${fmt(p.value / total * 100, 1)}%</span></div>`));
     rect.addEventListener("mouseleave", hideTip);
@@ -467,10 +467,17 @@ function drawPerDay() {
   document.getElementById("churn-legend").innerHTML = `<span><i style="background:var(--spec)"></i>Spec lines changed · ${kilo(S)}</span>
     <span><i style="background:var(--code)"></i>Code lines changed · ${kilo(C)}</span>`;
   const merges = R.filter(r => r.pr);
-  const totals = ["spec", "code", "close", "other"].map(k => ({ name: KIND[k], value: merges.filter(r => r.kind === k).length, color: KVAR[k] }));
+  const totals = ["spec", "code", "close"].map(k => ({ name: KIND[k], value: merges.filter(r => r.kind === k).length, color: KVAR[k] }));
+  const groups = DATA.other_groups;
+  if (groups) {
+    const opacity = [1, 0.75, 0.55, 0.4];
+    groups.forEach((g, i) => totals.push({ name: g.name, value: g.count, color: "var(--other)", opacity: opacity[i] }));
+  } else {
+    totals.push({ name: KIND.other, value: merges.filter(r => r.kind === "other").length, color: KVAR.other });
+  }
   shareBar(document.getElementById("pr-total"), totals, "Every merged pull request by kind");
   document.getElementById("pr-total-legend").innerHTML = totals.map(t =>
-    `<span><i class="dot" style="background:${t.color}"></i>${t.name} · ${t.value}</span>`).join("") + `<span>${merges.length} in all</span>`;
+    `<span><i class="dot" style="background:${t.color}${t.opacity == null ? "" : `;opacity:${t.opacity}`}"></i>${esc(t.name)} · ${t.value}</span>`).join("") + `<span>${merges.length} in all</span>`;
   const box = document.getElementById("perday");
   box.innerHTML = "";
   const kinds = ["spec", "code", "close", "other"], H = 240, P = { l: 44, r: 16, t: 22, b: 30 };
