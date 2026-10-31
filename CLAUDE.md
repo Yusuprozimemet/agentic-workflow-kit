@@ -117,7 +117,9 @@ what they were and sends the auditor back once if they changed; the main session
 pass. It is not a sandbox: it reads the command, not what a program does (`python -c` that writes
 a file gets through), and the stop sees only what git shows in this repository. The hooks sit in
 the project settings, not the agents' frontmatter: the VS Code extension's Claude Code (2.1.312)
-ignored frontmatter hooks. An edit to `.claude/` takes effect in the next session, not this one.
+ignored frontmatter hooks. VS Code Copilot reads the same settings, ignores the matcher and sets
+no `CLAUDE_PROJECT_DIR`; the hook command reads that variable in Python and passes without it, since a
+missing script exits 2 and denied every Copilot tool call (seen in PR #58). An edit to `.claude/` takes effect in the next session, not this one.
 
 Their findings are advice to the maintainer. What becomes a PR is the maintainer's call.
 
