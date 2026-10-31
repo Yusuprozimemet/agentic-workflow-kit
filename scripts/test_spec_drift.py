@@ -1061,6 +1061,40 @@ def drawn(rows=(), days=(), order=(), page=None, **more):
     return out["error"], out["panels"], out["logged"]
 
 
+@unittest.skipUnless(shutil.which("node"), "needs node")
+class CriterionPanelsTest(unittest.TestCase):
+    ROW = dict(page_row(0, None, "origin", 40), code_churn=0)
+
+    def test_attention_matrix_and_inspector(self):
+        row = dict(id="C1", day=1, tag="new", claim="<b>x</b>", spec="specs/day-01.md", track="A", prs=[12], tests=["test_x"], cited=None, test_found=True, seen_red=dict(state=False, lines=["broken line"]), replay=dict(state="current", status=["failed"], why=["reason"], checks=[dict(status="failed", diagnostic="diagnostic")]), replaces=[], replaced_by=[])
+        reasons = ["replay_failed", "replay_error", "replay_stale", "evidence_missing", "not_seen_red", "test_not_found", "handoff_unclaimed"]
+        labels = ["Replay failed", "Replay error", "Replay stale", "Evidence missing", "Not seen red", "Test not found", "Hand-off unclaimed"]
+        attention = [dict(id="C1" if i == 0 else "Day 01", reason=reason, detail=str(i)) for i, reason in enumerate(reasons)]
+        error, panels, logged = drawn([self.ROW], criteria_index=[row, dict(row, id="C2", cited=False)], attention=attention)
+        self.assertIsNone(error)
+        self.assertEqual(logged, [])
+        box = panels["attention-list"]
+        self.assertLess(box.index("C1"), box.index("Day 01"))
+        self.assertEqual([box.index(label) for label in labels], sorted(box.index(label) for label in labels))
+        matrix = panels["criteria-matrix"]
+        self.assertIn('<td><span title="not measured">–</span></td>', matrix)
+        self.assertIn('<td>no</td>', matrix)
+        inspector = panels["criterion-inspector"]
+        self.assertIn("&lt;b&gt;x&lt;/b&gt;", inspector)
+        self.assertNotIn("<b>x</b>", inspector)
+        self.assertIn("diagnostic", inspector)
+
+    def test_old_and_empty_data(self):
+        error, panels, logged = drawn([self.ROW])
+        self.assertIsNone(error)
+        self.assertEqual(logged, [])
+        self.assertIn("Not in this data", panels["attention-list"])
+        self.assertIn("Not in this data", panels["criteria-matrix"])
+        _, panels, _ = drawn([self.ROW], criteria_index=[], attention=[])
+        self.assertIn("Nothing needs attention", panels["attention-list"])
+        self.assertIn("No criteria yet", panels["criteria-matrix"])
+
+
 class PageProseTest(unittest.TestCase):
     """The words around the panels: the page explains any project's data, not the one it was built on."""
 

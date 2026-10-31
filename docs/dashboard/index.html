@@ -29,6 +29,11 @@
     </div>
   </section>
 
+  <section class="panel" id="attention">
+    <div class="panel-head"><h2>Needs attention</h2><p>Items are listed in the order supplied. Select one to inspect its criterion or day.</p></div>
+    <div id="attention-list"></div>
+  </section>
+
   <div class="stats" id="stats"></div>
   <div class="finding caveats"><h3>What these figures cannot see</h3><ul id="caveats"></ul></div>
 
@@ -183,6 +188,10 @@
       <h2>Evidence behind the ticks</h2>
       <p>For each finished day: of its ticked criteria, how many cite the PR they landed in, name a test, and record a break seen red in a <code>broken:</code> line. Each named test is looked up on <code>main</code>. CI runs every test that is there, so a criterion goes quiet only when its test leaves the tree or can be skipped (a test run on a system property runs when a workflow passes the property as true). A test that moved is followed under its new name, of the same stem or listed by the PR that moved it. A name counts only if it was in the tree when the day's last PR merged. Grey is retired: a later day's spec names the test and that day's PR removed it; orange is gone with no spec saying so. Days marked <em>pre-format</em> were written before the evidence format: nothing asked their ticks to record any of this, so a zero there is not measured, not missing. If the <code>broken:</code> line was asked for only from a later PR, “Seen red” is not measured for a day none of whose PRs reaches it.</p>
     </div>
+    <div class="panel-head"><h2>Criteria</h2><p>Each row shows the criterion, day and tag, whether it cites a PR, its test was found, and it was seen red, and the replay statuses. – means not measured. Select a row for details.</p></div>
+    <div class="scroll-x"><table id="criteria-matrix"></table></div>
+    <div class="panel-head"><h2>Inspector</h2><p>Evidence and attention for the selected criterion or day.</p></div>
+    <div id="criterion-inspector" aria-live="polite"></div>
     <div class="scroll-x"><table id="evidence"></table></div>
     <div class="finding" id="evidence-gaps" style="margin-top:14px"></div>
     <div class="panel-head" style="margin-top:14px">
