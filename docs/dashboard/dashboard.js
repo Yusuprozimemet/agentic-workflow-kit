@@ -1000,6 +1000,42 @@ function drawDeployment() {
   document.getElementById("deployment-checks").innerHTML = `<table><thead><tr><th>Criterion</th><th>Check</th><th>Result</th><th>Detail</th><th>Checked at</th></tr></thead><tbody>${C.map(c => `<tr><td>${esc(c.criterion)}</td><td>${esc(c.name)}</td><td><span class="chip" style="color:${tone(c.ok)}">${c.ok ? "pass" : "fail"}</span></td><td>${esc(c.detail)}</td><td>${esc(c.at)}</td></tr>`).join("")}</tbody></table>`;
 }
 
+// Display the evidence as supplied by the data build.
+const reasonLabels = { replay_failed: "Replay failed", replay_error: "Replay error", replay_stale: "Replay stale",
+  evidence_missing: "Evidence missing", not_seen_red: "Not seen red", test_not_found: "Test not found", handoff_unclaimed: "Hand-off unclaimed" };
+const attention = DATA.attention || [], criteria = DATA.criteria_index || [];
+const unknown = '<span title="not measured">–</span>';
+const measured = value => value == null ? unknown : value ? "yes" : "no";
+const values = items => items && items.length ? items.map(esc).join(", ") : unknown;
+const itemText = item => `<b>${esc(item.id)}</b> · ${esc(reasonLabels[item.reason] || item.reason)}: ${esc(item.detail)}`;
+function inspect(id) {
+  const row = criteria.find(c => c.id === id), items = attention.filter(a => a.id === id);
+  const box = document.getElementById("criterion-inspector");
+  if (!id) { box.innerHTML = DATA.criteria_index == null || DATA.attention == null ? "Not in this data" : "Select a criterion or day."; return; }
+  const details = row ? `<h3>${esc(row.id)}</h3><p>${esc(row.claim)}</p>
+    <p>Spec: ${row.spec ? esc(row.spec) : unknown} · Track: ${row.track == null ? unknown : esc(row.track)}</p>
+    <p>PRs: ${values(row.prs)} · Tests: ${values(row.tests)}</p>
+    <p>Seen red: ${values(row.seen_red.lines)}</p>
+    <p>Replay: ${esc(row.replay.state)} · ${values(row.replay.why)}</p>
+    <ul>${row.replay.checks.map(c => `<li>${esc(c.status)}: ${c.diagnostic == null ? unknown : esc(c.diagnostic)}</li>`).join("")}</ul>
+    <p>Replaces: ${values(row.replaces)} · Replaced by: ${values(row.replaced_by)}</p>` : `<h3>${esc(id)}</h3>`;
+  box.innerHTML = details + `<p>Attention:</p><ul>${items.map(a => `<li>${itemText(a)}</li>`).join("")}</ul>`;
+}
+function drawCriteria() {
+  const list = document.getElementById("attention-list"), matrix = document.getElementById("criteria-matrix");
+  list.innerHTML = DATA.attention == null ? "Not in this data" : attention.length ? attention.map((a, i) =>
+    `<button type="button" data-attention="${i}">${itemText(a)}</button>`).join("") : "Nothing needs attention";
+  matrix.innerHTML = DATA.criteria_index == null ? "<caption>Not in this data</caption>" : !criteria.length ? "<caption>No criteria yet</caption>" :
+    `<thead><tr><th>Criterion</th><th>Day</th><th>Tag</th><th>Cites a PR</th><th>Test found</th><th>Seen red</th><th>Replay</th></tr></thead><tbody>${criteria.map((c, i) =>
+      `<tr tabindex="0" role="button" data-criterion="${i}"><td>${esc(c.id)}</td><td>${esc(c.day)}</td><td>${esc(c.tag)}</td><td>${measured(c.cited)}</td><td>${measured(c.test_found)}</td><td>${measured(c.seen_red.state)}</td><td>${c.replay.status == null ? unknown : values(c.replay.status)}</td></tr>`).join("")}</tbody>`;
+  list.addEventListener("click", e => { const b = e.target.closest("button[data-attention]"); if (b) inspect(attention[+b.dataset.attention].id); });
+  const selectRow = e => { const r = e.target.closest("tr[data-criterion]"); if (r) inspect(criteria[+r.dataset.criterion].id); };
+  matrix.addEventListener("click", selectRow);
+  matrix.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectRow(e); } });
+  inspect(attention.length ? attention[0].id : criteria.length ? criteria[0].id : null);
+}
+panel("attention-list", drawCriteria);
+
 panel("today", drawNow); panel("work-bar", drawWork); panel("perday", drawPerDay); panel("breaks", drawVerification);
 panel("infra-head", drawInfra); panel("deployment-head", drawDeployment); panel("token-bars", drawTokens); panel("relabel", drawRelabel);
 panel("evidence-gaps", drawEvidence); panel("evidence-checks", drawEvidenceChecks); panel("hand-offs", drawHandOffs); panel("read", drawConclusion);
