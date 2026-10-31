@@ -38,6 +38,7 @@ import tempfile
 # assertion, then a failure line. The last match of the first pattern found is the report.
 REPORTED = [re.compile(p) for p in (
     r"Tests run: \d+, Failures: \d+, Errors: \d+.*",
+    r"Tests(?::|\s+)\s*\d+ failed.*",
     r"\d+ failed.*",
     r"(?:AssertionError|AssertionFailedError|ComparisonFailure)[:\s].*",
     r"(?:FAIL|FAILED|ERROR|BUILD FAILURE)\b.*",

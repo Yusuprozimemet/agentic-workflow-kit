@@ -69,7 +69,7 @@ BREAK_LINE_FROM_PR = 0  # PROJECT: the first PR asked for the broken: line; 0 fo
 # A test CI can skip: switched off, or run only on a condition. A condition on a system property
 # is met when a workflow passes it as true (GatewayHarnessIT, -Dharness.gateway=true), so that
 # test runs. A bare @Disabled stays skippable. In Python, a skip decorator or a skipTest() call.
-SKIPPABLE = re.compile(r"@Disabled\b|@(?:Enabled|Disabled)If|@(?:unittest\.|pytest\.mark\.)skip|\.skipTest\(")
+SKIPPABLE = re.compile(r"@Disabled\b|@(?:Enabled|Disabled)If|@(?:unittest\.|pytest\.mark\.)skip|\.skipTest\(|(?<![\w.])(?:(?:it|test|describe)\.(?:skip|todo)|xit|xdescribe)\(")
 PY_CLASS = re.compile(r"^[ \t]*class[ \t]+(\w+)", re.M)
 ON_PROPERTY = re.compile(r'@EnabledIfSystemProperty\(\s*named\s*=\s*"([^"]+)"\s*,\s*matches\s*=\s*"true"\s*\)')
 CI_PROPERTY = re.compile(r"-D([\w.-]+)=true\b")

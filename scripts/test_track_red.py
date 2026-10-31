@@ -53,6 +53,16 @@ NO_FIELD = spec().replace("Test: `T.test_double_a", "`T.test_double_a")
 CAPITALISED = spec().replace("**new**", "**New**")
 
 
+class RunnerTest(unittest.TestCase):
+    def test_more_runner_commands_and_results(self):
+        self.assertEqual(track_red.runner_command("pytest", "tests/test_app.py::test_x"), [sys.executable, "-m", "pytest", "tests/test_app.py::test_x"])
+        self.assertEqual(track_red.runner_command("maven", "ExampleTest"), ["mvn", "clean", "test", "-Dtest=ExampleTest"])
+        self.assertEqual(track_red.runner_command("npm", "tests/example.test.js"), ["npm", "test", "--", "tests/example.test.js"])
+        for runner, output in (("pytest", "=== 1 failed, 2 passed ==="), ("maven", "Tests run: 3, Failures: 1, Errors: 0, Skipped: 0"), ("npm", "Tests: 1 failed, 2 passed, 3 total")):
+            run = subprocess.CompletedProcess([], 1, output, "")
+            self.assertTrue(track_red.runner_result(runner, run)[2], runner)
+
+
 class ParseTest(unittest.TestCase):
     def test_day_template_names_tests_and_assigns_criteria_to_tracks(self):
         path = os.path.join(os.path.dirname(SCRIPT), "..", "specs", "_template.md")
@@ -201,9 +211,9 @@ class TrackRedTest(unittest.TestCase):
         self.assertNotIn("seen red", out)
 
     def test_a_runner_it_does_not_support_is_a_configuration_error(self):
-        code, out = self.track_red(runner="pytest")
+        code, out = self.track_red(runner="unknown")
         self.assertEqual(code, 2, out)
-        self.assertIn("TRACK_RED_RUNNER `pytest` is not supported; the only runner is unittest", out)
+        self.assertIn("TRACK_RED_RUNNER `unknown` is not supported; supported runners: unittest, pytest, maven, npm", out)
 
     def test_a_branch_that_is_not_a_track_is_not_applicable(self):
         code, out = self.track_red(branch="tooling/word-rule-edge-cases")

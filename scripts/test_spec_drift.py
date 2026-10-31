@@ -523,6 +523,12 @@ class EvidenceTest(unittest.TestCase):
                                  "CliTest.test_gone": "missing", "RuleTest.test_word": "skippable",
                                  "HelperTest": "missing"})  # src/helper.py is not a test file
 
+    def test_javascript_skip_markers_and_near_misses(self):
+        for marker in ("it.skip(", "test.skip(", "describe.skip(", "xit(", "xdescribe(", "it.todo(", "test.todo("):
+            self.assertIsNotNone(sd.SKIPPABLE.search(marker), marker)
+        for marker in ("omit.skip(", "mytest.skip(", "exit(", "prefixdescribe.skip("):
+            self.assertIsNone(sd.SKIPPABLE.search(marker), marker)
+
     def test_a_python_test_that_calls_skip_test_is_skippable(self):
         # a pilot: a test can skip itself from its body, as CI on a missing tool does.
         self.repo.merge({"tests/test_cli.py": "import unittest\n\n\nclass CliTest(unittest.TestCase):\n"

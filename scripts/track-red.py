@@ -6,7 +6,7 @@ print one line per test.
 A `new` criterion must fail on the code before the day (specs/README.md); a pilot of the kit merged
 two tracks without the `seen red:` record. CI runs this on every PR ("Track tests seen red") with `--runner` set to the
 repository variable TRACK_RED_RUNNER: empty, the variable unset, is "not configured" and checks
-nothing; `unittest`, the only runner it has, checks; anything else cannot run. It runs the tests again;
+nothing; `unittest`, `pytest`, `maven`, and `npm` select a runner; anything else cannot run. It runs the tests again;
 it cannot show the track's author did. What it checks comes from the spec, never the diff (a PR that adds
 tests pinning what holds is not a track):
 
@@ -50,6 +50,40 @@ SUMMARY = re.compile(r"^(OK.*|FAILED \((.*)\))$", re.M)
 LIST_TESTS = ("import unittest\nwalk = lambda s: [i for t in s for i in (walk(t) if isinstance(t, unittest.TestSuite) "
               "else [t.id()])]\nprint('\\n'.join(walk(unittest.defaultTestLoader.discover('tests', top_level_dir='.'))))")
 ENV = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+RUNNERS = {
+    "unittest": lambda name: [sys.executable, "-m", "unittest", name],
+    "pytest": lambda name: [sys.executable, "-m", "pytest", name],
+    "maven": lambda name: ["mvn", "clean", "test", f"-Dtest={name}"],
+    "npm": lambda name: ["npm", "test", "--", name],
+}
+
+
+def runner_command(runner, name):
+    return RUNNERS[runner](name)
+
+
+def runner_result(runner, run):
+    if runner == "unittest":
+        return result(run)
+    output = run.stdout + run.stderr
+    if runner == "maven":
+        matches = re.findall(r"Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)[^\n]*", output)
+        if not matches:
+            return 0, "no summary line", 0, 0
+        total, failures, errors, skipped = map(int, matches[-1])
+        return total - skipped, matches[-1], failures, errors
+    if runner == "pytest":
+        summaries = re.findall(r"^=+\s*(.*?)\s*=+\s*$", output, re.M)
+        line = summaries[-1] if summaries else "no summary line"
+        failures = re.search(r"\b(\d+) failed\b", line)
+        errors = re.search(r"\b(\d+) errors?\b", line)
+        passed = re.search(r"\b(\d+) passed\b", line)
+        return sum(int(m.group(1)) for m in (failures, errors, passed) if m), line, int(failures.group(1)) if failures else 0, int(errors.group(1)) if errors else 0
+    lines = re.findall(r"^\s*Tests(?::|\s+)\s*(.*)$", output, re.M)
+    line = lines[-1] if lines else "no summary line"
+    failures = re.search(r"\b(\d+) failed\b", line)
+    passed = re.search(r"\b(\d+) passed\b", line)
+    return sum(int(m.group(1)) for m in (failures, passed) if m), line, int(failures.group(1)) if failures else 0, 0
 
 
 def section(text, title):
@@ -136,8 +170,8 @@ def main(args=None):
         print("not configured: TRACK_RED_RUNNER is not set, so no track's tests are run; "
               "a Python project with unittest tests sets it to unittest")
         return 0
-    if a.runner != "unittest":
-        print(f"track-red.py: TRACK_RED_RUNNER `{a.runner}` is not supported; the only runner is unittest",
+    if a.runner not in RUNNERS:
+        print(f"track-red.py: TRACK_RED_RUNNER `{a.runner}` is not supported; supported runners: {', '.join(RUNNERS)}",
               file=sys.stderr)
         return 2
     os.chdir(git("rev-parse", "--show-toplevel").strip())
@@ -189,27 +223,29 @@ def main(args=None):
               f"(hold: {', '.join(ours) or 'none'})")
         return 0
 
-    ids, runs = test_ids(), []
+    ids, runs = test_ids() if a.runner == "unittest" else [], []
     for c, names in new.items():
         for name in names:
-            hits = [i for i in ids if i == name or i.endswith("." + name)]
+            hits = [i for i in ids if i == name or i.endswith("." + name)] if a.runner == "unittest" else [name]
             if len(hits) != 1:
                 problems.append(f"{c}: `{name}` matches {len(hits)} tests on the head, not one")
             else:
                 runs.append((c, hits[0]))
-    commands = [[sys.executable, "-m", "unittest", t] for _, t in runs]
+    commands = [runner_command(a.runner, t) for _, t in runs]
+    if os.name == "nt" and a.runner == "npm":
+        commands = [["npm.cmd", *command[1:]] for command in commands]
     on_base = seen_red.on_base(base, commands, seen_red.changed_tests(base)) if runs else []
     red = 0
     for (c, t), before, command in zip(runs, on_base, commands):
-        here = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", env=ENV)
-        ran, line, failures, errors = result(before)
-        ran_here, line_here, _, _ = result(here)
+        here = subprocess.run(seen_red.break_.argv_for(command, os.getcwd()), capture_output=True, text=True, encoding="utf-8", errors="replace", env=ENV)
+        ran, line, failures, errors = runner_result(a.runner, before)
+        ran_here, line_here, failures_here, errors_here = runner_result(a.runner, here)
         if ran < 1:
             problems.append(f"{c}: {t} ran no test on {base}: {line}")
-        elif errors or not failures:
+        elif before.returncode == 0 or errors or not failures:
             why = "it does not see the change" if line.startswith("OK") else "an error, not an assertion"
             problems.append(f"{c}: {t} reports {line} on {base}: {why}")
-        elif ran_here < 1 or line_here != "OK":
+        elif ran_here < 1 or here.returncode != 0 or failures_here or errors_here:
             problems.append(f"{c}: {t} does not pass on the head: {line_here}")
         else:
             red += 1

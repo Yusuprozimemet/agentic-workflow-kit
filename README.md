@@ -65,19 +65,22 @@ days on a small Python CLI. What that evidence does and does not show is in
 5. Optional: a tracker key, as a repository variable `JIRA_KEY` (Settings, Secrets and
    variables, Actions, Variables). "Compare the names" in `.github/workflows/pr-checks.yml`
    reads it; unset, no key is checked.
-6. Optional, for Python `unittest` tests: a repository variable `TRACK_RED_RUNNER` set to
-   `unittest`. "Track tests seen red" then runs each test a track's `new` criteria name, on the
-   code before the track and on the track (`scripts/track-red.py`). Unset, it reports "not
-   configured" and passes; any other value fails it as a configuration error. It finds tests by
-   `unittest` discovery under `tests/`; `scripts/seen-red.py`, which it runs them with, copies only
-   the changed files under `tests/` onto the old code, and `scripts/evidence.py` looks a named test
-   up as a Python class under `tests/`. Another language keeps the `seen red:` record by hand
-   (`specs/README.md`), with `python scripts/seen-red.py -- <its test command>` if its tests live
-   under `tests/`.
+6. Optional: set the repository variable `TRACK_RED_RUNNER` to `unittest`, `pytest`, `maven`, or `npm`. "Track tests seen red" runs each named test on the base and head. Unset, it reports "not configured" and passes; an unknown value fails. Use unittest test names, pytest node IDs, Maven class names, or npm test file paths, respectively. The replay copies changed files under `tests/` only; test files elsewhere must already exist on the base. Runner dependencies must be available in CI. Evidence replay still resolves Python classes under `tests/`.
+
+### Style check setup
+
+Set `STYLE_CHECK_COMMAND` as a repository variable to a check-only command, and fill the matching placeholder in `CLAUDE.md`. For example:
+
+- Python: configure `[tool.ruff]` in `pyproject.toml`, then use `ruff check . && ruff format --check .`.
+- JavaScript/TypeScript: `npx eslint . && npx prettier --check .`.
+- Java: `mvn spotless:check`, or your Maven lint plugin's `check` goal with its rules file committed.
+
+Put the first formatting of existing code in its own PR with an `Oversized:` line, never in a day's track.
+
 
 Control activation in a copied kit (CI checks must also be required in branch protection below):
 
-- **Track tests seen red:** active only once the repository variable `TRACK_RED_RUNNER=unittest`
+- **Track tests seen red:** active only once the repository variable `TRACK_RED_RUNNER`
   is configured; applies to track PRs with owned `new` criteria and named tests under `tests/`.
 - **Frozen files:** active only once `spec-drift.config.json` has `frozen` patterns (empty by
   default); optional `test_count` configures the additional count check.
