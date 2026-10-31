@@ -198,6 +198,9 @@ On Windows, in Git Bash and PowerShell:
   CRLF: use the Edit tool, or normalise and write the ending back. A test that writes a file
   writes bytes: text mode adds a carriage return and changes every count. `git show <sha>:<file>`
   prints LF: diffed against the CRLF tree, every line differs, so use `diff --strip-trailing-cr`.
+- Windows PowerShell `Set-Content` and `Add-Content` can write in the system ANSI codepage,
+  turning em dashes and arrows into `?`: write Markdown with `-Encoding utf8` or the Write tool,
+  and read the saved file back as UTF-8 before committing.
 - A path in JSON has its backslashes escaped: compare the parsed object, not the string.
 - Long heredocs break in Git Bash, and PowerShell has none. Write commit messages and PR bodies
   to a scratch file (`git commit -F`, `gh pr create --body-file`); give the maintainer one-line
