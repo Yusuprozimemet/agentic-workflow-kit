@@ -25,6 +25,8 @@ land together: no separate spec-change or closing PR. Put the `seen red:` line a
 unittest` to check each new criterion's test against base code and the head; CI runs it when
 `TRACK_RED_RUNNER` is `unittest`, and reports not configured when unset. Hold checks must also
 be broken on purpose as in the day rules below.
+Ticked short-spec criteria join the behaviour index; a later day replaces one with
+`Replaces: S-<slug>.N`.
 
 ## Rules
 

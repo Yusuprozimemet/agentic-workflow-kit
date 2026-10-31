@@ -179,6 +179,8 @@ def main(args=None):
         problems = unread(text) + problems
         label = f"Day {day} track {track.upper()}"
     new = {c: names for c, (tag, names) in ours.items() if tag == "new"}
+    if change and not new:
+        problems.append(f"short spec {slug} has no new criterion; a behaviour change needs one")
     problems += [f"{c} is new and has no Test: field naming a test in backticks"
                  for c, names in new.items() if not names]
     if not new and not problems:

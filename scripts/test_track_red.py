@@ -166,6 +166,15 @@ class TrackRedTest(unittest.TestCase):
         self.assertEqual(1, result.returncode, result.stdout)
         self.assertIn("does not belong to short spec double", result.stdout)
 
+    def test_hold_only_short_spec_fails(self):
+        self.git("add", ".")
+        self.git("commit", "-q", "-m", "base")
+        self.write("specs/changes/double.md", "## Acceptance criteria\n- [ ] S-double.1 **hold** — x\n")
+        run = subprocess.run([sys.executable, SCRIPT, "--branch", "change/double"], cwd=self.dir,
+                             capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(1, run.returncode, run.stdout)
+        self.assertIn("FAIL: short spec double has no new criterion; a behaviour change needs one", run.stdout)
+
     def test_a_test_red_on_the_base_and_green_on_the_head_passes(self):
         code, out = self.track_red()
         self.assertEqual(code, 0, out)
