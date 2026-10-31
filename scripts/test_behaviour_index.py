@@ -105,6 +105,30 @@ class BehaviourIndexTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("C01.1", result.stdout)
 
+    def test_replaces_without_was_is_a_problem(self):
+        self.write("day-01-first.md", "## Acceptance criteria\n- [x] C01.1 **hold** — A.\n")
+        self.write("day-02-next.md", "## Acceptance criteria\n- [x] C02.1 **new** — B.\n      Replaces: C01.1\n")
+        result = self.run_index()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Replaces: lines without an ID", result.stdout)
+
+    def test_list_link_before_criteria_does_not_shift_replaces(self):
+        self.write("day-01-first.md", "## Acceptance criteria\n- [x] C01.1 **hold** — A.\n- [x] C01.2 **hold** — B.\n")
+        self.write("day-02-next.md", "## Acceptance criteria\n- [rules](README.md)\n"
+                   "- [x] C02.1 **new** — C.\n- [x] C02.2 **new** — D.\n      Replaces: C01.2 — was: B.\n")
+        result = self.run_index("--json", os.path.join(self.temp.name, "rows.json"))
+        self.assertEqual(result.returncode, 0, result.stdout)
+        with open(os.path.join(self.temp.name, "rows.json"), encoding="utf-8") as f:
+            ids = [row["id"] for row in json.load(f)]
+        self.assertEqual(ids, ["C01.1", "C02.1", "C02.2"])
+
+    def test_days_are_ordered_by_number(self):
+        self.write("day-99-a.md", "## Acceptance criteria\n- [x] C99.1 **hold** — A.\n")
+        self.write("day-100-b.md", "## Acceptance criteria\n- [x] C100.1 **new** — B.\n")
+        result = self.run_index()
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertLess(result.stdout.index("| 99 |"), result.stdout.index("| 100 |"))
+
     def test_missing_id_is_reported_and_exits_one(self):
         self.write("day-01-first.md", "## Acceptance criteria\n- [x] **new** — No identifier.\n")
         result = self.run_index()

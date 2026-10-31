@@ -16,34 +16,37 @@ SPEC_DRIFT = importlib.util.spec_from_file_location("spec_drift", os.path.join(H
 sd = importlib.util.module_from_spec(SPEC_DRIFT)
 SPEC_DRIFT.loader.exec_module(sd)
 DAY_FILE = re.compile(r"day-(\d+)-[^/\\]+\.md$")
-REPLACES = re.compile(r"^[ \t]*Replaces:[ \t]*(.*?)\s+\u2014\s*was:", re.M)
-CRITERION_START = re.compile(r"^- \[[ x]\]", re.M)
+REPLACES = re.compile(r"^[ \t]*Replaces:(.*)$", re.M)
+WAS = re.compile(r"\s\u2014\s*was:\s*\S")
 
 
 def collect(specs_dir):
     """Read day specs in numeric order, preserving the parser's criterion claims and tests."""
     rows = []
-    problems = {"unknown": [], "order": [], "duplicate": [], "missing_id": []}
-    for filename in sorted(os.listdir(specs_dir)):
-        match = DAY_FILE.fullmatch(filename)
-        if not match:
-            continue
-        day = int(match.group(1))
+    problems = {"unknown": [], "order": [], "duplicate": [], "malformed": [], "missing_id": []}
+    days = sorted((int(m.group(1)), name) for name in os.listdir(specs_dir)
+                  if (m := DAY_FILE.fullmatch(name)))
+    for day, filename in days:
         path = os.path.join(specs_dir, filename)
         with open(path, encoding="utf-8-sig", newline=None) as f:
             text = f.read()
-        criteria_text = sd.section(text, "Acceptance criteria")
-        parsed = sd.criteria(criteria_text)
-        blocks = re.split(r"^(?=- \[[ x]\])", criteria_text, flags=re.M)
-        blocks = [block for block in blocks if CRITERION_START.match(block)]
-        for crit, block in zip(parsed, blocks):
+        # One block per criterion, split as criteria() splits, and parsed on its own, so a
+        # Replaces: line always belongs to the criterion whose block holds it.
+        for block in re.split(r"^(?=- \[[ x]\])", sd.section(text, "Acceptance criteria"), flags=re.M):
+            parsed = sd.criteria(block) if re.match(r"- \[[ x]\]", block) else []
+            if not parsed:
+                continue
+            crit = parsed[0]
             row = {"day": day, "id": crit["id"], "tag": crit["kind"] or "untagged",
                    "claim": crit["claim"], "tests": crit["tests"], "spec": filename,
                    "ticked": crit["ticked"], "replaces": []}
             if not crit["id"]:
                 problems["missing_id"].append(f"{filename}: {crit['claim']}")
             for line in REPLACES.findall(block):
-                row["replaces"].extend(re.findall(r"\bC\d+\.\d+\b", line))
+                ids = re.findall(r"\bC\d+\.\d+\b", line.split("\u2014")[0])
+                if not ids or not WAS.search(line):
+                    problems["malformed"].append(f"{filename} {crit['id'] or ''}: Replaces:{line}")
+                row["replaces"].extend(ids)
             rows.append(row)
 
     by_id = {}
@@ -84,7 +87,8 @@ def markdown(rows, problems):
         cells = [f"{r['day']:02d}", r["id"] or "", r["tag"], r["claim"], ", ".join(r["tests"]), r["spec"]]
         lines.append("| " + " | ".join(c.replace("|", "\\|").replace("\n", " ") for c in cells) + " |")
     labels = {"unknown": "Unknown replacement IDs", "order": "Replacement is not from an earlier day",
-              "duplicate": "Criteria replaced more than once", "missing_id": "Criteria without IDs"}
+              "duplicate": "Criteria replaced more than once",
+              "malformed": "Replaces: lines without an ID or — was:", "missing_id": "Criteria without IDs"}
     for key, title in labels.items():
         if problems[key]:
             lines.extend(["", f"## {title}", "", *[f"- {p}" for p in problems[key]]])

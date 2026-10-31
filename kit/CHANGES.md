@@ -1881,13 +1881,18 @@ checked against its git history, its PRs and CI runs, and its live page's data
   time; it is not a hand-written record that can drift.
 - **A behaviour change names what it replaces.** The `Replaces:` rule is in the spec rules and
   template, and both auditors compare the current day or phase with the generated index.
+- **The spec-auditor's brief changed,** so the held-out replay result in
+  [kit/replay/results.md](replay/results.md) is for the brief before this item, not this one.
 - **Not adopted:** the agreement gate already exists in the spec-change PR and CI's "Criteria
   keep their wording"; OpenSpec's change folders would add a second format; a lighter mode is
   deferred until the cost of a day is measured.
+- **Written by Codex from a brief, reviewed in the main session,** which found four faults and
+  fixed them with a test each, all three tests seen red on Codex's version: a `Replaces:` line
+  was paired with its criterion by position, so a list link above the first criterion moved it
+  onto the wrong one (each block is now parsed on its own); a `Replaces:` line without
+  `— was:` was ignored without a word (now a problem); files were ordered as strings, so Day 100
+  was listed before Day 99; and the new lines in the briefs and the rules were not wrapped.
 - **Breaks on purpose:**
-  - `broken: unticked Replaces lines retire earlier criteria → AssertionError: '1 criteria in force, 0 replaced, 1 unticked' not found in '0 criteria in force, 1 replaced, 1 unticked\n\n| Day | ID | Tag | Claim | Tests | Spec file |\n|---:|---|---|---|---|---|'`
+  - `broken: unticked Replaces lines retire earlier criteria → AssertionError: '1 criteria in force, 0 replaced, 1 unticked' not found in '0 criteria in force, 1 replaced, 1 unticked\n\n| Day | ID | Tag | Claim | Tests | Spec file |\n|---:|---|---|---|---|---|\n'`
   - `broken: same or later day replacement is accepted → AssertionError: 0 != 1`
-- **Checks:** all 17 `scripts/test_*.py` files passed, 328 tests total; `scripts/check-links.py`
-  found 4 broken links in 16 checked, all in pre-existing HTML comments; `pr-names.py` reported
-  0 problems; the branch diff is 259 changed lines; `kit/starter-check.py` passed
-  all 5 steps.
+  - `broken: a Replaces: line without — was: is accepted → AssertionError: 0 != 1`
