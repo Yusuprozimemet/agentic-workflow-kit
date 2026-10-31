@@ -33,6 +33,13 @@ def load():
     return script
 
 
+class SummaryTest(unittest.TestCase):
+    def test_javascript_summaries_precede_failure_details(self):
+        script = load()
+        for summary in ("Tests: 1 failed, 4 passed, 5 total", "Tests  1 failed | 4 passed (5)"):
+            self.assertEqual(script.reported("FAIL detail\n" + summary + "\n"), summary)
+
+
 class BreakTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()

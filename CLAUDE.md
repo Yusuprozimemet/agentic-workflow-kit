@@ -230,6 +230,7 @@ The dashboard script and the PR checks:
 - In a spec, put in backticks only identifiers, paths and commands; quote literal output. The gap
   reads backticked snake_case and camelCase names as code.
 - CI runs `scripts/behaviour-index.py` to check `Replaces:` lines.
+- Before pushing: run the check-only style command `<!-- PROJECT: style check command, e.g. ruff check . && ruff format --check . -->`; it must fail on unformatted code and never rewrite files.
 - Before pushing: `PR_BRANCH=<branch> PR_TITLE="<title>" python scripts/pr-names.py main HEAD`,
   `git diff --numstat main...HEAD`, and `python scripts/check-links.py` on each Markdown file
   touched. Re-read the PR body's counts and `broken:` lines. Never force-push without the
