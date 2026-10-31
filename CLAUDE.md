@@ -45,7 +45,7 @@ maintainer, and nothing starts after a phase ends until they say so.
    on fresh `main`, run
    `python scripts/evidence.py specs/day-NN-slug.md --ref main --json evidence.json` and retain
    the report for local runs. CI replays automatically after the merge; check its run in step 5.
-   Replay finds a **merged closing commit**. Keep **missing** evidence/report, **stale**
+   Replay finds a **merged closing commit**; squash-merged closing PRs count too. Keep **missing** evidence/report, **stale**
    inputs or closing commit, and **failed** replay checks separate; resolve each before
    advancing. Execution errors also block advancement; review reasons for inapplicable checks.
 4. **After opening any PR, stop and wait for the maintainer to say "merged".** Do not start the

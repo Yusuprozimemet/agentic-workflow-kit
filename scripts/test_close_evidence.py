@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from evidence import closing_spec
+from evidence import close_commit, closing_spec
 from test_evidence import GIT_ENV
 
 
@@ -60,6 +60,48 @@ class ClosingSpecTest(unittest.TestCase):
         self.merge(("day-07-a.md", "day-07-b.md"))
         with self.assertRaisesRegex(ValueError, "day-07: expected one spec, found 2"):
             self.lookup()
+
+    def squash(self, subject):
+        os.makedirs(os.path.join(self.repo, "specs"), exist_ok=True)
+        with open(os.path.join(self.repo, "specs", "day-01-example.md"), "w") as file:
+            file.write("# Day 01\n")
+        self.git("add", ".")
+        self.git("commit", "-q", "--allow-empty", "-m", subject)
+        return self.git("rev-parse", "HEAD").strip()
+
+    def test_squash_spec(self):
+        self.squash("Day 01 close: tick criteria (#2)")
+        self.assertEqual(self.lookup(), "specs/day-01-example.md")
+
+    def test_squash_close_commit(self):
+        sha = self.squash("Day 01 close: tick criteria (#2)")
+        with patch("evidence.git", side_effect=self.git):
+            self.assertEqual(close_commit("01", "main"), sha)
+
+    def test_close_without_pr_number(self):
+        self.squash("Day 01 close")
+        self.assertIsNone(self.lookup())
+
+    def test_track_squash_is_not_close(self):
+        self.squash("Day 01 track A: x (#3)")
+        self.assertIsNone(self.lookup())
+
+    def test_tracker_key_squash(self):
+        self.squash("ABC-12 Day 01 close: tick criteria (#2)")
+        with patch.dict(os.environ, {"JIRA_KEY": "ABC"}):
+            self.assertEqual(self.lookup(), "specs/day-01-example.md")
+
+    def test_latest_close_wins(self):
+        self.squash("Day 01 close: first (#2)")
+        latest = self.squash("Day 01 close: second (#3)")
+        with patch("evidence.git", side_effect=self.git):
+            self.assertEqual(close_commit("01", "main"), latest)
+
+    def test_merge_with_squash_subject_is_not_close(self):
+        self.merge(subject="Day 01 close: wrong branch (#2)")
+        self.assertIsNone(self.lookup())
+        with patch("evidence.git", side_effect=self.git):
+            self.assertIsNone(close_commit("01", "main"))
 
 
 if __name__ == "__main__":

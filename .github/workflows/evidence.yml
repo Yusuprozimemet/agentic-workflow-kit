@@ -29,6 +29,7 @@ jobs:
         env:
           CLOSE_COMMIT: ${{ github.sha }}
           DAY: ${{ inputs.day }}
+          JIRA_KEY: ${{ vars.JIRA_KEY }}
         run: python scripts/close-evidence.py --commit "$CLOSE_COMMIT" --day "$DAY"
       - uses: actions/upload-artifact@v4
         if: always() && hashFiles('evidence.json') != ''
