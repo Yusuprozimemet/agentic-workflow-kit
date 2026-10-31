@@ -1917,6 +1917,35 @@ checked against its git history, its PRs and CI runs, and its live page's data
 
 ### 95. Try a one-PR short spec
 
+**Verdict (2026-10-31): change and keep the mode.** The three Wordtally pilots were
+[#54 `--version`](https://github.com/Yusuprozimemet/wordtally/pull/54) (token count not
+recorded), [#55 `--pretty`](https://github.com/Yusuprozimemet/wordtally/pull/55) (37,105
+Codex /status tokens), and [#56 `--min-frequency`](https://github.com/Yusuprozimemet/wordtally/pull/56)
+(38,735 Codex /status tokens). Each combined spec, tests and code: respectively 26, 44 and
+54 changed lines, with one, one and two commits. GitHub records no formal reviews or PR
+comments on these; the review that caught #56's encoding loss is not a GitHub review round.
+It found em dashes and an arrow saved as `?` before merge; a second commit fixed them. No
+post-merge defects are known so far: on Wordtally main at e1d15e9, all 34 application tests
+passed and the three options worked in manual checks. This is a small sample, not proof that
+escapes cannot occur; the stated drop condition has not occurred.
+
+For comparison, the Day 1-5 track PRs #4, #12, #8, #15 and #18 changed 98, 46, 65, 71
+and 63 lines; each had one commit and no formal GitHub review or PR comments. Each day also
+had a separate spec-change PR and close, plus spec auditing and blind defect rating; the
+end-of-project audits were recorded in #21. The transcript dashboard groups usage by day and
+agent, not by track PR: summing input, cache writes, cache reads and output across agents gives
+8,430,417, 4,055,205, 3,416,634, 3,466,954 and 2,135,686 tokens for Days 1-5 respectively,
+including ceremony. Codex /status and Claude Code transcript counts are different counters,
+so they are not like for like; neither these day totals nor the pilot numbers establish a
+per-track saving.
+
+Rule change: before opening a short-spec PR, read the saved spec as UTF-8 and inspect its
+punctuation, including any `?` where a dash or arrow was intended. UTF-8 validity alone cannot
+catch characters already replaced by valid ASCII `?`; an automated check for intended dashes
+would need to infer meaning and could reject legitimate questions. Propose such a check only
+if a reliable, small rule can be defined; use the explicit review step now.
+
+
 - Small out-of-day behaviour changes can use a short spec and code in one `change/` PR;
   the red check reads that spec on the head and checks each new test against the base code.
   Day criteria, replacements, contract tests and frozen files remain outside this mode.
