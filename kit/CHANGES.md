@@ -2003,7 +2003,8 @@ if a reliable, small rule can be defined; use the explicit review step now.
 
 ### 100. Say which README controls are procedural
 
-- The README claimed enforcement beyond what `CLAUDE.md` describes for evidence replay,
+- [#52](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/52) changed `README.md`.
+  The README claimed enforcement beyond what `CLAUDE.md` describes for evidence replay,
   the auditor guard and the diff limit; it now states their limits and names the procedural controls.
 - **Break on purpose:**
   - `broken: none ? docs only`
