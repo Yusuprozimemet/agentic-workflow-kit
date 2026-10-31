@@ -1510,6 +1510,48 @@ Days keep their numbers; they run in this order:
         snaps = repo.inside(lambda blobs: sd.snapshots({}))
         self.assertEqual([(s["pr"], s["title"]) for s in snaps], [(None, "Start the toy project")])
 
+    def test_a_squash_commit_reads_the_merged_pr_like_a_merge(self):
+        repo = Repo().merge({"plan.md": "# Plan\n"})
+        self.addCleanup(repo.close)
+        repo.git("branch", "-M", "main")
+        repo.git("commit", "--allow-empty", "-q", "-m", "Day 01 track A: thing (#5)")
+        prs = {5: dict(number=5, state="MERGED", headRefName="day-01/track-a-thing",
+                       title="Day 01 track A: thing")}
+        squash = repo.inside(lambda blobs: sd.snapshots(prs))[-1]
+        repo.git("checkout", "-q", "-b", "side")
+        repo.git("commit", "--allow-empty", "-q", "-m", "side")
+        repo.git("checkout", "-q", "main")
+        repo.git("merge", "--no-ff", "-q", "side", "-m", "Merge pull request #5 from side")
+        merge = repo.inside(lambda blobs: sd.snapshots(prs))[-1]
+        self.assertEqual((squash["pr"], squash["title"], squash["branch"]),
+                         (5, prs[5]["title"], prs[5]["headRefName"]))
+        self.assertEqual(sd.kind(squash["title"], squash["branch"]), sd.kind(merge["title"], merge["branch"]))
+        self.assertEqual(sd.kind(squash["title"], squash["branch"]), "code")
+
+    def test_a_squash_subject_without_a_merged_pr_keeps_the_subject(self):
+        repo = Repo().merge({"plan.md": "# Plan\n"})
+        self.addCleanup(repo.close)
+        repo.git("branch", "-M", "main")
+        subject = "Day 01 track A: thing (#5)"
+        repo.git("commit", "--allow-empty", "-q", "-m", subject)
+        for prs in ({}, {5: dict(number=5, state="OPEN", title="other", headRefName="day-01/track-a-thing")}):
+            with self.subTest(prs=prs):
+                snap = repo.inside(lambda blobs: sd.snapshots(prs))[-1]
+                self.assertEqual((snap["pr"], snap["title"], snap["branch"]), (None, subject, ""))
+
+    def test_a_two_parent_commit_with_a_squash_subject_is_not_a_pr(self):
+        repo = Repo().merge({"plan.md": "# Plan\n"})
+        self.addCleanup(repo.close)
+        repo.git("branch", "-M", "main")
+        repo.git("checkout", "-q", "-b", "side")
+        repo.git("commit", "--allow-empty", "-q", "-m", "side")
+        repo.git("checkout", "-q", "main")
+        subject = "Day 01 track A: thing (#5)"
+        repo.git("merge", "--no-ff", "-q", "side", "-m", subject)
+        prs = {5: dict(number=5, state="MERGED", title="other", headRefName="day-01/track-a-thing")}
+        snap = repo.inside(lambda blobs: sd.snapshots(prs))[-1]
+        self.assertEqual((snap["pr"], snap["title"], snap["branch"]), (None, subject, ""))
+
     def test_phases_are_the_plans_headings_and_stops_the_days_its_list_marks(self):
         plan = """# Toy plan
 

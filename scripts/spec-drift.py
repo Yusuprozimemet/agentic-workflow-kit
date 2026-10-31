@@ -441,14 +441,18 @@ def code_names(line, index):
 
 
 def snapshots(prs):
-    """Each commit on main's first-parent history, oldest first: a PR's merge, or a commit with no PR."""
+    """Each commit on main's first-parent history, oldest first: a PR's merge or squash, or a commit with no PR."""
     if subprocess.run(["git", "rev-parse", "--verify", "-q", "main"], capture_output=True).returncode:
         sys.exit("spec-drift.py reads the branch main, and this repository has none: git branch -m main")
     out = []
     for line in run("git", "log", "--first-parent", "main", "--reverse",
-                    "--format=%h|%ad|%s", "--date=short").splitlines():
-        sha, date, subject = line.split("|", 2)
+                    "--format=%h|%ad|%P|%s", "--date=short").splitlines():
+        sha, date, parents, subject = line.split("|", 3)
         m = re.match(r"Merge pull request #(\d+)", subject)
+        if not m and len(parents.split()) == 1:
+            squash = re.search(r" \(#(\d+)\)$", subject)
+            if squash and prs.get(int(squash.group(1)), {}).get("state") == "MERGED":
+                m = squash
         p = prs.get(int(m.group(1)), {}) if m else {}
         title = p.get("title", subject)
         out.append(dict(sha=sha, date=date, pr=int(m.group(1)) if m else None, title=title,
