@@ -77,7 +77,6 @@ Set `STYLE_CHECK_COMMAND` as a repository variable to a check-only command, and 
 
 Put the first formatting of existing code in its own PR with an `Oversized:` line, never in a day's track.
 
-
 Control activation in a copied kit (CI checks must also be required in branch protection below):
 
 - **Track tests seen red:** active only once the repository variable `TRACK_RED_RUNNER`

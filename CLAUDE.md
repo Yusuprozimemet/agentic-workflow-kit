@@ -146,7 +146,7 @@ a PR: in wordtally, Day 4's report said a list held 40 words; it held 45.
 
 ## Before pushing
 
-- Before pushing: run the check-only style command `<!-- PROJECT: style check command, e.g. ruff check . && ruff format --check . -->`; it must fail on unformatted code and never rewrite files.
+- Run the check-only style command `<!-- PROJECT: style check command, e.g. ruff check . && ruff format --check . -->`; it must fail on unformatted code and never rewrite files.
 <!-- PROJECT: build and test commands: anything the tests start that must be built first, and
 every check CI runs that the local build does not -->
 - Delete <!-- PROJECT: test report directory; with none, what to read instead, e.g. the runner's
