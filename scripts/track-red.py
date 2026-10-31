@@ -53,7 +53,7 @@ ENV = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
 RUNNERS = {
     "unittest": lambda name: [sys.executable, "-m", "unittest", name],
     "pytest": lambda name: [sys.executable, "-m", "pytest", name],
-    "maven": lambda name: ["./mvnw", "clean", "test", f"-Dtest={name}"],
+    "maven": lambda name: ["mvn", "clean", "test", f"-Dtest={name}"],
     "npm": lambda name: ["npm", "test", "--", name],
 }
 

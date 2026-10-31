@@ -146,6 +146,7 @@ a PR: in wordtally, Day 4's report said a list held 40 words; it held 45.
 
 ## Before pushing
 
+- Before pushing: run the check-only style command `<!-- PROJECT: style check command, e.g. ruff check . && ruff format --check . -->`; it must fail on unformatted code and never rewrite files.
 <!-- PROJECT: build and test commands: anything the tests start that must be built first, and
 every check CI runs that the local build does not -->
 - Delete <!-- PROJECT: test report directory; with none, what to read instead, e.g. the runner's
@@ -230,7 +231,6 @@ The dashboard script and the PR checks:
 - In a spec, put in backticks only identifiers, paths and commands; quote literal output. The gap
   reads backticked snake_case and camelCase names as code.
 - CI runs `scripts/behaviour-index.py` to check `Replaces:` lines.
-- Before pushing: run the check-only style command `<!-- PROJECT: style check command, e.g. ruff check . && ruff format --check . -->`; it must fail on unformatted code and never rewrite files.
 - Before pushing: `PR_BRANCH=<branch> PR_TITLE="<title>" python scripts/pr-names.py main HEAD`,
   `git diff --numstat main...HEAD`, and `python scripts/check-links.py` on each Markdown file
   touched. Re-read the PR body's counts and `broken:` lines. Never force-push without the

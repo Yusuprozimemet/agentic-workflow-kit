@@ -73,7 +73,7 @@ Set `STYLE_CHECK_COMMAND` as a repository variable to a check-only command, and 
 
 - Python: configure `[tool.ruff]` in `pyproject.toml`, then use `ruff check . && ruff format --check .`.
 - JavaScript/TypeScript: `npx eslint . && npx prettier --check .`.
-- Java: commit `checkstyle.xml` and use `./mvnw checkstyle:check`, or use `./mvnw spotless:check`.
+- Java: `mvn spotless:check`, or your Maven lint plugin's `check` goal with its rules file committed.
 
 Put the first formatting of existing code in its own PR with an `Oversized:` line, never in a day's track.
 

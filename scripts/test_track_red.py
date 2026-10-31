@@ -56,7 +56,7 @@ CAPITALISED = spec().replace("**new**", "**New**")
 class RunnerTest(unittest.TestCase):
     def test_more_runner_commands_and_results(self):
         self.assertEqual(track_red.runner_command("pytest", "tests/test_app.py::test_x"), [sys.executable, "-m", "pytest", "tests/test_app.py::test_x"])
-        self.assertEqual(track_red.runner_command("maven", "ExampleTest"), ["./mvnw", "clean", "test", "-Dtest=ExampleTest"])
+        self.assertEqual(track_red.runner_command("maven", "ExampleTest"), ["mvn", "clean", "test", "-Dtest=ExampleTest"])
         self.assertEqual(track_red.runner_command("npm", "tests/example.test.js"), ["npm", "test", "--", "tests/example.test.js"])
         for runner, output in (("pytest", "=== 1 failed, 2 passed ==="), ("maven", "Tests run: 3, Failures: 1, Errors: 0, Skipped: 0"), ("npm", "Tests: 1 failed, 2 passed, 3 total")):
             run = subprocess.CompletedProcess([], 1, output, "")
