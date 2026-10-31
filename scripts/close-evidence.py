@@ -20,13 +20,13 @@ def main():
             day = f"{int(args.day):02d}"
             commit = close_commit(day, "main")
             if not commit:
-                raise ValueError(f"day-{day}: no closing merge on main")
+                raise ValueError(f"day-{day}: no closing commit on main")
         spec = closing_spec(commit)
     except ValueError as error:
         print(f"FAIL  {error}")
         return 1
     if spec is None:
-        print("not a closing merge")
+        print("not a closing commit")
         return 0
     return subprocess.call([sys.executable, str(Path(__file__).with_name("evidence.py")),
                             spec, "--ref", "main", "--json", "evidence.json"])
