@@ -1910,5 +1910,7 @@ checked against its git history, its PRs and CI runs, and its live page's data
 
 - **CI runs the behaviour index** and its tests on every PR, so invalid `Replaces:` lines fail
   before a spec merges.
+- **The first push ran without numpy,** so its own PR job failed all 14 tests with
+  `ModuleNotFoundError`; the local run passed because numpy was installed there.
 - **Breaks on purpose:**
   - `broken: a Replaces: line without — was: → - day-02-next.md C02.1: Replaces: C01.1 missing`
