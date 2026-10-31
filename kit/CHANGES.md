@@ -1896,3 +1896,12 @@ checked against its git history, its PRs and CI runs, and its live page's data
   - `broken: unticked Replaces lines retire earlier criteria → AssertionError: '1 criteria in force, 0 replaced, 1 unticked' not found in '0 criteria in force, 1 replaced, 1 unticked\n\n| Day | ID | Tag | Claim | Tests | Spec file |\n|---:|---|---|---|---|---|\n'`
   - `broken: same or later day replacement is accepted → AssertionError: 0 != 1`
   - `broken: a Replaces: line without — was: is accepted → AssertionError: 0 != 1`
+
+### 93. Run the replay-set tests in CI
+
+- **`scripts/test_replay_set.py` had no `unittest.main()` guard,** so CI's loop, which runs
+  `python "$t"` for each `scripts/test_*.py`, ran none of its 16 tests and passed. Found in the
+  review of item 92. With the guard it reports "Ran 16 tests" and OK; the other 16 test scripts
+  already had it.
+- **Break on purpose:**
+  - `broken: replay test entry-point guard removed → no output`

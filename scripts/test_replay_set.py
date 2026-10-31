@@ -128,3 +128,7 @@ class ReplayTest(unittest.TestCase):
     def test_invalid_key(self):
         self.key[0]['severity'] = 'bad'
         (self.base / 'keys/dev.json').write_bytes(json.dumps(self.key).encode()); self.refused()
+
+
+if __name__ == "__main__":
+    unittest.main()
