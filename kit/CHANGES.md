@@ -2007,4 +2007,4 @@ if a reliable, small rule can be defined; use the explicit review step now.
   The README claimed enforcement beyond what `CLAUDE.md` describes for evidence replay,
   the auditor guard and the diff limit; it now states their limits and names the procedural controls.
 - **Break on purpose:**
-  - `broken: none ? docs only`
+  - `broken: none → docs only`
