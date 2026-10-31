@@ -102,14 +102,16 @@ On GitHub, in this order:
 - A public repository, or a paid plan for Pages and branch protection on a private one.
 - Before Day 1, branch protection on `main`: a pull request before merging, and these checks
   required by name: "Description uses the template", "Diff stays reviewable", "Branch, title,
-  commits and Jira keys agree", "Frozen files stay unedited", "Dashboard metric tests gate", and
-  the project's tests. The settings page offers only checks that have already run; the API takes
-  any name. Write the rule to a file (a bash heredoc fails in PowerShell):
+  commits and Jira keys agree", "Frozen files stay unedited", "Dashboard metric tests gate",
+  "Criteria keep their wording", and the project's tests. The settings page offers only checks
+  that have already run; the API takes any name. Write the rule to a file (a bash heredoc fails
+  in PowerShell):
 
   ```json
   {"required_status_checks": {"strict": false, "contexts": ["Description uses the template",
     "Diff stays reviewable", "Branch, title, commits and Jira keys agree",
-    "Frozen files stay unedited", "Dashboard metric tests gate", "<the project's tests>"]},
+    "Frozen files stay unedited", "Dashboard metric tests gate", "Criteria keep their wording",
+    "<the project's tests>"]},
    "enforce_admins": false, "required_pull_request_reviews": null, "restrictions": null}
   ```
 
