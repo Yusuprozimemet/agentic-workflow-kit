@@ -1914,3 +1914,14 @@ checked against its git history, its PRs and CI runs, and its live page's data
   `ModuleNotFoundError`; the local run passed because numpy was installed there.
 - **Breaks on purpose:**
   - `broken: a Replaces: line without — was: → - day-02-next.md C02.1: Replaces: C01.1 missing`
+
+### 95. Try a one-PR short spec
+
+- Small out-of-day behaviour changes can use a short spec and code in one `change/` PR;
+  the red check reads that spec on the head and checks each new test against the base code.
+  Day criteria, replacements, contract tests and frozen files remain outside this mode.
+- A short spec must contain a new criterion. Ticked short-spec criteria enter the behaviour
+  index, and a later day may replace them; a short spec cannot itself declare a replacement.
+- After the first three short-spec PRs in a pilot, compare tokens per change and defects found
+  after merge with that pilot's track PRs. Drop the mode if a short-spec change has an escape
+  that a day's spec-auditor or close would have caught.
