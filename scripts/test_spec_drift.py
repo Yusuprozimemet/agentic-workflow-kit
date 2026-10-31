@@ -1080,6 +1080,7 @@ class CriterionPanelsTest(unittest.TestCase):
         self.assertIn('<td><span title="not measured">–</span></td>', matrix)
         self.assertIn('<td>no</td>', matrix)
         inspector = panels["criterion-inspector"]
+        self.assertTrue("specs/day-01.md" in inspector and 'href="../../' not in inspector)
         self.assertIn("&lt;b&gt;x&lt;/b&gt;", inspector)
         self.assertNotIn("<b>x</b>", inspector)
         self.assertIn("diagnostic", inspector)

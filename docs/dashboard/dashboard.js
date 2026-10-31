@@ -1013,7 +1013,7 @@ function inspect(id) {
   const box = document.getElementById("criterion-inspector");
   if (!id) { box.innerHTML = DATA.criteria_index == null || DATA.attention == null ? "Not in this data" : "Select a criterion or day."; return; }
   const details = row ? `<h3>${esc(row.id)}</h3><p>${esc(row.claim)}</p>
-    <p>Spec: ${row.spec && /^specs\//.test(row.spec) ? `<a href="../../${esc(row.spec)}">${esc(row.spec)}</a>` : unknown} · Track: ${row.track == null ? unknown : esc(row.track)}</p>
+    <p>Spec: ${row.spec ? esc(row.spec) : unknown} · Track: ${row.track == null ? unknown : esc(row.track)}</p>
     <p>PRs: ${values(row.prs)} · Tests: ${values(row.tests)}</p>
     <p>Seen red: ${values(row.seen_red.lines)}</p>
     <p>Replay: ${esc(row.replay.state)} · ${values(row.replay.why)}</p>
