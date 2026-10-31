@@ -134,11 +134,11 @@ class TrackRedTest(unittest.TestCase):
                              capture_output=True, text=True, encoding="utf-8")
         return run.returncode, run.stdout + run.stderr
 
-    def short_red(self, test="T.test_double_a_string", slug="double"):
+    def short_red(self, test="T.test_double_a_string", slug="double", tick=" "):
         self.git("add", ".")
         self.git("commit", "-q", "-m", "base")
         self.write(f"specs/changes/{slug}.md", "## Acceptance criteria\n"
-                   f"- [ ] S-{slug}.1 **new** — strings double. Test: `{test}`.\n")
+                   f"- [{tick}] S-{slug}.1 **new** — strings double. Test: `{test}`.\n")
         self.write("app.py", "def double(x):\n    return x * 2\n")
         run = subprocess.run([sys.executable, SCRIPT, "--branch", f"change/{slug}"], cwd=self.dir,
                              capture_output=True, text=True, encoding="utf-8")
@@ -148,6 +148,12 @@ class TrackRedTest(unittest.TestCase):
         code, out = self.short_red()
         self.assertEqual(0, code, out)
         self.assertIn("seen red: tests.test_app.T.test_double_a_string (S-double.1)", out)
+
+    def test_ticked_short_spec_new_test_is_checked(self):
+        code, out = self.short_red(tick="x")
+        self.assertEqual(0, code, out)
+        self.assertIn("seen red: tests.test_app.T.test_double_a_string (S-double.1)", out)
+        self.assertIn("1 of 1 tests", out)
 
     def test_short_spec_test_passing_on_base_is_rejected(self):
         code, out = self.short_red(test="T.test_double")
