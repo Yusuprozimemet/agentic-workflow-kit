@@ -2000,3 +2000,10 @@ if a reliable, small rule can be defined; use the explicit review step now.
 - The full suite passed 353 tests. The optional scratch dashboard replay was skipped; all
   commits on main so far follow the existing merge-commit path. The two evidence arrows above
   restore intended punctuation where the PR body contains literal `?` characters.
+
+### 100. Say which README controls are procedural
+
+- The README claimed enforcement beyond what `CLAUDE.md` describes for evidence replay,
+  the auditor guard and the diff limit; it now states their limits and names the procedural controls.
+- **Break on purpose:**
+  - `broken: none ? docs only`

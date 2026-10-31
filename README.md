@@ -22,13 +22,15 @@ says what a day must make true; the kit's question is whether each claim of "don
   check is broken on purpose once (`scripts/break.py`), and the PR records what it reported.
 - **Evidence replayed after the close.** The closing PR ticks each criterion with its test and
   PR and commits a break manifest; after the merge, `evidence.yml` re-runs the Verify commands and
-  the recorded breaks at their commits (`scripts/evidence.py`). A failed, stale or missing replay
-  blocks the next day.
+  the recorded breaks at their commits (`scripts/evidence.py`). The next session checks the run
+  before starting the next day and stops for a failed, stale or missing replay; CI cannot block
+  the merge it replays.
 - **Separate agents with fresh contexts.** A plan-auditor and a spec-auditor read the specs
   against the code before any work, an implementer on a smaller model writes the code, a
   defect-rater relabels the day's defects blind (`scripts/relabel.py`), and three end-of-phase
   auditors judge the whole. Auditors only read: a hook blocks their writing git and `gh`
-  commands (`scripts/auditor-guard.py`). The main session reviews, breaks, commits and writes the
+  commands (`scripts/auditor-guard.py`), but reads commands rather than what programs do and is
+  not a sandbox. The main session reviews, breaks, commits and writes the
   PR; the maintainer merges.
 - **Small PRs in order.** One PR per track, from fresh `main`, under 400 changed lines; names,
   the template and frozen files checked in CI (`.github/workflows/pr-checks.yml`).
@@ -80,19 +82,21 @@ Control activation in a copied kit (CI checks must also be required in branch pr
 - **Frozen files:** active only once `spec-drift.config.json` has `frozen` patterns (empty by
   default); optional `test_count` configures the additional count check.
 - **Evidence replay:** active by default after the closing merge, in `evidence.yml`, using
-  `scripts/evidence.py` with the break manifest and `--json` report. Its post-merge result blocks
-  advancement; see [closing instructions](specs/README.md#evidence-at-the-close).
+  `scripts/evidence.py` with the break manifest and `--json` report. The next session checks its
+  post-merge result before advancing; see [closing instructions](specs/README.md#evidence-at-the-close).
 - **Auditor guard hook:** active by default in Claude Code sessions that load
   `.claude/settings.json`; guards the configured auditors' commands and stop state. It is a
   command guard, not a sandbox (`CLAUDE.md`, "The auditors").
 - **Diff limit:** active by default in PR CI; `MAX_CHANGED_LINES=400` in
-  `.github/workflows/pr-checks.yml` (the workflow allows a documented override).
+  `.github/workflows/pr-checks.yml`; an `Oversized:` line in the PR body turns failure into a
+  warning, without checking approval.
 - **Criteria keep their wording:** active by default in PR CI; criterion wording, tags and
   IDs must match the merge base except on `day-NN/spec-<slug>` spec-change branches.
 - **Project behavior tests:** active only once the project adds its own test workflow and
   requires that check in branch protection.
 
 A green "not configured" check is not proof that project behavior was checked.
+The post-merge evidence gate, the auditor guard's limits, the `Oversized:` override and the wait for "merged" are procedural and hold only while the maintainer and sessions follow `CLAUDE.md`.
 
 On GitHub, in this order:
 
