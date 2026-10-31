@@ -1954,3 +1954,49 @@ if a reliable, small rule can be defined; use the explicit review step now.
 - After the first three short-spec PRs in a pilot, compare tokens per change and defects found
   after merge with that pilot's track PRs. Drop the mode if a short-spec change has an escape
   that a day's spec-auditor or close would have caught.
+
+### 96. Check the unbroken baseline before recording a break
+
+- [#47](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/47) changed
+  `scripts/break.py`, `scripts/test_break.py`, `scripts/test_evidence.py` and `CLAUDE.md`.
+  A failing baseline or a regex that never matched could produce a misleading break record;
+  the check now runs unbroken first, with the lock held across both runs, and refuses failure.
+- **Break on purpose:** No separate break was recorded; the new tests were run against main's
+  original `break.py` by stashing that file.
+  - ``seen red: the two new baseline refusal tests on main -> `AssertionError: 0 == 0`; the baseline lock test -> `AssertionError: False is not true` (no baseline ran).``
+- The focused suite passed 18 tests and the full suite passed 343 tests.
+
+### 97. List the wording check in branch protection
+
+- [#48](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/48) changed `README.md`:
+  its required-check prose and JSON example omitted "Criteria keep their wording", despite
+  describing it as active by default. Both lists now include it.
+- **Break on purpose:**
+  - `broken: none → docs only`
+- The baseline suite passed 343 tests; the README link check found 0 of 15 links broken.
+
+### 98. Find squash-merged closes in evidence replay
+
+- [#49](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/49) changed
+  `scripts/evidence.py`, `scripts/test_close_evidence.py`, `.github/workflows/evidence.yml`
+  and `CLAUDE.md`. Replay previously missed squash-merged closes; it now matches closing
+  subjects and parent counts in first-parent history, including configured tracker keys, while
+  retaining merge-commit lookup. The workflow passes `JIRA_KEY` to replay.
+- **Breaks on purpose:**
+  - `seen red: test_squash_spec, test_tracker_key_squash → None instead of the spec; test_squash_close_commit, test_latest_close_wins → None instead of the commit SHA`
+  - `broken: squash close subject changed → AssertionError: None != 'specs/day-01-example.md'`
+- The full suite passed 350 tests; three rejection tests already passed on main.
+
+### 99. Read squash-merged PRs in dashboard history
+
+- [#50](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/50) changed
+  `scripts/spec-drift.py`, `scripts/test_spec_drift.py` and `scripts/close-evidence.py`.
+  Dashboard history missed PR metadata for squash commits; single-parent commits ending in a
+  PR number now use metadata only for a merged PR. Closing-evidence messages say "closing
+  commit". Merge commits retain the existing path.
+- **Breaks on purpose:**
+  - ``seen red: test_a_squash_commit_reads_the_merged_pr_like_a_merge → main returned `(None, "Day 01 track A: thing (#5)", "")` instead of PR 5 metadata. The missing/unmerged PR and two-parent guard tests passed on main. Tests were written and run before implementation, so no stash was needed.``
+  - `broken: squash commits excluded → AssertionError: Tuples differ: (None, 'Day 01 track A: thing (#5)', '') != (5, 'Day 01 track A: thing', 'day-01/track-a-thing')`
+- The full suite passed 353 tests. The optional scratch dashboard replay was skipped; all
+  commits on main so far follow the existing merge-commit path. The two evidence arrows above
+  restore intended punctuation where the PR body contains literal `?` characters.
