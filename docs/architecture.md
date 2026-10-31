@@ -1,4 +1,4 @@
-# How the kit is built
+﻿# How the kit is built
 
 [`workflow.md`](workflow.md) draws who does what and what triggers what. This page draws the
 parts underneath: the files, the agents, the scripts and the CI that hold a day to the rules in
@@ -230,6 +230,7 @@ sequenceDiagram
     S->>T: seen-red.py -- test command
     T-->>S: "seen red: ... on main → ..."
     S->>T: break.py --find ... --replace ... -- check
+    T->>T: check passes before the break, then run it with the break
     T-->>S: "broken: what → what it reported"
     S->>T: pr-names.py, diff --numstat, check-links.py
     S->>CI: commit, push, open the PR
@@ -280,7 +281,7 @@ flowchart TD
     D1 -- no --> X["the test does not see the change"]
     D1 -- yes --> E
     C -- "no, a hold" --> E["break.py: one exact replacement,<br/>no shell, bytes put back"]
-    E --> F["copy its broken: line"]
+    E --> F["check passes before the break;<br/>copy its broken: line"]
     F --> G["delete old reports, run the checks,<br/>read the reports, not exit codes"]
     G --> H["pr-names.py, under 400 lines,<br/>check-links.py, re-read the counts"]
     H --> I{"a frozen file needs an edit,<br/>or a criterion cannot be met?"}
@@ -303,9 +304,15 @@ flowchart LR
     PR --> J6["Branch, title, commits and keys agree<br/>pr-names.py"]
     PR --> J7["Track tests seen red<br/>track-red.py"]
     PR --> J8["Criteria keep their wording<br/>criteria-wording.py"]
-    J1 & J2 & J3 & J4 & J5 & J6 & J7 & J8 --> BP{"branch protection"}
+    J1 & J2 & J3 & J4 & J5 & J6 & J7 & J8 --> RESULTS["CI results"]
+    RESULTS --> BP{"checks required by<br/>branch protection"}
     BP -- green --> MERGE["the maintainer may merge"]
 ```
+
+Branch protection must be configured separately; not every CI job shown is required by the
+starter configuration. `Track tests seen red` also needs `TRACK_RED_RUNNER=unittest` to run
+its checks. The project must add and require its own test workflow; see the
+[setup instructions](../README.md#starting-a-project-from-it).
 
 ## The close
 
@@ -328,7 +335,9 @@ sequenceDiagram
     S->>PR: specs/breaks/day-NN.json
 ```
 
-After the merge, the replay decides whether the next step may start:
+After a closing PR merges, including by squash merge, CI replays its evidence. The next session
+checks the run for that closing commit before advancing; this gate is procedural, not an automatic
+block on starting work:
 
 ```mermaid
 flowchart TD
@@ -351,7 +360,7 @@ the page; the page runs nothing.
 ```mermaid
 flowchart LR
     subgraph Inputs
-        GL["main's merges<br/>and branch names"]
+        GL["main's merge and squash commits<br/>and PR metadata"]
         GHAPI["PRs and their<br/>broken: and seen red: lines"]
         SPECS["specs: criteria,<br/>Defect and Hand-off lines"]
         CFG[spec-drift.config.json]
