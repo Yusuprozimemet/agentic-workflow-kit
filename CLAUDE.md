@@ -217,8 +217,7 @@ Breaks on purpose:
   name Git Bash by its full path (`"C:/Program Files/Git/bin/bash.exe" -c "..."`). `break.py`
   refuses such a run rather than record it.
 - A check judged by what it prints, not its exit code (`grep -c` exits 1 at 0, a count): pass
-  `--expect-stdout <regex>`, its output without the break, and see the regex match once
-  unbroken; no wrapper script.
+  `--expect-stdout <regex>`, its output without the break; break.py refuses if it does not match.
 - On a CRLF tree, a `git diff --exit-code` check prints git's CRLF warning, and `break.py`
   reports that warning as the check's line: run `git -c core.safecrlf=false diff ...`.
 

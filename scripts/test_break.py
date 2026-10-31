@@ -73,8 +73,9 @@ class BreakTest(unittest.TestCase):
 
     def test_a_git_warning_is_not_what_the_check_reported(self):
         # a pilot: git diff --exit-code on Windows ends with git's CRLF warning on stderr.
-        diff = [sys.executable, "-c", "import sys; print(' 1 file changed, 1 insertion(+)'); "
-                "sys.exit(\"warning: in the working copy of 'a.py', LF will be replaced by CRLF\")"]
+        diff = [sys.executable, "-c", f"import sys; t = open({self.file!r}).read(); "
+                "print(' 1 file changed, 1 insertion(+)') if 'broken' in t else None; "
+                "sys.exit(\"warning: in the working copy of 'a.py', LF will be replaced by CRLF\") if 'broken' in t else None"]
         run = self.run_break("// ok", "// broken", command=diff)
         self.assertEqual(run.stdout.strip(), "broken: the guard removed → 1 file changed, 1 insertion(+)")
 
@@ -82,7 +83,8 @@ class BreakTest(unittest.TestCase):
         # a pilot: unittest's repr of a path under the user's temp directory, its start cut.
         full = os.path.join(tempfile.gettempdir(), "tmp2ewplof6", "a.txt")
         said = f"AssertionError: {full!r} != '[27 chars]1\\\\AppData\\\\Local\\\\Temp\\\\tmp2ewplof6\\\\a.txt' in {full}"
-        run = self.run_break("// ok", "// broken", command=[sys.executable, "-c", f"import sys; sys.exit({said!r})"])
+        run = self.run_break("// ok", "// broken", command=[sys.executable, "-c",
+                             f"import sys; t = open({self.file!r}).read(); sys.exit({said!r}) if 'broken' in t else None"])
         line = run.stdout.strip()
         self.assertNotIn(tempfile.gettempdir(), line)
         self.assertNotIn("tmp2ewplof6", line)
@@ -150,7 +152,39 @@ class BreakTest(unittest.TestCase):
                  "print(n); sys.exit(0 if n else 1)"]
         run = self.run_break("// ok", "// broken", count, extra=("--expect-stdout", "^0$"))
         self.assertEqual((run.returncode, run.stdout.strip()), (0, "broken: the guard removed → 1"))
-        self.assertEqual(self.run_break("// ok", "// broken", count).returncode, 1)  # by exit code, blind
+        by_exit = self.run_break("// ok", "// broken", count)
+        self.assertEqual(by_exit.returncode, 2)  # by exit code, the unbroken check fails
+        self.assertIn("fails without the break", by_exit.stderr)
+        blind = [sys.executable, "-c", f"print(open({self.file!r}).read().count('broken'))"]
+        self.assertEqual(self.run_break("// ok", "// broken", blind).returncode, 1)  # by exit code, blind
+
+    def test_a_check_that_fails_without_the_break_is_refused_and_nothing_is_recorded(self):
+        run = self.run_break("// ok", "// broken", [sys.executable, "-c", "raise RuntimeError('unrelated')"])
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn("fails without the break", run.stderr)
+        self.assertIn("RuntimeError: unrelated", run.stderr)
+        self.assertNotIn("broken:", run.stdout)
+        self.assertEqual(self.contents(), self.original)
+        self.assertFalse(os.path.exists(LOCK))
+
+    def test_expect_stdout_that_never_matches_without_the_break_is_refused(self):
+        run = self.run_break("// ok", "// broken", extra=("--expect-stdout", "never matches"))
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn("fails without the break", run.stderr)
+        self.assertNotIn("broken:", run.stdout)
+        self.assertEqual(self.contents(), self.original)
+        self.assertFalse(os.path.exists(LOCK))
+
+    def test_the_lock_is_held_during_the_baseline_run(self):
+        marker = os.path.join(self.dir, "baseline-ran")
+        command = [sys.executable, "-c", f"import os, sys; t = open({self.file!r}).read(); "
+                   f"sys.exit('AssertionError: broken') if 'broken' in t else "
+                   f"open({marker!r}, 'w').write('locked') if os.path.exists({LOCK!r}) else sys.exit(1)"]
+        run = self.run_break("// ok", "// broken", command)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("broken:", run.stdout)
+        self.assertTrue(os.path.exists(marker))
+        self.assertFalse(os.path.exists(LOCK))
 
     def test_a_relative_program_is_found_from_cwd(self):
         # `--cwd services/job-service -- ../../mvnw` names the root's mvnw; Windows would look for
