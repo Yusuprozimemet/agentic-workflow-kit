@@ -185,6 +185,8 @@ and who creates them, the setup scripts -->
 
 ## Pitfalls this repository has already hit
 
+- A small out-of-day behaviour change still needs a seen-red test: use [Short specs](specs/README.md#short-specs) when it qualifies.
+
 What a session learns goes here, not into the next session's prompt: every session reads this
 file. <!-- PROJECT: each pitfall this project has hit, one bullet each: what happened and
 what to do instead. The bullets below came from the kit's first copy; keep those that hold. -->
