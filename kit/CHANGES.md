@@ -1905,3 +1905,10 @@ checked against its git history, its PRs and CI runs, and its live page's data
   already had it.
 - **Break on purpose:**
   - `broken: replay test entry-point guard removed → no output`
+
+### 94. Fail CI on an invalid Replaces: line
+
+- **CI runs the behaviour index** and its tests on every PR, so invalid `Replaces:` lines fail
+  before a spec merges.
+- **Breaks on purpose:**
+  - `broken: a Replaces: line without — was: → - day-02-next.md C02.1: Replaces: C01.1 missing`
