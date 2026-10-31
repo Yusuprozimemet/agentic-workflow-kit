@@ -801,8 +801,15 @@ def criteria(section_text):
                         ticked=block.startswith("- [x]"), kind=tag.group(1) if tag else None,
                         claim=claim, prs=sorted({int(n) for n in CITED_PR.findall(block)}),
                         tests=sorted({c + ("." + m if m else "") for c, m in EVIDENCE_TEST.findall(block)}),
-                        red=broke(block), broke_in=broke_in(block)))
+                        red=broke(block), broke_in=broke_in(block), block=block))
     return out
+
+
+def replacement_lines(block):
+    """The IDs before '— was:' on each Replaces line, as used by the behaviour index."""
+    short = r"S-[a-z0-9]+(?:-[a-z0-9]+)*\.\d+"
+    return [(line, re.findall(rf"\b(?:C\d+\.\d+|{short})\b", line.split("\u2014")[0]))
+            for line in re.findall(r"^[ \t]*Replaces:(.*)$", block, re.M)]
 
 
 def in_evidence_format(crit):
@@ -1230,12 +1237,105 @@ def evidence_checks(days, snaps):
             for c in r["checks"]:
                 counts.setdefault(c["kind"], dict.fromkeys(EVIDENCE_STATUSES, 0))[c["status"]] += 1
             out.append(dict(day=d["day"], state="stale" if why else "current", why=why, counts=counts,
+                            checks=[{k: c.get(k) for k in ("criterion", "kind", "status", "label", "diagnostic")}
+                                    for c in r["checks"]],
                             problems=[{k: c.get(k) for k in ("kind", "status", "label", "diagnostic")}
                                       for c in r["checks"] if c["status"] in ("failed", "error")]))
         return dict(state="loaded", generated=report["generated"], ref=report["ref"], ref_sha=report["ref_sha"],
                     runner=report["runner"], days=out)
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
         return dict(state="invalid", diagnostic=f"{type(e).__name__}: {e}")
+
+
+def criterion_index(days, reports, handoffs, snaps, blobs):
+    """Join recorded evidence without treating an unavailable source as a negative result."""
+    names = {t for d in days for c in d["evidence"] for t in evidence_test_names(c["block"])}
+    states = test_state(names, snaps[-1]["sha"], blobs, {old: new for _, old, new in moves(snaps)})
+    report_days = {d["day"]: d for d in reports.get("days", [])}
+    rows, attention = [], []
+    def flag(row, reason, detail):
+        attention.append(dict(id=row["id"], reason=reason, detail=detail, day=row["day"]))
+
+    for day in days:
+        report = report_days.get(day["day"], {})
+        for check in report.get("checks", []):
+            if check.get("criterion") is None and check["status"] in ("failed", "error"):
+                flag(dict(id=f"Day {day['day']:02d}", day=day["day"]), "replay_" + check["status"],
+                     check.get("diagnostic") or check.get("label") or "")
+        for c in day["evidence"]:
+            if not c["id"]:
+                continue
+            block = c["block"]
+            evidence_text = criterion_evidence(block)
+            tests = evidence_test_names(block)
+            command = re.search(r"`(?:git|python|diff|grep|bash) [^`]+`", evidence_text)
+            measured = c["ticked"] and day.get("evidence_format", True)
+            cited = bool(CITED_PR.search(evidence_text) and (tests or command)) if measured else None
+            red_lines = [line.strip() for line in block.splitlines()
+                         if broke(line) or re.search(r"\bseen[- ]red\b", line, re.I)]
+            red = bool(red_lines) if measured else None
+            found = all(states[t] != "missing" for t in tests) if tests else None
+            state = report.get("state", reports["state"] if reports["state"] != "loaded" else "not checked")
+            checks = [x for x in report.get("checks", []) if x.get("criterion") == c["id"]]
+            replay = dict(state=state, status=[x["status"] for x in checks] or None,
+                          why=report.get("why", []) + ([reports["diagnostic"]] if reports.get("diagnostic") else [])
+                          + [x["diagnostic"] for x in checks if x.get("diagnostic")], checks=checks)
+            track = next((name for name, work in day.get("track_work", {}).items()
+                          if c["id"] in track_criteria(work)), None)
+            if track is None and len(day.get("tracks", [])) == 1:
+                track = day["tracks"][0]
+            claim = re.split(r"\n\s*(?:Evidence|Test|broken|Replaces):", block, maxsplit=1, flags=re.I)[0]
+            claim = re.sub(r"^- \[[ x]\]\s*\S+\s*(?:\*\*(?:new|hold)\*\*\s*[—-]\s*)?", "", claim)
+            row = dict(id=c["id"], day=day["day"], phase=day.get("phase"), tag=c["kind"], claim=" ".join(claim.split()),
+                       spec=day["file"] + "#acceptance-criteria", track=track,
+                       prs=sorted({int(n) for n in CITED_PR.findall(evidence_text)}), tests=tests,
+                       cited=cited, test_found=found, seen_red=dict(state=red, lines=red_lines), replay=replay,
+                       replaces=[i for _, ids in replacement_lines(block) for i in ids], replaced_by=[])
+            rows.append(row)
+            for check in checks:
+                if check["status"] in ("failed", "error"):
+                    flag(row, "replay_" + check["status"], check.get("diagnostic") or check.get("label") or "")
+            if state == 'stale':
+                flag(row, "replay_stale", "; ".join(replay["why"]))
+            if cited is False:
+                flag(row, "evidence_missing", "No evidence and PR cited together")
+            if day["status"] in FINISHED and state in ("absent", "invalid", "not checked"):
+                flag(row, "evidence_missing", "Replay report: " + state)
+            if red is False:
+                flag(row, "not_seen_red", "No seen-red or broken line")
+            if found is False:
+                flag(row, "test_not_found", ", ".join(t for t in tests if states[t] == "missing"))
+            for h in handoffs:
+                if not h["picked"] and re.search(rf"\b{re.escape(c['id'])}\b", h["text"]):
+                    flag(row, "handoff_unclaimed", h["text"])
+    by_id = {r["id"]: r for r in rows}
+    for row in rows:
+        for target in row["replaces"]:
+            if target in by_id:
+                by_id[target]["replaced_by"].append(row["id"])
+    severity = ("replay_failed", "replay_error", "replay_stale", "evidence_missing",
+                "not_seen_red", "test_not_found", "handoff_unclaimed")
+    attention.sort(key=lambda a: (severity.index(a["reason"]), a["day"], a["id"]))
+    for item in attention:
+        del item["day"]
+    return rows, attention
+
+
+def criterion_evidence(block):
+    match = re.search(r"(?im)^\s*Evidence:\s*(.*(?:\n(?!\s*(?:broken:|Replaces:))\s+[^\n]+)*)", block)
+    return match.group(1) if match else ""
+
+
+def track_criteria(work):
+    ids = []
+    for match in re.finditer(r"C(\d+)\.(\d+)(?:\s*[–-]\s*C?\1\.(\d+))?", work):
+        day, start, end = match.groups()
+        ids.extend(f"C{day}.{n}" for n in range(int(start), int(end or start) + 1))
+    return ids
+
+
+def evidence_test_names(block):
+    return sorted({c + ("." + m if m else "") for c, m in EVIDENCE_TEST.findall(criterion_evidence(block))})
 
 
 INFRA_TRIES = 5
@@ -1415,6 +1515,9 @@ def main():
         days, order, stop = roadmap(snaps, prs, blobs)
         evidence_history(rows, days, snaps, blobs)
         boundaries(rows, snaps, blobs)
+        handoffs = hand_offs(days, order, head, blobs)
+        checks = evidence_checks(days, snaps)
+        index, attention = criterion_index(days, checks, handoffs, snaps, blobs)
         now = dict(generated=datetime.datetime.now().astimezone().isoformat(timespec="minutes"),
                    head=snaps[-1]["sha"], last_pr=snaps[-1]["pr"],
                    current_day=next((d["day"] for d in days if d["status"] == "active"), None),
@@ -1425,12 +1528,12 @@ def main():
                                order=[d for d in order if d not in PLACEHOLDERS],
                                out_of_order=out_of_order(order),
                                removals=removal_history(days, snaps, blobs),
-                               hand_offs=hand_offs(days, order, snaps[-1]["sha"], blobs),
+                               hand_offs=handoffs, criteria_index=index, attention=attention,
                                vocab_size=vocab, tokens=token_usage(),
                                verification=verification(prs, runs),
                                infra=infra(INFRA_WORKFLOW),
                                deployment=deployment(),
-                               evidence_checks=evidence_checks(days, snaps),
+                               evidence_checks=checks,
                                conclusion=conclusion(blobs.read(snaps[-1]["sha"], "docs/lab-notebook.md")),
                                meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance(),
                                          break_line_from_pr=BREAK_LINE_FROM_PR, project=project_name(),

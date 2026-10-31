@@ -51,8 +51,7 @@ def collect(specs_dir):
                    "ticked": crit["ticked"], "replaces": []}
             if not crit["id"]:
                 problems["missing_id"].append(f"{filename}: {crit['claim']}")
-            for line in REPLACES.findall(block) if day is not None else []:
-                ids = re.findall(rf"\b(?:C\d+\.\d+|{SHORT_ID})\b", line.split("\u2014")[0])
+            for line, ids in sd.replacement_lines(block) if day is not None else []:
                 if not ids or not WAS.search(line):
                     problems["malformed"].append(f"{filename} {crit['id'] or ''}: Replaces:{line}")
                 row["replaces"].extend(ids)

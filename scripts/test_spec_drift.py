@@ -1378,6 +1378,77 @@ def a_check(kind, status, label="C1.1", diagnostic=None):
                 diagnostic=diagnostic)
 
 
+class CriterionIndexTest(unittest.TestCase):
+    def test_representative_evidence_and_attention(self):
+        repo = Repo()
+        self.addCleanup(repo.close)
+        files = {"plan.md": PLAN, "tests/test_example.py": "class ExampleTest:\n    def test_ok(self): pass\n"}
+        for day in range(1, 4):
+            blocks = []
+            for number in range(1, 5):
+                cid = f"C{day}.{number}"
+                test = "MissingTest.test_lost" if cid == "C2.2" else "ExampleTest.test_ok"
+                red = "" if cid == "C2.1" else "      broken: guard removed → FAILED (#1)\n"
+                evidence = "" if cid == "C1.4" else f"      Evidence: `{test}` (#1).\n"
+                replaces = ("      Replaces: C1.1 — was: the old claim\n" if cid == "C2.4" else
+                            "      Replaces: C2.4 — was: the old claim\n" if cid == "C3.4" else "")
+                blocks.append(f"- [x] {cid} **hold** — Claim {cid}.\n{evidence}{red}{replaces}")
+            files[f"specs/day-{day:02d}-x.md"] = (f"# Day {day:02d} — Example\n\n**Phase:** {1 if day < 3 else 2}\n\n"
+                "## Tracks\n\n| A | work | C1.1 |\n\n## Acceptance criteria\n\n" + "\n".join(blocks) + "\n## Notes\n")
+        repo.merge(files)
+        days = []
+        for day in range(1, 4):
+            path = f"specs/day-{day:02d}-x.md"
+            days.append(dict(day=day, phase=1 if day < 3 else 2, file=path, status="done",
+                             track_work={"A": "C1.1–C1.3", "B": "C1.4"},
+                             evidence=sd.criteria(sd.section(files[path], "Acceptance criteria"))))
+        reports = dict(state="loaded", days=[
+            dict(day=1, state="current", why=[], checks=[
+                dict(criterion="C1.1", status="failed", diagnostic="wrong result"),
+                dict(criterion="C1.2", status="error", diagnostic="runner failed"),
+                dict(criterion="C1.3", status="passed", diagnostic=None),
+                dict(criterion="C1.3", status="not_applicable", diagnostic="checked by command"),
+                dict(criterion=None, status="error", diagnostic="runner crashed")]),
+            dict(day=2, state="stale", why=["spec changed"], checks=[]),
+            dict(day=3, state="not checked")])
+        handoffs = [dict(picked=False, text="C3.1 needs follow-up", source="Day 03 Notes")]
+        rows, attention = repo.inside(lambda blobs: sd.criterion_index(days, reports, handoffs, repo.snaps, blobs))
+        self.assertEqual(len(rows), 12)
+        by_id = {row["id"]: row for row in rows}
+        self.assertEqual((by_id["C1.1"]["phase"], by_id["C1.1"]["track"]), (1, "A"))
+        self.assertEqual((by_id["C1.2"]["track"], by_id["C1.4"]["track"]), ("A", "B"))
+        self.assertEqual((by_id["C1.1"]["day"], by_id["C1.1"]["tag"], by_id["C1.1"]["claim"]),
+                         (1, "hold", "Claim C1.1."))
+        self.assertEqual(by_id["C1.1"]["spec"], "specs/day-01-x.md#acceptance-criteria")
+        self.assertEqual(by_id["C1.1"]["replaced_by"], ["C2.4"])
+        self.assertEqual(by_id["C3.4"]["replaces"], ["C2.4"])
+        self.assertIsNone(by_id["C3.1"]["replay"]["status"])
+        self.assertTrue(by_id["C1.3"]["cited"])
+        self.assertTrue(by_id["C1.3"]["test_found"])
+        self.assertEqual(by_id["C1.3"]["replay"]["status"], ["passed", "not_applicable"])
+        self.assertEqual(by_id["C1.3"]["replay"]["why"], ["checked by command"])
+        self.assertEqual(by_id["C1.3"]["replay"]["checks"], reports["days"][0]["checks"][2:4])
+        self.assertEqual(by_id["C1.3"]["prs"], [1])
+        self.assertEqual(by_id["C1.3"]["tests"], ["ExampleTest.test_ok"])
+        self.assertEqual(by_id["C1.3"]["seen_red"], dict(state=True, lines=["broken: guard removed → FAILED (#1)"]))
+        self.assertIsNone(by_id["C1.4"]["test_found"])
+        self.assertFalse(by_id["C2.2"]["test_found"])
+        self.assertEqual([(a["id"], a["reason"]) for a in attention], [
+            ("C1.1", "replay_failed"), ("C1.2", "replay_error"), ("Day 01", "replay_error"),
+            *((f"C2.{n}", "replay_stale") for n in range(1, 5)),
+            ("C1.4", "evidence_missing"), *((f"C3.{n}", "evidence_missing") for n in range(1, 5)),
+            ("C2.1", "not_seen_red"),
+            ("C2.2", "test_not_found"), ("C3.1", "handoff_unclaimed")])
+        self.assertEqual([a["detail"] for a in attention if a["id"] == "Day 01"], ["runner crashed"])
+        self.assertEqual([a["id"] for a in attention if a["reason"] == "replay_error"
+                          and a["id"].startswith("C1.")], ["C1.2"])
+        days[0]["evidence_format"] = False
+        unknown, _ = repo.inside(lambda blobs: sd.criterion_index(days, dict(state="absent"), [], repo.snaps, blobs))
+        self.assertIsNone(unknown[0]["cited"])
+        self.assertIsNone(unknown[0]["seen_red"]["state"])
+        self.assertEqual(unknown[0]["replay"], dict(state="absent", status=None, why=[], checks=[]))
+
+
 class EvidenceReportTest(unittest.TestCase):
     """The committed evidence report: read, never replayed, and current only on main's inputs."""
 
@@ -1411,6 +1482,8 @@ class EvidenceReportTest(unittest.TestCase):
         self.assertEqual((one["state"], one["why"]), ("current", []))
         self.assertEqual(one["counts"]["named_test"], dict(passed=1, failed=0, error=0, not_applicable=1))
         self.assertEqual(one["counts"]["break"]["failed"], 1)
+        self.assertEqual([c["status"] for c in one["checks"]], ["passed", "not_applicable", "failed", "error"])
+        self.assertEqual(one["checks"][1]["criterion"], "C1.1")
         self.assertEqual([p["label"] for p in one["problems"]], ["C1.2 broken: x", "w"])
         self.assertEqual(two, dict(day=2, state="not checked"))  # finished, left out; Day 3 is not finished
 
