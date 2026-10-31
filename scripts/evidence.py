@@ -77,11 +77,20 @@ def close_pattern(day):
     return re.compile(rf"^Merge pull request #\d+ from \S+/day-{day}/close-the-day(?:-\S*)?$")
 
 
+def squash_pattern(day):
+    key = os.environ.get("JIRA_KEY", "")
+    key_text = re.escape(key) if key else "(?!)"
+    return re.compile(rf"^(?:{key_text}-\d+ )?Day {day} close\b.* \(#\d+\)$")
+
+
 def closing_spec(commit):
-    """Spec at a closing merge, None otherwise; ambiguous/missing specs raise ValueError."""
+    """Spec at a closing merge or squash commit; None otherwise, or ValueError for bad specs."""
     parents, subject = git("show", "-s", "--format=%P%n%s", commit).splitlines()[:2]
-    match = close_pattern(r"(?P<day>\d{2})").match(subject)
-    if len(parents.split()) < 2 or not match:
+    count = len(parents.split())
+    day_pattern = r"(?P<day>\d{2})"
+    match = (close_pattern(day_pattern).match(subject) if count >= 2 else
+             squash_pattern(day_pattern).match(subject) if count == 1 else None)
+    if not match:
         return None  # This commit does not close a day.
     day = match.group("day")
     specs = [p for p in git("ls-tree", "-r", "--name-only", commit, "--", "specs").splitlines()
@@ -92,11 +101,13 @@ def closing_spec(commit):
 
 
 def close_commit(day, ref):
-    """The latest merge on ref of the day's close branch, or None."""
-    merge = close_pattern(day)
-    for line in git("log", "--merges", "--first-parent", "--format=%H %s", ref).splitlines():
-        sha, subject = line.split(" ", 1)
-        if merge.match(subject):
+    """The latest closing merge or squash commit on ref for the day, or None."""
+    merge, squash = close_pattern(day), squash_pattern(day)
+    for line in git("log", "--first-parent", "--format=%H%x00%P%x00%s", ref).splitlines():
+        sha, parent_text, subject = line.split("\0", 2)
+        parents = parent_text.split()
+        if (len(parents) >= 2 and merge.match(subject) or
+                len(parents) == 1 and squash.match(subject)):
             return sha
     return None
 
