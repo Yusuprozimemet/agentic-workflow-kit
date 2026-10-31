@@ -133,7 +133,8 @@ class EvidenceTest(unittest.TestCase):
     def test_a_temporary_directory_s_name_does_not_count_as_a_difference(self):
         report = "AssertionError: C:\\Temp\\tmpab12cd34\\a.txt"
         check = [sys.executable, "-c",
-                 "import sys; sys.exit('AssertionError: C:\\\\Temp\\\\tmpzz99yy00\\\\a.txt')"]
+                 "import sys; sys.exit('AssertionError: C:\\\\Temp\\\\tmpzz99yy00\\\\a.txt') "
+                 "if 'broken' in open('app.txt').read() else None"]
         run = self.run_evidence(spec(report=report), breaks=(dict(BREAK, command=check),))
         self.assertEqual(run.returncode, 0, run.stdout)
 
@@ -147,7 +148,8 @@ class EvidenceTest(unittest.TestCase):
 
     def test_a_report_recorded_across_lines_with_its_backslashes_undoubled_is_the_same(self):
         report = "AssertionError: 'C:\\x\n'"  # as a close pasted it: \\ as \, \n as a new line
-        check = [sys.executable, "-c", "import sys; sys.exit(\"AssertionError: 'C:\\\\\\\\x\\\\n'\")"]
+        check = [sys.executable, "-c", "import sys; sys.exit(\"AssertionError: 'C:\\\\\\\\x\\\\n'\") "
+                 "if 'broken' in open('app.txt').read() else None"]
         run = self.run_evidence(spec(report=report), breaks=(dict(BREAK, command=check),))
         self.assertEqual(run.returncode, 0, run.stdout)
         run = self.run_evidence(spec(report=report.replace("x", "y")), breaks=(dict(BREAK, command=check),))
