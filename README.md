@@ -4,8 +4,10 @@ A spec-first way to change a codebase with coding agents, one day spec at a time
 that measures it. It holds the agent briefs (`.claude/agents/`), the spec rules
 (`specs/README.md`), the pull request template and CI (`.github/`), the dashboard
 (`scripts/spec-drift.py`, `docs/dashboard/`), and the tools and their tests (`scripts/`).
-[CLAUDE.md](CLAUDE.md) gives the working order, [plan.md](plan.md) the goal, and
-[docs/workflow.md](docs/workflow.md) draws it.
+[CLAUDE.md](CLAUDE.md) gives the working order, [plan.md](plan.md) the goal,
+[docs/workflow.md](docs/workflow.md) draws it, and [docs/architecture.md](docs/architecture.md)
+draws the parts underneath: agents, scripts, CI, a day's PRs, a criterion's life, the close and
+the dashboard.
 
 ## What it does
 
