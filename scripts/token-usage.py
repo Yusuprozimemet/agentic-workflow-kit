@@ -8,6 +8,8 @@ committed; the closing PR of each day refreshes it.
 
     python scripts/token-usage.py
     python scripts/token-usage.py --simulate   # what shorter sessions or capped tool output would save
+    python scripts/token-usage.py --tools      # Bash results cap-output cut; Reads of files over 8,000 bytes
+    python scripts/token-usage.py --tools --since 2026-11-01   # only the sessions that started since then
 
 A reply is counted once, from its last line: a transcript repeats a reply's usage on every content
 block it streamed, and the usage is complete only on the last of those lines, so replies are keyed
@@ -31,6 +33,8 @@ DAY_BRANCH = re.compile(r"^day-(\d+)/")
 DATED = re.compile(r"-\d{8}$")
 CUTS = (100_000, 200_000, 300_000)
 CAPS = (2_000, 5_000)
+TOOL_LIMIT = 8_000  # read-guard.py's LIMIT: a whole Read of a file over it is refused
+CUT_AT = 3_000  # cap-output.py's KEEP: its cut marker follows the head, this many characters in
 
 
 def long_path(path):
@@ -151,8 +155,85 @@ def simulate(files):
     return s
 
 
+def moment(text):
+    # A date or a time for --since, read as local time when it has no zone.
+    return datetime.datetime.fromisoformat(text).astimezone()
+
+
+def started(path):
+    # A transcript's first timestamp: when its session started, or a subagent's run began.
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                stamp = json.loads(line).get("timestamp")
+            except (ValueError, AttributeError):
+                continue
+            if stamp:
+                return datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    return None
+
+
+def after(path, since):
+    # Whether the transcript started at or after --since; without --since, every transcript counts.
+    if since is None:
+        return True
+    start = started(path)
+    return start is not None and start >= since
+
+
+def size(path):
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return 0
+
+
+def tool_text(content):
+    if isinstance(content, list):
+        return "".join(b.get("text", "") for b in content if isinstance(b, dict))
+    return content if isinstance(content, str) else ""
+
+
+def tools(files, since=None):
+    # A Bash result is cut by cap-output.py when its text has the marker at CUT_AT. A Read is sized
+    # by the file on disk now: a transcript keeps no size, so a file that grew since is counted too.
+    s = dict(bash=0, cut=0, reads=0, whole=0)
+    for path in files:
+        if not after(path, since):
+            continue
+        calls, cut = {}, {}
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                content = (entry.get("message") or {}).get("content")
+                if not isinstance(content, list):
+                    continue
+                for b in content:
+                    if not isinstance(b, dict):
+                        continue
+                    if b.get("type") == "tool_use":
+                        calls[b.get("id")] = (b.get("name"), b.get("input") or {})
+                    elif b.get("type") == "tool_result" and calls.get(b.get("tool_use_id"), (None,))[0] == "Bash":
+                        cut[b.get("tool_use_id")] = tool_text(b.get("content")).find("\n[cut ") == CUT_AT
+        s["bash"] += len(cut)
+        s["cut"] += sum(cut.values())
+        for name, args in calls.values():
+            if name == "Read" and size(args.get("file_path") or "") > TOOL_LIMIT:
+                s["reads"] += 1
+                s["whole"] += not any(args.get(k) is not None for k in ("offset", "limit", "pages"))
+    return s
+
+
+def report_tools(s):
+    print(f"Bash results: {s['bash']:,}, cut by cap-output: {s['cut']:,} ({s['cut'] / max(s['bash'], 1):.1%})")
+    print(f"Reads of files over {TOOL_LIMIT:,} bytes: {s['reads']:,}, whole {s['whole']:,}, ranged {s['reads'] - s['whole']:,}")
+
+
 def report(s):
-    print(f"main sessions: {s['sessions']}, {s['replies']:,} replies, {s['read'] / 1e6:,.1f}M context tokens read")
+    print(f"main sessions:{s['sessions']}, {s['replies']:,} replies, {s['read'] / 1e6:,.1f}M context tokens read")
     for cut, saved in s["cut"].items():
         print(f"  fresh session whenever the context passes {cut // 1000}k: -{saved / max(s['read'], 1):.1%}")
     for cap, saved in s["cap"].items():
@@ -166,9 +247,18 @@ def main():
     ap.add_argument("--out", default=OUT)
     ap.add_argument("--simulate", action="store_true",
                     help="print what fresh sessions or capped tool results would have saved; write nothing")
+    ap.add_argument("--tools", action="store_true",
+                    help="print the Bash results cap-output cut and the Reads of a file over 8,000 bytes; write nothing")
+    ap.add_argument("--since", type=moment, metavar="DATE",
+                    help="with --simulate or --tools: count only the sessions started at or after this date or time")
     args = ap.parse_args()
+    if args.since and not (args.simulate or args.tools):
+        ap.error("--since needs --simulate or --tools: token-usage.json is never written for part of the transcripts")
+    if args.tools:
+        report_tools(tools(transcripts(args.transcripts), args.since))
+        return
     if args.simulate:
-        report(simulate(p for p in transcripts(args.transcripts) if agent(p) == "main"))
+        report(simulate(p for p in transcripts(args.transcripts) if agent(p) == "main" and after(p, args.since)))
         return
     totals = count(transcripts(args.transcripts))
     if os.path.exists(args.out):
