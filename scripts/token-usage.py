@@ -88,14 +88,14 @@ def row_key(entry, who):
 def tool_blocks(entry, calls, cut):
     # A line's tool calls by tool_use id, and each Bash result's cut test. A message spread over several
     # lines repeats its blocks: the last line wins, so a call counts once. A Bash result is cut by
-    # cap-output.py when its text has the marker at CUT_AT.
+    # cap-output.py when its text has the marker at CUT_AT. A request blob repeats earlier calls, so only a reply records one.
     content = (entry.get("message") or {}).get("content")
     if not isinstance(content, list):
         return
     for b in content:
         if not isinstance(b, dict):
             continue
-        if b.get("type") == "tool_use":
+        if b.get("type") == "tool_use" and entry.get("type") == "assistant":
             calls[b.get("id")] = (b.get("name"), b.get("input") or {}, entry)
         elif b.get("type") == "tool_result" and calls.get(b.get("tool_use_id"), (None,))[0] == "Bash":
             cut[b.get("tool_use_id")] = tool_text(b.get("content")).find("\n[cut ") == CUT_AT
