@@ -175,10 +175,11 @@ def demo():
                    output=5200 * n + 300 if agent == "main" else 2100 * n, replies=40 * n + 7)
               for n in range(1, 7)
               for agent, model in (("main", "claude-sonnet-5-5"), ("implementer", "claude-haiku-5-5"))]
+    items = [dict(name="web task", count=2, per_hour=0.0412), dict(name="database", count=1, per_hour=0.095)]
     summary = dict(criteria={"C1": "pass", "C2": "pass"}, steps={"build": "pass", "deploy": "pass", "smoke": "pass"},
                    resources={"web": 2, "worker": 1, "database": 1},
-                   cost=dict(items=[dict(name="web task", count=2, per_hour=0.0412),
-                                    dict(name="database", count=1, per_hour=0.095)]))
+                   cost=dict(items=items, per_hour=round(sum(i["per_hour"] for i in items), 3), region="eu-central-1",
+                             note="estimate from list prices, not billed spend; example data, usage charges not counted"))
     runs = [dict(sha=f"{n:07x}", conclusion="success", date=f"2026-10-{20 - n:02d}",
                  url=f"https://github.com/example/{PROJECT}/actions/runs/{1000 + n}") for n in range(3)]
     return dict(

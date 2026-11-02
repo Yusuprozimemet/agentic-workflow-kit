@@ -66,6 +66,15 @@ class DemoData(unittest.TestCase):
         self.assertIsNone(out["error"], "a panel threw on the demo data")
         self.assertIsNotNone(out["eyebrow"])
 
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_no_panel_on_the_demo_data_shows_a_failure_or_a_bad_number(self):
+        # The same test kit/starter-check.py applies to the page it builds (its step 4).
+        error, panels, logged = test_spec_drift.drawn(**demo_data.demo())
+        self.assertIsNone(error, "a panel threw on the demo data")
+        self.assertEqual(logged, [], "the demo data logged an error while drawing")
+        failed = [box for box, html in panels.items() if re.search(r"This panel failed|NaN|Infinity|undefined", html)]
+        self.assertEqual(failed, [], "boxes that drew a failed panel, NaN, Infinity or undefined")
+
     def test_the_banner_shows_on_the_demo_data(self):
         out = boot(dict(demo_data.demo(), demo=True))
         self.assertIsNone(out["error"], "a panel threw on the demo data")
@@ -79,7 +88,7 @@ class DemoData(unittest.TestCase):
 
     def test_no_day_specs_puts_the_demo_in_the_page(self):
         page = test_spec_drift.sd.page_data(REAL, [])
-        self.assertIs(page["demo"], True)
+        self.assertIs(page.get("demo"), True)
         self.assertEqual({k: v for k, v in page.items() if k != "demo"}, demo_data.demo())
 
     def test_day_specs_put_the_real_data_in_unchanged(self):
