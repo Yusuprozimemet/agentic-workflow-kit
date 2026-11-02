@@ -85,6 +85,14 @@ class CountTest(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual({k: rows[0][1][k] for k in tu.TOOL_FIELDS}, dict(bash=1, cut=1, reads=1, whole=1))
 
+    def test_a_request_blob_repeating_a_bash_call_does_not_hide_it(self):
+        cut = "a" * 3000 + "\n[cut 2000 chars; full output: x.txt; use Read with offset/limit or grep]\n"
+        blob = json.dumps({"type": "api-request-blob", "hash": "h", "sessionId": "s",
+                           "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {}}]}})
+        rows = self.rows(self.count([call("t1", "Bash"), result("t1", cut), blob]))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual({k: rows[0][1][k] for k in tu.TOOL_FIELDS}, dict(bash=1, cut=1, reads=0, whole=0))
+
     def test_tool_calls_on_different_dates_go_to_two_rows(self):
         rows = self.rows(self.count([call("t1", "Bash", when="2026-11-05T10:00:00Z"), result("t1", "short"),
                                      call("t2", "Bash", when="2026-11-06T10:00:00Z"), result("t2", "short")]))
