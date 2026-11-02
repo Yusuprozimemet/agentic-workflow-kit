@@ -189,5 +189,63 @@ class SimulateTest(unittest.TestCase):
         self.assertEqual((s["read"], s["replies"]), (110_000, 2))
 
 
+def call(tool_use_id, name, args=None):
+    block = {"type": "tool_use", "id": tool_use_id, "name": name, "input": args or {}}
+    return json.dumps({"type": "assistant", "timestamp": "2026-11-05T10:00:00Z",
+                       "message": {"id": "msg_" + tool_use_id, "content": [block]}})
+
+
+def result(tool_use_id, text):
+    block = {"type": "tool_result", "tool_use_id": tool_use_id, "content": text}
+    return json.dumps({"type": "user", "timestamp": "2026-11-05T10:00:01Z", "message": {"content": [block]}})
+
+
+class ToolsTest(unittest.TestCase):
+    """Bash results cut by cap-output, and Reads of a file over 8,000 bytes, whole or ranged."""
+
+    def tools(self, lines, since=None):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "session.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            return tu.tools([path], since)
+
+    def test_a_bash_result_with_the_cut_marker_at_3000_is_counted(self):
+        cut = "a" * 3000 + "\n[cut 2000 chars; full output: x.txt; use Read with offset/limit or grep]\n" + "b" * 3000
+        s = self.tools([call("t1", "Bash"), result("t1", cut), call("t2", "Bash"), result("t2", "short")])
+        self.assertEqual((s["bash"], s["cut"]), (2, 1))
+
+    def test_a_marker_elsewhere_in_a_result_is_not_a_cut(self):
+        s = self.tools([call("t1", "Bash"), result("t1", "x" * 10 + "\n[cut 1 chars; full output: y]\n" + "z" * 3000)])
+        self.assertEqual((s["bash"], s["cut"]), (1, 0))
+
+    def test_a_read_of_a_file_over_8000_bytes_is_whole_or_ranged(self):
+        with tempfile.TemporaryDirectory() as folder:
+            big = os.path.join(folder, "big.md")
+            small = os.path.join(folder, "small.md")
+            with open(big, "w", encoding="utf-8") as f:
+                f.write("x" * 9_000)
+            with open(small, "w", encoding="utf-8") as f:
+                f.write("x" * 100)
+            path = os.path.join(folder, "session.jsonl")
+            lines = [call("r1", "Read", {"file_path": big}), call("r2", "Read", {"file_path": big, "offset": 1, "limit": 5}),
+                     call("r3", "Read", {"file_path": small})]
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            s = tu.tools([path])
+        self.assertEqual((s["reads"], s["whole"]), (2, 1))
+
+    def test_since_counts_only_the_sessions_started_after_it(self):
+        with tempfile.TemporaryDirectory() as folder:
+            before = os.path.join(folder, "before.jsonl")
+            after = os.path.join(folder, "after.jsonl")
+            with open(before, "w", encoding="utf-8") as f:
+                f.write(json.dumps({"type": "user", "timestamp": "2026-10-20T10:00:00Z"}) + "\n" + call("b", "Bash") + "\n" + result("b", "short") + "\n")
+            with open(after, "w", encoding="utf-8") as f:
+                f.write(call("a", "Bash") + "\n" + result("a", "short") + "\n")
+            s = tu.tools([before, after], since=tu.moment("2026-11-01"))
+        self.assertEqual(s["bash"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
