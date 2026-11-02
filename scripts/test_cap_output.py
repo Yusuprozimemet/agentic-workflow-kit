@@ -49,6 +49,15 @@ class CutTests(unittest.TestCase):
     def test_output_at_the_limit_passes(self):
         self.assertIsNone(cap.handle(hook_input("x" * cap.LIMIT), self.project))
 
+    def test_output_claude_code_already_saved_passes(self):
+        # Past 30,000 characters Claude Code saves the output itself and hands the hook only its start.
+        out = cap.handle(hook_input("x" * 30000), self.project)
+        self.assertTrue(out is None, "cut output Claude Code had already saved")
+        self.assertFalse(os.path.exists(os.path.join(self.project, cap.SAVED)))
+
+    def test_output_just_under_claude_codes_limit_is_cut(self):
+        self.assertIsNotNone(cap.handle(hook_input("x" * 29999), self.project))
+
     def test_long_output_keeps_head_and_tail_with_one_line_between(self):
         out = cap.handle(hook_input(LONG), self.project)
         text = out["hookSpecificOutput"]["updatedToolOutput"]["stdout"]
