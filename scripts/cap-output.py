@@ -8,7 +8,10 @@ reply re-reads it. So a stdout of more than 8,000 characters
 is cut to its head and tail, with one line between them that names the saved file. That file is
 the full stdout, written to .claude/tool-output/ (gitignored) before anything is cut.
 
-Three results pass unchanged: one of 8,000 characters or fewer; one with stderr or an interruption,
+Four results pass unchanged: one of 8,000 characters or fewer; one of Claude Code's own limit or
+more (BASH_MAX_OUTPUT_LENGTH, 30,000 by default), since Claude Code has already saved that output in
+full and shows a 2 KB preview, and the hook receives only its first 30,000 characters, so its copy
+would not be the full output; one with stderr or an interruption,
 since a failing command's error often ends its output and the model needs all of it; and one whose
 full output cannot be saved, since a cut without the file would lose the middle for good.
 
@@ -30,6 +33,13 @@ KEEP = 3000
 SAVED = os.path.join(".claude", "tool-output")
 
 
+def ceiling():
+    try:
+        return int(os.environ.get("BASH_MAX_OUTPUT_LENGTH") or 30000)
+    except ValueError:
+        return 30000
+
+
 def cut(stdout, path):
     note = f"[cut {len(stdout) - 2 * KEEP} chars; full output: {path}; use Read with offset/limit or grep]"
     return f"{stdout[:KEEP]}\n{note}\n{stdout[-KEEP:]}"
@@ -40,7 +50,7 @@ def handle(data, project):
     if not isinstance(resp, dict):
         return None
     stdout = resp.get("stdout") or ""
-    if len(stdout) <= LIMIT or resp.get("stderr") or resp.get("interrupted"):
+    if not LIMIT < len(stdout) < ceiling() or resp.get("stderr") or resp.get("interrupted"):
         return None
     folder = os.path.join(project, SAVED)
     path = os.path.abspath(os.path.join(folder, uuid.uuid4().hex + ".txt"))
