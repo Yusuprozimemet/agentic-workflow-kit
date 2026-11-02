@@ -5,7 +5,9 @@ a reply is counted once, from its last streamed line, and the day comes from the
 
     python scripts/test_token_usage.py
 """
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -185,11 +187,13 @@ class MergeTest(unittest.TestCase):
         self.assertEqual(rows, {("2026-11-05", "main"): (1, 0, 0, 0, 100)})
 
 
-def reply(message_id, context, sidechain=False):
+def reply(message_id, context, sidechain=False, model=None, when=None):
     """One assistant line whose context (all input tokens, cached or not) is `context`."""
     entry = json.loads(line(message_id=message_id, request_id="req_" + message_id))
     entry["message"]["usage"] = {"input_tokens": 1, "cache_creation_input_tokens": 9,
                                  "cache_read_input_tokens": context - 10, "output_tokens": 5}
+    entry["message"]["model"] = model or entry["message"]["model"]
+    entry["timestamp"] = when or entry["timestamp"]
     entry["isSidechain"] = sidechain
     return json.dumps(entry)
 
@@ -228,6 +232,29 @@ class SimulateTest(unittest.TestCase):
     def test_sidechain_lines_are_not_the_main_sessions(self):
         s = self.simulate([reply("1", 50_000), reply("2", 900_000, sidechain=True), reply("3", 60_000)])
         self.assertEqual((s["read"], s["replies"]), (110_000, 2))
+
+    def test_a_fresh_session_saves_the_reads_and_pays_one_write_of_its_start(self):
+        # Opus 5.5, as above: past 100k, 300k fewer tokens read at $0.20/M saves $0.06, and the two
+        # restarts each write their 50k at $8/M instead of reading it: 2 x 50k x $7.80/M = $0.78.
+        opus = "claude-opus-5-5"
+        s = self.simulate([reply("1", 50_000, model=opus, when="2026-10-12T10:00:00Z"),
+                           reply("2", 150_000, model=opus, when="2026-10-13T10:00:00Z"),
+                           reply("3", 250_000, model=opus, when="2026-10-14T10:00:00Z")])
+        # 449,970 read at $0.20, 3 input at $4, 27 written at $8, 15 output at $20, per million.
+        self.assertAlmostEqual(s["cost"], 0.090522, places=9)
+        self.assertAlmostEqual(s["cut_cost"][100_000], 0.06 - 0.78, places=9)
+        self.assertAlmostEqual(s["cut_cost"][200_000], 0.04 - 0.39, places=9)
+        self.assertAlmostEqual(s["cut_cost"][300_000], 0.0, places=9)
+        self.assertEqual((s["first"][:10], s["last"][:10]), ("2026-10-12", "2026-10-14"))
+
+    def test_the_report_prints_each_cuts_dollar_saving_and_share(self):
+        s = dict(read=1_000, replies=2, sessions=1, first="2026-10-12T10:00:00Z", last="2026-10-14T10:00:00Z",
+                 cost=200.0, cut={100_000: 205}, cut_cost={100_000: 30.0}, cap={2_000: 0})
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            tu.report(s)
+        self.assertIn("2026-10-12 to 2026-10-14", out.getvalue())
+        self.assertIn("passes 100k: -20.5% tokens, -$30.00 (-15.0% of $200.00)", out.getvalue())
 
 
 def call(tool_use_id, name, args=None, when="2026-11-05T10:00:00Z", branch="day-43/track-a2-x"):
