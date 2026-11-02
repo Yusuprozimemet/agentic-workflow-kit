@@ -187,6 +187,7 @@ and who creates them, the setup scripts -->
 - **Measurement:** `python scripts/spec-drift.py --out spec-drift.json` rebuilds the project
   dashboard's data from git and GitHub; `--build` writes the page (`docs/dashboard/`) with it.
   Every merge to `main` republishes it to [GitHub Pages](<!-- PROJECT: GitHub Pages URL -->).
+- **Long Bash output:** a PostToolUse hook (`scripts/cap-output.py`) cuts stdout over 8,000 characters to its head and tail; the full output is in `.claude/tool-output/` (gitignored), and a failing command (stderr or interrupted) is left whole.
 
 ## Pitfalls this repository has already hit
 
