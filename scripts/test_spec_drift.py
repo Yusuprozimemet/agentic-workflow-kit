@@ -983,7 +983,8 @@ const ctx = vm.createContext({ document, window: {}, DATA: JSON.parse(fs.readFil
 let error = null;
 try { vm.runInContext(fs.readFileSync(process.argv[1], "utf8") + "\nboot(DATA);", ctx); } catch (e) { error = e.message; }
 const text = id => els[id] ? [els[id].textContent, els[id].innerHTML].find(v => typeof v === "string") : null;
-console.log(JSON.stringify({ eyebrow: text("eyebrow"), stats: text("stats"), error }));
+const banner = els["demo-banner"];
+console.log(JSON.stringify({ eyebrow: text("eyebrow"), stats: text("stats"), error, banner: banner ? { hidden: banner.hidden, text: banner.textContent } : null }));
 """
 
 
