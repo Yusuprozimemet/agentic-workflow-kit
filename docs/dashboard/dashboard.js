@@ -866,8 +866,10 @@ function drawConclusion() {
 const MODEL_VAR = { "claude-opus-5-5": "var(--m-opus)", "claude-opus-5": "var(--m-opus-prev)", "claude-sonnet-5": "var(--m-sonnet)", "claude-haiku-4-5": "var(--m-haiku)", "claude-haiku-5-5": "var(--m-haiku)" };
 const modelName = m => m.replace(/^claude-/, "").replace(/^(\w)(\w*)-/, (_, a, b) => a.toUpperCase() + b + " ").replace(/-/g, ".");
 const kilo = n => n >= 1e6 ? fmt(n / 1e6, 2) + "M" : n >= 1e3 ? fmt(n / 1e3, 0) + "k" : String(n);
+const pct = (a, b) => fmt(b ? a / b * 100 : 0, 1) + "%";
 function drawTokens() {
   const T = DATA.tokens || [];
+  drawHooks(T);
   const box = document.getElementById("token-bars");
   if (!T.length) {
     box.innerHTML = '<p class="load-error">No token counts yet: run <code>python scripts/token-usage.py</code>.</p>';
@@ -882,7 +884,6 @@ function drawTokens() {
   const color = m => MODEL_VAR[m] || "var(--other)";
   document.getElementById("token-legend").innerHTML = models.map(m =>
     `<span><i class="dot" style="background:${color(m)}"></i>${esc(modelName(m))} · ${kilo(sum(T.filter(r => r.model === m), "output"))}</span>`).join("");
-  const pct = (a, b) => fmt(b ? a / b * 100 : 0, 1) + "%";
   const who = r => r.agent || "unknown";
   const impl = T.filter(r => who(r) === "implementer"), main = T.filter(r => who(r) === "main");
   // A row counted before agents were, or a subagent with no type beside it, belongs to no agent: not the checkers'.
@@ -929,6 +930,26 @@ function drawTokens() {
       const rs = T.filter(r => r.day === d);
       return `<tr><td>${d == null ? "Between days (main, tooling, docs)" : "Day " + dd(d)}</td><td class="num">${sum(rs, "replies")}</td>
         <td class="num">${kilo(sum(rs, "output"))}</td><td class="num">${kilo(ctx(rs))}</td><td class="num">${perReply(rs)}</td>${models.map(m => cell(rs, m)).join("")}</tr>`;
+    }).join("") + "</tbody>";
+}
+
+// Per date, how the two hooks fared: cut Bash results, and whole Reads of a file over 8,000 bytes.
+// Rows counted before the hooks were have no bash field, so they are left out.
+function drawHooks(T) {
+  const box = document.getElementById("token-hooks");
+  const H = T.filter(r => "bash" in r);
+  if (!H.length) {
+    box.innerHTML = '<caption><p class="load-error">No hook counts yet: run <code>python scripts/token-usage.py</code>.</p></caption>';
+    return;
+  }
+  const sum = (rows, k) => rows.reduce((a, r) => a + r[k], 0);
+  const share = (a, b) => `${a} (${b ? pct(a, b) : "–"})`;
+  const dates = [...new Set(H.map(r => r.date))].sort();
+  box.innerHTML = `<thead><tr><th>Date</th><th>Bash results</th><th>Cut</th><th>Large Reads</th><th>Whole</th></tr></thead><tbody>` +
+    dates.map(d => {
+      const rs = H.filter(r => r.date === d);
+      return `<tr><td>${esc(d)}</td><td class="num">${sum(rs, "bash")}</td><td class="num">${share(sum(rs, "cut"), sum(rs, "bash"))}</td>` +
+        `<td class="num">${sum(rs, "reads")}</td><td class="num">${share(sum(rs, "whole"), sum(rs, "reads"))}</td></tr>`;
     }).join("") + "</tbody>";
 }
 
