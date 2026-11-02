@@ -3,5 +3,8 @@
 spec-drift.json
 __pycache__/
 
+# --- Bash output the hook saved in full (scripts/cap-output.py) ---
+.claude/tool-output/
+
 # --- local secrets ---
 .env
