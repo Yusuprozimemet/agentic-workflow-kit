@@ -75,6 +75,17 @@ class DemoData(unittest.TestCase):
         failed = [box for box, html in panels.items() if re.search(r"This panel failed|NaN|Infinity|undefined", html)]
         self.assertEqual(failed, [], "boxes that drew a failed panel, NaN, Infinity or undefined")
 
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_every_chart_box_draws_a_data_line_on_the_demo_data(self):
+        # lineChart draws each series as a polyline; a box with none shows only its axes, unless its
+        # empty: message is what it shows (load-error), which is the box saying there is no data yet.
+        with open(DASHBOARD, encoding="utf-8") as f:
+            boxes = re.findall(r'lineChart\(document\.getElementById\("([^"]+)"\)', f.read())
+        error, panels, logged = test_spec_drift.drawn(**demo_data.demo())
+        self.assertIsNone(error, "a panel threw on the demo data")
+        bare = [box for box in boxes if "<polyline" not in panels.get(box, "") and "load-error" not in panels.get(box, "")]
+        self.assertEqual(bare, [], "chart boxes that drew no data line on the demo data")
+
     def test_the_banner_shows_on_the_demo_data(self):
         out = boot(dict(demo_data.demo(), demo=True))
         self.assertIsNone(out["error"], "a panel threw on the demo data")
