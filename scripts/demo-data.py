@@ -67,6 +67,26 @@ def day_prs(d):
             for j, k in enumerate(("spec", "code", "close"), 1)]
 
 
+# A day's spec adds names the code does not have yet, so coverage dips at its spec PR; its track puts them in.
+DIP = {1: 0.95, 2: 0.94, 3: 0.94, 4: 0.93, 5: 0.94, 6: 0.94}
+
+
+def coverage_at(p):
+    """Share of reached-day spec names in the code at a merge: None at the origin, as spec-drift.py gives it."""
+    if p["kind"] == "origin":
+        return None
+    return DIP[p["day"]] if p["kind"] == "spec" else 1.0
+
+
+def evidence_at(closed, p):
+    """Tests named by the closed days: three each, all present at its close. Day 4's close finds one missing
+    (orange), and the next merge has it back. Nothing is skippable or retired."""
+    if not closed:
+        return None
+    missing = int(p["kind"] == "close" and p["day"] == 4)
+    return dict(present=3 * closed - missing, skippable=0, missing=missing, retired=0)
+
+
 def row(i, p):
     """One snapshot: a PR as it merged, its line counts, and the gap and name figures after it."""
     gap = round(71.5 - 2.6 * i, 2)
@@ -81,7 +101,7 @@ def row(i, p):
     return dict(i=i, sha=f"{(i * 2654435761) % 16 ** 7:07x}", date=f"2026-10-{i:02d}", pr=p["number"],
                 title=p["title"], branch=p["branch"], kind=p["kind"], day=p["day"],
                 added=40 + 3 * i, deleted=2 * i, gap_full=gap, gap_chance=chance,
-                gap_chance_band=[round(chance - 4, 2), round(chance + 4, 2)], coverage=None,
+                gap_chance_band=[round(chance - 4, 2), round(chance + 4, 2)], coverage=coverage_at(p),
                 name_coverage=min(1.0, round(0.2 + 0.04 * i, 3)), jaccard=round(0.1 + 0.03 * i, 3),
                 names_kept=i, names_retired=0, prod_name_coverage=round(0.1 + 0.02 * i, 3),
                 spec_names=12 + i, names_in_code=8 + i, names_in_prod=6 + i,
@@ -97,7 +117,11 @@ def build_rows():
                   date="2026-09-29", sha="5e1f0a2", pr=None, branch="", kind="origin", day=0, added=0, deleted=0,
                   gap_full=71.5, gap_chance=77.8, gap_chance_band=[73.8, 81.8], name_coverage=0.2, jaccard=0.2,
                   names_kept=0, work=dict(spec=0, context=0, prod=0, test=0, tooling=0))
-    return [origin] + [row(i, p) for i, p in enumerate(merged, 1)]
+    rows, closed = [origin], 0
+    for i, p in enumerate(merged, 1):
+        closed += p["kind"] == "close"
+        rows.append(dict(row(i, p), evidence=evidence_at(closed, p)))
+    return rows
 
 
 def build_days(rows):
