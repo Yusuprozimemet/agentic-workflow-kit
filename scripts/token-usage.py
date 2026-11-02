@@ -185,8 +185,8 @@ def count(files):
 
 
 def contexts(path):
-    # A session's replies in order: the context each read (every input token, cached or not), and
-    # whether a tool result came in since the reply before. A sidechain line is a subagent's.
+    # A session's replies in order: the context each read (every input token, cached or not),
+    # whether a tool result came in since the reply before, its model, usage and timestamp. A sidechain line is a subagent's.
     replies, tool = {}, False
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -203,7 +203,8 @@ def contexts(path):
                 u = msg["usage"]
                 key = (msg.get("id"), entry.get("requestId"))
                 context = u.get("input_tokens", 0) + u.get("cache_creation_input_tokens", 0) + u.get("cache_read_input_tokens", 0)
-                replies[key] = (context, replies[key][1] if key in replies else tool)
+                tool = replies[key][1] if key in replies else tool
+                replies[key] = (context, tool, msg.get("model"), u, entry.get("timestamp") or "")
                 tool = False
     return list(replies.values())
 
@@ -214,16 +215,23 @@ def simulate(files):
     # Cut: whenever the context passes the size, start again from the segment's first context.
     # Cap: a tool result that added more than the cap adds only the cap, to that reply and every later one.
     # Both are upper bounds: a fresh session re-reads what it needs, and a capped result may be read again.
-    s = dict(read=0, replies=0, sessions=0, cut=dict.fromkeys(CUTS, 0), cap=dict.fromkeys(CAPS, 0))
+    # Cut in dollars: each token no longer read saves the model's cache-read price, and each restart
+    # costs one reply at the new session's starting context (the segment's first): written to the
+    # 1-hour cache instead of read. No summary or hand-over is counted, and the Haiku long-prompt price is not applied.
+    s = dict(read=0, replies=0, sessions=0, cost=0.0, first="", last="",
+             cut=dict.fromkeys(CUTS, 0), cut_cost=dict.fromkeys(CUTS, 0.0), cap=dict.fromkeys(CAPS, 0))
     for path in files:
         segments = []
-        for context, tool in contexts(path):
+        for context, tool, model, usage, when in contexts(path):
             if not segments or context < 0.7 * segments[-1][-1][0]:
                 segments.append([])
-            segments[-1].append((context, tool))
+            segments[-1].append((context, tool, PRICES.get(DATED.sub("", model or ""), (0,) * 5)))
+            s["cost"] += cost(model, usage)
+            s["first"] = min(s["first"] or when, when)
+            s["last"] = max(s["last"], when)
         s["sessions"] += bool(segments)
         for seg in segments:
-            for i, (context, tool) in enumerate(seg):
+            for i, (context, tool, _) in enumerate(seg):
                 s["read"] += context
                 s["replies"] += 1
                 if tool and i:
@@ -231,10 +239,12 @@ def simulate(files):
                         s["cap"][cap] += max(0, context - seg[i - 1][0] - cap) * (len(seg) - i)
             for cut in CUTS:
                 saved = 0
-                for context, _ in seg:
+                for context, _, p in seg:
                     if context - saved > cut:
                         saved = context - seg[0][0]
+                        s["cut_cost"][cut] -= seg[0][0] * (p[2] - p[3]) / 1e6
                     s["cut"][cut] += saved
+                    s["cut_cost"][cut] += saved * p[3] / 1e6
     return s
 
 
@@ -392,12 +402,17 @@ def report_tools(s):
 
 
 def report(s):
-    print(f"main sessions:{s['sessions']}, {s['replies']:,} replies, {s['read'] / 1e6:,.1f}M context tokens read")
+    print(f"main sessions:{s['sessions']}, {s['first'][:10]} to {s['last'][:10]}, {s['replies']:,} replies,"
+          f" {s['read'] / 1e6:,.1f}M context tokens read, ${s['cost']:,.2f}")
     for cut, saved in s["cut"].items():
-        print(f"  fresh session whenever the context passes {cut // 1000}k: -{saved / max(s['read'], 1):.1%}")
+        d = s["cut_cost"][cut]
+        sign = "-" if d >= 0 else "+"
+        print(f"  fresh session whenever the context passes {cut // 1000}k: -{saved / max(s['read'], 1):.1%} tokens,"
+              f" {sign}${abs(d):,.2f} ({sign}{abs(d) / max(s['cost'], 1e-9):.1%} of ${s['cost']:,.2f})")
     for cap, saved in s["cap"].items():
         print(f"  each tool result capped at {cap // 1000}k tokens: -{saved / max(s['read'], 1):.1%}")
-    print("  upper bounds: a fresh session re-reads what it needs; a capped result may be read again")
+    print(f"  upper bounds, at the list prices checked {PRICES_CHECKED}: a fresh session re-reads what it needs, and"
+          " each restart costs one reply writing its starting context; a capped result may be read again")
 
 
 def report_route(s):
