@@ -86,7 +86,8 @@ Output that lands in the main session is re-read by every later reply. Keep it s
   checks into one shell command that prints one line per item. Wait for CI with
   `gh pr checks <n> --watch > <file>`, then print only the final `gh pr checks <n>`.
 - Read the part of a file you need (`offset`/`limit`, `grep -n`), not the whole file, unless the
-  step changes all of it. Diffs: `--stat` first, then the files that matter.
+  step changes all of it. Diffs: `--stat` first, then the files that matter. A hook enforces the
+  first half ("Where things live").
 
 ## The auditors
 
@@ -187,6 +188,7 @@ and who creates them, the setup scripts -->
 - **Measurement:** `python scripts/spec-drift.py --out spec-drift.json` rebuilds the project
   dashboard's data from git and GitHub; `--build` writes the page (`docs/dashboard/`) with it.
   Every merge to `main` republishes it to [GitHub Pages](<!-- PROJECT: GitHub Pages URL -->).
+- **Whole-file Reads:** a PreToolUse hook (`scripts/read-guard.py`) refuses a Read with no `offset`, `limit` or `pages` of a file over 8,000 bytes, and names its size and line count. Find the part with `grep -n` and read that range; to read all of it on purpose, give the `limit` it names. Edit works after a ranged Read. Images, PDFs and notebooks pass.
 - **Long Bash output:** a PostToolUse hook (`scripts/cap-output.py`) cuts stdout over 8,000 characters to its head and tail; the full output is in `.claude/tool-output/` (gitignored). Claude Code merges stderr into stdout, so a failing command's error comes back at the end of stdout with stderr `''`: it is cut, and the tail (last 3,000 characters) keeps it; the stderr guard only catches a separate stderr. An interrupted command is left whole, as is output of 30,000 characters or more, which Claude Code saves itself.
 
 ## Pitfalls this repository has already hit
