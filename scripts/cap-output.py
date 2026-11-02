@@ -11,11 +11,16 @@ the full stdout, written to .claude/tool-output/ (gitignored) before anything is
 Four results pass unchanged: one of 8,000 characters or fewer; one of Claude Code's own limit or
 more (BASH_MAX_OUTPUT_LENGTH, 30,000 by default), since Claude Code has already saved that output in
 full and shows a 2 KB preview, and the hook receives only its first 30,000 characters, so its copy
-would not be the full output; one with stderr or an interruption,
-since a failing command's error often ends its output and the model needs all of it; and one whose
-full output cannot be saved, since a cut without the file would lose the middle for good.
+would not be the full output; one with a separate stderr or an interruption, since a failing
+command's error often ends its output and the model needs all of it; and one whose full output
+cannot be saved, since a cut without the file would lose the middle for good.
 
-Bash's tool_response has no exit code, so stderr and `interrupted` stand in for failure. The reply
+Live, Claude Code's Bash merges stderr into stdout: a failing command comes back with stderr ''
+and its error at the end of stdout. So the stderr guard does not fire on it, and its output is cut
+like any other. The tail keeps the last 3,000 characters, where the error is. Only an interruption
+is left whole.
+
+Bash's tool_response has no exit code, so a separate stderr and `interrupted` stand in for failure. The reply
 keeps Bash's own object (stdout, stderr, interrupted, ...) with only stdout replaced: a plain string
 in updatedToolOutput is silently ignored.
 

@@ -81,9 +81,21 @@ class CutTests(unittest.TestCase):
         self.assertEqual(set(reply), {"stdout", "stderr", "interrupted", "isImage", "noOutputExpected"})
         self.assertEqual(reply["isImage"], False)
 
-    def test_failing_command_is_left_whole(self):
+    def test_failing_command_with_separate_stderr_is_left_whole(self):
+        # Live Bash never sends a separate stderr: see the merged-stderr test below.
         self.assertIsNone(cap.handle(hook_input(LONG, stderr="boom\n"), self.project))
+
+    def test_interrupted_command_is_left_whole(self):
         self.assertIsNone(cap.handle(hook_input(LONG, interrupted=True), self.project))
+
+    def test_live_failing_command_is_cut_and_its_error_kept(self):
+        # Claude Code merges stderr into stdout: the error ends stdout and stderr is ''.
+        stdout = LONG + "Traceback (most recent call last):\nValueError: boom\n"
+        out = cap.handle(hook_input(stdout), self.project)
+        self.assertIsNotNone(out, "the merged error passed the stderr guard whole")
+        text = out["hookSpecificOutput"]["updatedToolOutput"]["stdout"]
+        self.assertIsNotNone(MARKER.search(text), text[:200])
+        self.assertTrue(text.endswith("ValueError: boom\n"), text[-200:])
 
     def test_output_that_cannot_be_saved_passes(self):
         not_a_dir = os.path.join(self.project, "file")
