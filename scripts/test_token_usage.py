@@ -290,5 +290,70 @@ class ToolsTest(unittest.TestCase):
         self.assertEqual(s["bash"], 1)
 
 
+class CostTest(unittest.TestCase):
+    """Each kind of token at its model's list price."""
+
+    def test_each_token_kind_is_priced_at_its_models_rate(self):
+        # Opus 5.5: 1,000 input at $4, 1,000 5-minute writes at $5, 2,000 1-hour writes at $8,
+        # 10,000 reads at $0.20 and 500 output at $20 per million: $0.037.
+        entry = json.loads(line())
+        entry["message"]["model"] = "claude-opus-5-5"
+        entry["message"]["usage"] = {"input_tokens": 1_000, "cache_creation_input_tokens": 3_000,
+                                     "cache_creation": {"ephemeral_5m_input_tokens": 1_000, "ephemeral_1h_input_tokens": 2_000},
+                                     "cache_read_input_tokens": 10_000, "output_tokens": 500}
+        totals = CountTest.count(self, [json.dumps(entry)])
+        self.assertAlmostEqual(list(totals.values())[0]["cost"], 0.037, places=9)
+
+    def test_a_write_with_no_split_is_a_one_hour_write(self):
+        self.assertAlmostEqual(tu.cost("claude-opus-5-5", {"cache_creation_input_tokens": 1_000}), 0.008, places=9)
+
+    def test_a_haiku_prompt_past_100k_costs_five_times(self):
+        self.assertAlmostEqual(tu.cost("claude-haiku-5-5", {"cache_read_input_tokens": 100_000}), 0.001, places=9)
+        self.assertAlmostEqual(tu.cost("claude-haiku-5-5", {"cache_read_input_tokens": 100_001}), 0.00500005, places=9)
+
+
+def turn(message_id, context, calls=()):
+    # A main-session Opus reply that read `context` from the cache, wrote 100 tokens and made these tool calls.
+    blocks = [{"type": "tool_use", "id": message_id + str(i), "name": name, "input": args} for i, (name, args) in enumerate(calls)]
+    return json.dumps({"type": "assistant", "requestId": "req_" + message_id, "timestamp": "2026-11-02T10:00:00Z",
+                       "message": {"id": message_id, "model": "claude-opus-5-5", "content": blocks,
+                                   "usage": {"cache_read_input_tokens": context, "output_tokens": 100}}})
+
+
+class RouteTest(unittest.TestCase):
+    """Which replies are mechanical, and what a Haiku operator subagent would take off the main sessions."""
+
+    def test_only_our_scripts_and_gh_or_git_reads_are_mechanical(self):
+        for command in ("python scripts/spec-drift.py --out spec-drift.json | tail -3",
+                        "cd /c/repo && git checkout -q main && git pull -q && git log --oneline -1",
+                        'gh pr checks 12 --watch > c.txt; gh pr checks 12 | grep -E "fail|pending"',
+                        "PYTHONDONTWRITEBYTECODE=1 python scripts/break.py --file a.py --find x --replace y -- python t.py",
+                        "git diff --stat main...HEAD", "gh api repos/o/r/pulls/3"):
+            self.assertTrue(tu.mechanical([("Bash", {"command": command})]), command)
+        for command in ("sed -n 1,40p specs/day-01.md", "grep -n def scripts/break.py", "git diff main -- a.py",
+                        "git log -p -3", "gh pr diff 3", "gh pr create --body-file b.md", "git commit -F m.txt",
+                        "gh api -X PATCH repos/o/r", "python scripts/test_break.py", "python -c 'print(1)'"):
+            self.assertFalse(tu.mechanical([("Bash", {"command": command})]), command)
+        self.assertFalse(tu.mechanical([]))
+        self.assertFalse(tu.mechanical([("Bash", {"command": "git status"}), ("Edit", {})]))
+
+    def test_mechanical_replies_move_to_haiku_with_the_context_they_added(self):
+        # Edit at 50k ($0.012), spec-drift at 51k ($0.0122), a typed answer at 55k ($0.013). On Haiku the
+        # mechanical reply writes the 20k brief and the 1k it took in ($0.0042) and its output ($0.00005);
+        # the 4k it added is not read by the answer ($0.0008 at Opus's read price).
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "session.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join([turn("1", 50_000, [("Edit", {})]),
+                                   turn("2", 51_000, [("Bash", {"command": "python scripts/spec-drift.py"})]),
+                                   turn("3", 55_000)]) + "\n")
+            s = tu.route([path])
+        self.assertEqual(s["replies"], {"mechanical": 1, "judgment": 2})
+        self.assertAlmostEqual(s["cost"]["mechanical"], 0.0122, places=9)
+        self.assertAlmostEqual(s["cost"]["judgment"], 0.025, places=9)
+        self.assertAlmostEqual(s["haiku"], 0.00425, places=9)
+        self.assertAlmostEqual(s["unread"], 0.0008, places=9)
+
+
 if __name__ == "__main__":
     unittest.main()

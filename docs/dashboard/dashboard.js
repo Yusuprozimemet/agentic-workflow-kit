@@ -883,7 +883,9 @@ function drawTokens() {
   const models = [...new Set(T.map(r => r.model))].sort((a, b) => sum(T.filter(r => r.model === b), "output") - sum(T.filter(r => r.model === a), "output"));
   const color = m => MODEL_VAR[m] || "var(--other)";
   document.getElementById("token-legend").innerHTML = models.map(m =>
-    `<span><i class="dot" style="background:${color(m)}"></i>${esc(modelName(m))} · ${kilo(sum(T.filter(r => r.model === m), "output"))}</span>`).join("");
+    `<span><i class="dot" style="background:${color(m)}"></i>${esc(modelName(m))} · ${kilo(sum(T.filter(r => r.model === m), "output"))}</span>`).join("")
+    // A row counted before costs were has none: the total is then a floor, and with none at all it is not shown.
+    + (T.some(r => r.cost) ? `<span>$${fmt(T.reduce((a, r) => a + (r.cost || 0), 0), 2)} at list prices, the main sessions $${fmt(T.filter(r => r.agent === "main").reduce((a, r) => a + (r.cost || 0), 0), 2)}</span>` : "");
   const who = r => r.agent || "unknown";
   const impl = T.filter(r => who(r) === "implementer"), main = T.filter(r => who(r) === "main");
   // A row counted before agents were, or a subagent with no type beside it, belongs to no agent: not the checkers'.
