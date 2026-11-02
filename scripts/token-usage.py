@@ -7,6 +7,7 @@ transcripts live on the maintainer's machine, not in CI, so this runs locally an
 committed; the closing PR of each day refreshes it.
 
     python scripts/token-usage.py
+    python scripts/token-usage.py --simulate   # what shorter sessions or capped tool output would save
 
 A reply is counted once, from its last line: a transcript repeats a reply's usage on every content
 block it streamed, and the usage is complete only on the last of those lines, so replies are keyed
@@ -28,6 +29,8 @@ OUT = os.path.normpath(os.path.join(HERE, os.pardir, "docs", "dashboard", "token
 FIELDS = ("input", "cache_write", "cache_read", "output", "replies")
 DAY_BRANCH = re.compile(r"^day-(\d+)/")
 DATED = re.compile(r"-\d{8}$")
+CUTS = (100_000, 200_000, 300_000)
+CAPS = (2_000, 5_000)
 
 
 def long_path(path):
@@ -94,11 +97,79 @@ def count(files):
     return totals
 
 
+def contexts(path):
+    # A session's replies in order: the context each read (every input token, cached or not), and
+    # whether a tool result came in since the reply before. A sidechain line is a subagent's.
+    replies, tool = {}, False
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            msg = entry.get("message") or {}
+            if entry.get("isSidechain"):
+                continue
+            if entry.get("type") == "user" and isinstance(msg.get("content"), list):
+                tool = tool or any(isinstance(b, dict) and b.get("type") == "tool_result" for b in msg["content"])
+            elif entry.get("type") == "assistant" and msg.get("usage"):
+                u = msg["usage"]
+                key = (msg.get("id"), entry.get("requestId"))
+                context = u.get("input_tokens", 0) + u.get("cache_creation_input_tokens", 0) + u.get("cache_read_input_tokens", 0)
+                replies[key] = (context, replies[key][1] if key in replies else tool)
+                tool = False
+    return list(replies.values())
+
+
+def simulate(files):
+    # Every reply re-reads the whole context, so what a block adds is read once by each later reply.
+    # A context that falls by more than 30% was compacted: the session goes on as a new segment.
+    # Cut: whenever the context passes the size, start again from the segment's first context.
+    # Cap: a tool result that added more than the cap adds only the cap, to that reply and every later one.
+    # Both are upper bounds: a fresh session re-reads what it needs, and a capped result may be read again.
+    s = dict(read=0, replies=0, sessions=0, cut=dict.fromkeys(CUTS, 0), cap=dict.fromkeys(CAPS, 0))
+    for path in files:
+        segments = []
+        for context, tool in contexts(path):
+            if not segments or context < 0.7 * segments[-1][-1][0]:
+                segments.append([])
+            segments[-1].append((context, tool))
+        s["sessions"] += bool(segments)
+        for seg in segments:
+            for i, (context, tool) in enumerate(seg):
+                s["read"] += context
+                s["replies"] += 1
+                if tool and i:
+                    for cap in CAPS:
+                        s["cap"][cap] += max(0, context - seg[i - 1][0] - cap) * (len(seg) - i)
+            for cut in CUTS:
+                saved = 0
+                for context, _ in seg:
+                    if context - saved > cut:
+                        saved = context - seg[0][0]
+                    s["cut"][cut] += saved
+    return s
+
+
+def report(s):
+    print(f"main sessions: {s['sessions']}, {s['replies']:,} replies, {s['read'] / 1e6:,.1f}M context tokens read")
+    for cut, saved in s["cut"].items():
+        print(f"  fresh session whenever the context passes {cut // 1000}k: -{saved / max(s['read'], 1):.1%}")
+    for cap, saved in s["cap"].items():
+        print(f"  each tool result capped at {cap // 1000}k tokens: -{saved / max(s['read'], 1):.1%}")
+    print("  upper bounds: a fresh session re-reads what it needs; a capped result may be read again")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--transcripts", default=os.path.join(os.path.expanduser("~"), ".claude", "projects"))
     ap.add_argument("--out", default=OUT)
+    ap.add_argument("--simulate", action="store_true",
+                    help="print what fresh sessions or capped tool results would have saved; write nothing")
     args = ap.parse_args()
+    if args.simulate:
+        report(simulate(p for p in transcripts(args.transcripts) if agent(p) == "main"))
+        return
     totals = count(transcripts(args.transcripts))
     if os.path.exists(args.out):
         with open(args.out, encoding="utf-8") as f:
