@@ -36,6 +36,7 @@ import collections
 import datetime
 import fnmatch
 import hashlib
+import importlib.util
 import json
 import os
 import platform
@@ -1420,6 +1421,17 @@ def build(data):
     return fill(page, data, "index.html")
 
 
+def page_data(real, spec_days):
+    """What --build writes: the real data, or with no day specs yet, demo-data.py's example data marked
+    "demo": true, which the page shows under a banner. --out never uses this."""
+    if spec_days:
+        return real
+    spec = importlib.util.spec_from_file_location("demo_data", os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo-data.py"))
+    demo_data = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(demo_data)
+    return dict(demo_data.demo(), demo=True)
+
+
 def unwritten(days, order):
     """The cleanup or close-out day before its spec exists: its number, and the phase of the day it
     follows in the run order, so the roadmap shows it where it runs."""
@@ -1542,22 +1554,23 @@ def main():
                    next_step=next_step(days, open_prs, order, stop, unwritten_lines(plan)), stop_after=stop,
                    unwritten=unwritten(days, order),
                    open_prs=[dict(number=p["number"], title=p["title"], url=p["url"]) for p in open_prs])
-        data = json.dumps(dict(now=now, rows=rows, files=files, days=days, origin_lines=lines,
-                               order=[d for d in order if d not in PLACEHOLDERS],
-                               out_of_order=out_of_order(order),
-                               removals=removal_history(days, snaps, blobs),
-                               hand_offs=handoffs, criteria_index=index, attention=attention,
-                               other_groups=other_groups(rows),
-                               vocab_size=vocab, tokens=token_usage(),
-                               verification=verification(prs, runs),
-                               infra=infra(INFRA_WORKFLOW),
-                               deployment=deployment(),
-                               evidence_checks=checks,
-                               conclusion=conclusion(blobs.read(snaps[-1]["sha"], "docs/lab-notebook.md")),
-                               meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance(),
-                                         break_line_from_pr=BREAK_LINE_FROM_PR, project=project_name(),
-                                         phases=phases(plan), stops=stops(plan))),
-                          separators=(",", ":"))
+        real = dict(now=now, rows=rows, files=files, days=days, origin_lines=lines,
+                    order=[d for d in order if d not in PLACEHOLDERS],
+                    out_of_order=out_of_order(order),
+                    removals=removal_history(days, snaps, blobs),
+                    hand_offs=handoffs, criteria_index=index, attention=attention,
+                    other_groups=other_groups(rows),
+                    vocab_size=vocab, tokens=token_usage(),
+                    verification=verification(prs, runs),
+                    infra=infra(INFRA_WORKFLOW),
+                    deployment=deployment(),
+                    evidence_checks=checks,
+                    conclusion=conclusion(blobs.read(snaps[-1]["sha"], "docs/lab-notebook.md")),
+                    meta=dict(caveats=CAVEATS + [note] * bool(note), provenance=provenance(),
+                              break_line_from_pr=BREAK_LINE_FROM_PR, project=project_name(),
+                              phases=phases(plan), stops=stops(plan)))
+    payload = page_data(real, spec_days) if args.build else real
+    data = json.dumps(payload, separators=(",", ":"))
     target = args.build or args.out
     if args.build:
         data = build(data)
@@ -1565,7 +1578,8 @@ def main():
         f.write(data)
     if not args.no_cache:
         save_cache(args.cache)
-    print(f"{target}: {len(rows)} snapshots, {len(days)} days, next: {now['next_step']}" + (f" ({note})" if note else ""))
+    print(f"{target}: {len(rows)} snapshots, {len(days)} days, next: {now['next_step']}" + (f" ({note})" if note else "")
+          + (" (example data: no day specs yet)" if payload.get("demo") else ""))
 
 
 if __name__ == "__main__":

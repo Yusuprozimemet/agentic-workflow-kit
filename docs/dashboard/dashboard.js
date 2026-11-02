@@ -107,6 +107,10 @@ const merged = R.filter(r => r.pr).map(r => r.pr);
 document.getElementById("pr-range").textContent = many(N - 1, "merge") + (merged.length ? `, #${Math.min(...merged)}–#${Math.max(...merged)}` : "");
 document.getElementById("gap-chance").textContent = `${fmt(last.gap_chance)}° (95%: ${band(last.gap_chance_band)})`;
 document.getElementById("caveats").innerHTML = ((DATA.meta || {}).caveats || []).map(c => `<li>${esc(c)}</li>`).join("");
+// spec-drift.py's example-data fallback (demo: true): say so under the header until the first day spec merges.
+const banner = document.getElementById("demo-banner");
+banner.textContent = "Example data: this project has no day specs yet. The page will show real data after the first day spec merges.";
+banner.hidden = DATA.demo !== true;
 
 /* ---------- scrubber ---------- */
 const scrub = document.getElementById("pr-scrub");

@@ -22,6 +22,13 @@ spec = importlib.util.spec_from_file_location("demo_data", os.path.join(HERE, "d
 demo_data = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(demo_data)
 DASHBOARD = os.path.join(HERE, "..", "docs", "dashboard", "dashboard.js")
+REAL = dict(now=dict(current_day=None), rows=[], days=[])
+
+
+def boot(data):
+    """The page's boot on this data, as test_spec_drift.py's BOOT reports it."""
+    return json.loads(subprocess.run(["node", "-e", test_spec_drift.BOOT, DASHBOARD], input=json.dumps(data),
+                                     capture_output=True, encoding="utf-8", check=True).stdout)
 
 
 def keys_at_top(text):
@@ -40,10 +47,10 @@ def keys_at_top(text):
 
 
 def written_keys():
-    """The keys spec-drift.py's main() puts in the dict it dumps, and those of its now and meta."""
+    """The keys spec-drift.py's main() puts in the real dict it writes, and those of its now and meta."""
     with open(os.path.join(HERE, "spec-drift.py"), encoding="utf-8") as f:
         source = f.read()
-    block = source[source.index("json.dumps(dict(") + len("json.dumps(dict("):]
+    block = source[source.index("real = dict(") + len("real = dict("):]
     # now is built as its own dict, "now = dict(", and meta inside the main call
     nested = {name: keys_at_top(source[m.end():]) for name, m in
               ((n, re.search(rf"\b{n} ?= ?dict\(", source)) for n in ("now", "meta"))}
@@ -58,6 +65,27 @@ class DemoData(unittest.TestCase):
                                         encoding="utf-8", check=True).stdout)
         self.assertIsNone(out["error"], "a panel threw on the demo data")
         self.assertIsNotNone(out["eyebrow"])
+
+    def test_the_banner_shows_on_the_demo_data(self):
+        out = boot(dict(demo_data.demo(), demo=True))
+        self.assertIsNone(out["error"], "a panel threw on the demo data")
+        self.assertFalse(out["banner"]["hidden"])
+        self.assertIn("Example data", out["banner"]["text"])
+
+    def test_no_banner_without_the_demo_key(self):
+        out = boot(demo_data.demo())
+        self.assertIsNone(out["error"], "a panel threw on the data without demo")
+        self.assertTrue(out["banner"]["hidden"])
+
+    def test_no_day_specs_puts_the_demo_in_the_page(self):
+        page = test_spec_drift.sd.page_data(REAL, [])
+        self.assertIs(page["demo"], True)
+        self.assertEqual({k: v for k, v in page.items() if k != "demo"}, demo_data.demo())
+
+    def test_day_specs_put_the_real_data_in_unchanged(self):
+        page = test_spec_drift.sd.page_data(REAL, ["01"])
+        self.assertEqual(page, REAL)
+        self.assertNotIn("demo", page)
 
     def test_the_same_dict_comes_out_on_every_call(self):
         self.assertEqual(demo_data.demo(), demo_data.demo())
