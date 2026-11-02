@@ -107,6 +107,13 @@ class DemoData(unittest.TestCase):
         self.assertEqual(page, REAL)
         self.assertNotIn("demo", page)
 
+    def test_every_token_row_has_the_hook_counts_with_reads_over_whole_and_bash_over_cut(self):
+        for row in demo_data.demo()["tokens"]:
+            for k in ("bash", "cut", "reads", "whole"):
+                self.assertIn(k, row)
+            self.assertGreaterEqual(row["reads"], row["whole"])
+            self.assertGreaterEqual(row["bash"], row["cut"])
+
     def test_the_same_dict_comes_out_on_every_call(self):
         self.assertEqual(demo_data.demo(), demo_data.demo())
 
