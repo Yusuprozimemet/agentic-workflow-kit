@@ -144,5 +144,50 @@ class MergeTest(unittest.TestCase):
                                 ("2026-10-12", "main"): (30, 1), ("2026-10-12", "unknown"): (70, 3)})
 
 
+def reply(message_id, context, sidechain=False):
+    """One assistant line whose context (all input tokens, cached or not) is `context`."""
+    entry = json.loads(line(message_id=message_id, request_id="req_" + message_id))
+    entry["message"]["usage"] = {"input_tokens": 1, "cache_creation_input_tokens": 9,
+                                 "cache_read_input_tokens": context - 10, "output_tokens": 5}
+    entry["isSidechain"] = sidechain
+    return json.dumps(entry)
+
+
+def tool_result():
+    return json.dumps({"type": "user", "message": {"content": [{"type": "tool_result", "content": "x"}]}})
+
+
+class SimulateTest(unittest.TestCase):
+    """What a fresh session past a size, or a cap on each tool result, would have saved."""
+
+    def simulate(self, lines):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "session.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            return tu.simulate([path])
+
+    def test_a_fresh_session_restarts_from_the_first_replys_context(self):
+        # 50k, 150k, 250k, the second streamed twice. Past 100k, the session restarts at 50k twice:
+        # it reads 50k, 50k (saved 100k) and 50k + 100k = 150k, over 100k again, so 50k (saved 200k).
+        s = self.simulate([reply("1", 50_000), reply("2", 150_000), reply("2", 150_000), reply("3", 250_000)])
+        self.assertEqual((s["read"], s["replies"], s["sessions"]), (450_000, 3, 1))
+        self.assertEqual(s["cut"], {100_000: 300_000, 200_000: 200_000, 300_000: 0})
+
+    def test_a_tool_result_is_capped_for_every_reply_that_reads_it(self):
+        # A tool result adds 10k and is read by two replies; a typed message adds 1k and is not capped.
+        s = self.simulate([reply("1", 10_000), tool_result(), reply("2", 20_000), reply("3", 21_000)])
+        self.assertEqual(s["cap"], {2_000: 16_000, 5_000: 10_000})
+
+    def test_a_compaction_starts_a_new_segment(self):
+        # 250k, compacted to 40k, then 260k: the 260k restarts from 40k, not from 250k.
+        s = self.simulate([reply("1", 250_000), reply("2", 40_000), reply("3", 260_000)])
+        self.assertEqual(s["cut"][200_000], 220_000)
+
+    def test_sidechain_lines_are_not_the_main_sessions(self):
+        s = self.simulate([reply("1", 50_000), reply("2", 900_000, sidechain=True), reply("3", 60_000)])
+        self.assertEqual((s["read"], s["replies"]), (110_000, 2))
+
+
 if __name__ == "__main__":
     unittest.main()

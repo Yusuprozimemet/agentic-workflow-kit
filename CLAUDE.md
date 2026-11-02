@@ -74,7 +74,9 @@ costs: in jobmatch-microservices, up to Day 17, 64% of the main sessions' contex
 passed 300k (the Tokens panel on the dashboard, "context per reply"). So a step starts in a fresh
 session: after reporting the next step in step 5, suggest the maintainer start a new session for
 it (or `/compact` if they keep this one). Nothing is lost: the spec, `spec-drift.json`, this file
-and memory carry what the next step needs.
+and memory carry what the next step needs. `python scripts/token-usage.py --simulate` prints what
+a fresh session past 100k, 200k or 300k, or each tool result capped at 2k or 5k tokens, would have
+saved on this machine's transcripts.
 
 Output that lands in the main session is re-read by every later reply. Keep it small:
 
