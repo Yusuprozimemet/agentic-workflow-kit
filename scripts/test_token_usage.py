@@ -75,6 +75,21 @@ class CountTest(unittest.TestCase):
         main = self.rows(self.count([line(branch="main")]))
         self.assertIsNone(main[0][0][1])
 
+    def test_a_cut_bash_result_and_a_whole_read_land_on_the_reply_row(self):
+        cut = "a" * 3000 + "\n[cut 2000 chars; full output: x.txt; use Read with offset/limit or grep]\n"
+        with tempfile.TemporaryDirectory() as folder:
+            big = os.path.join(folder, "big.md")
+            with open(big, "w", encoding="utf-8") as f:
+                f.write("x" * 9_000)
+            rows = self.rows(self.count([call("t1", "Bash"), result("t1", cut), call("t2", "Read", {"file_path": big}), result("t2", "x")]))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual({k: rows[0][1][k] for k in tu.TOOL_FIELDS}, dict(bash=1, cut=1, reads=1, whole=1))
+
+    def test_tool_calls_on_different_dates_go_to_two_rows(self):
+        rows = self.rows(self.count([call("t1", "Bash", when="2026-11-05T10:00:00Z"), result("t1", "short"),
+                                     call("t2", "Bash", when="2026-11-06T10:00:00Z"), result("t2", "short")]))
+        self.assertEqual(sorted((key[0], t["bash"]) for key, t in rows), [("2026-11-05", 1), ("2026-11-06", 1)])
+
 
 class TranscriptsTest(unittest.TestCase):
     """Only this repository's transcript folders are read: its own and its worktrees'."""
@@ -143,6 +158,24 @@ class MergeTest(unittest.TestCase):
         self.assertEqual(rows, {("2026-10-11", "unknown"): (40, 2),
                                 ("2026-10-12", "main"): (30, 1), ("2026-10-12", "unknown"): (70, 3)})
 
+    def test_a_kept_row_with_no_tool_fields_merges_and_takes_the_counted_ones(self):
+        with tempfile.TemporaryDirectory() as root:
+            out = os.path.join(root, "token-usage.json")
+            kept = dict(date="2026-11-05", day=43, model="claude-haiku-5-5", agent="main", input=10, cache_write=0,
+                        cache_read=0, output=100, replies=4)
+            with open(out, "w", encoding="utf-8") as f:
+                json.dump([kept], f)
+            project = os.path.join(root, "projects", re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(os.path.join(HERE, os.pardir))))
+            os.makedirs(project)
+            with open(os.path.join(project, "s.jsonl"), "w", encoding="utf-8") as f:
+                f.write(call("t1", "Bash") + "\n" + result("t1", "short") + "\n")
+            run = subprocess.run([sys.executable, os.path.join(HERE, "token-usage.py"), "--transcripts",
+                                  os.path.join(root, "projects"), "--out", out], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stderr)
+            with open(out, encoding="utf-8") as f:
+                rows = {(r["date"], r["agent"]): tuple(r[k] for k in ("bash", "cut", "reads", "whole", "output")) for r in json.load(f)}
+        self.assertEqual(rows, {("2026-11-05", "main"): (1, 0, 0, 0, 100)})
+
 
 def reply(message_id, context, sidechain=False):
     """One assistant line whose context (all input tokens, cached or not) is `context`."""
@@ -189,10 +222,12 @@ class SimulateTest(unittest.TestCase):
         self.assertEqual((s["read"], s["replies"]), (110_000, 2))
 
 
-def call(tool_use_id, name, args=None):
+def call(tool_use_id, name, args=None, when="2026-11-05T10:00:00Z", branch="day-43/track-a2-x"):
+    # A reply's line, as count() reads it: its usage and model, on a branch of a day.
     block = {"type": "tool_use", "id": tool_use_id, "name": name, "input": args or {}}
-    return json.dumps({"type": "assistant", "timestamp": "2026-11-05T10:00:00Z",
-                       "message": {"id": "msg_" + tool_use_id, "content": [block]}})
+    return json.dumps({"type": "assistant", "timestamp": when, "gitBranch": branch, "requestId": "req_" + tool_use_id,
+                       "message": {"id": "msg_" + tool_use_id, "model": "claude-haiku-5-5", "usage": {"output_tokens": 1},
+                                   "content": [block]}})
 
 
 def result(tool_use_id, text):

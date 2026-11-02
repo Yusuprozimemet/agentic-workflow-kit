@@ -194,9 +194,14 @@ def demo():
                          pushes=2 if r["kind"] == "code" else 1, failed=1 if r["kind"] == "code" else 0,
                          failed_in=["unit"] if r["kind"] == "code" else [])
                     for r in merged]
+    def hooks(n):
+        # The story: the hooks arrive on day 4. Days 1 to 3 have no cut Bash results, days 4 to 6 no whole Reads.
+        if n <= 3:
+            return dict(bash=6 * n, cut=0, reads=2 * n + 1, whole=n + 1)
+        return dict(bash=6 * n, cut=n - 2, reads=n, whole=0)
     tokens = [dict(date=f"2026-10-{n + 2:02d}", day=n, model=model, agent=agent,
                    input=900 * n + 400, cache_write=12000 * n, cache_read=310000 * n + 2000,
-                   output=5200 * n + 300 if agent == "main" else 2100 * n, replies=40 * n + 7)
+                   output=5200 * n + 300 if agent == "main" else 2100 * n, replies=40 * n + 7, **hooks(n))
               for n in range(1, 7)
               for agent, model in (("main", "claude-sonnet-5-5"), ("implementer", "claude-haiku-5-5"))]
     items = [dict(name="web task", count=2, per_hour=0.0412), dict(name="database", count=1, per_hour=0.095)]

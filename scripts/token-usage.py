@@ -2,7 +2,7 @@
 
 Reads the session transcripts Claude Code keeps on this machine (~/.claude/projects/<this
 repository's path>, subagents included) and writes totals only, no prompt or reply text, to
-docs/dashboard/token-usage.json, which scripts/spec-drift.py puts on the dashboard. The
+docs/dashboard/token-usage.json (tokens and the --tools counts per row), which scripts/spec-drift.py puts on the dashboard. The
 transcripts live on the maintainer's machine, not in CI, so this runs locally and its output is
 committed; the closing PR of each day refreshes it.
 
@@ -29,6 +29,7 @@ import re
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.normpath(os.path.join(HERE, os.pardir, "docs", "dashboard", "token-usage.json"))
 FIELDS = ("input", "cache_write", "cache_read", "output", "replies")
+TOOL_FIELDS = ("bash", "cut", "reads", "whole")
 DAY_BRANCH = re.compile(r"^day-(\d+)/")
 DATED = re.compile(r"-\d{8}$")
 CUTS = (100_000, 200_000, 300_000)
@@ -69,30 +70,74 @@ def agent(path):
         return "unknown"
 
 
+def reply(entry):
+    # The assistant message a line counts as a reply: it has usage and comes from a Claude model.
+    msg = entry.get("message") or {}
+    if entry.get("type") != "assistant" or not msg.get("usage") or not DATED.sub("", msg.get("model") or "").startswith("claude"):
+        return None
+    return msg
+
+
+def row_key(entry, who):
+    # The row a reply or a tool call counts toward: its local date, the day of its branch, its model and its agent.
+    when = datetime.datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
+    day = DAY_BRANCH.match(entry.get("gitBranch") or "")
+    return (when.astimezone().date().isoformat(), int(day.group(1)) if day else None, DATED.sub("", entry["message"].get("model") or ""), who)
+
+
+def tool_blocks(entry, calls, cut):
+    # A line's tool calls by tool_use id, and each Bash result's cut test. A message spread over several
+    # lines repeats its blocks: the last line wins, so a call counts once. A Bash result is cut by
+    # cap-output.py when its text has the marker at CUT_AT.
+    content = (entry.get("message") or {}).get("content")
+    if not isinstance(content, list):
+        return
+    for b in content:
+        if not isinstance(b, dict):
+            continue
+        if b.get("type") == "tool_use":
+            calls[b.get("id")] = (b.get("name"), b.get("input") or {}, entry)
+        elif b.get("type") == "tool_result" and calls.get(b.get("tool_use_id"), (None,))[0] == "Bash":
+            cut[b.get("tool_use_id")] = tool_text(b.get("content")).find("\n[cut ") == CUT_AT
+
+
+def read_size(name, args):
+    # What a tool call adds to reads and whole: (1, whole) for a Read of a file over TOOL_LIMIT, else (0, 0).
+    # A transcript keeps no size, so the file's size on disk now is read.
+    if name != "Read" or size(args.get("file_path") or "") <= TOOL_LIMIT:
+        return 0, 0
+    return 1, int(not any(args.get(k) is not None for k in ("offset", "limit", "pages")))
+
+
 def count(files):
     # The usage is complete only on a reply's last line, so the last line per key overwrites the others.
-    replies, totals = {}, collections.defaultdict(lambda: dict.fromkeys(FIELDS, 0))
+    replies, totals = {}, collections.defaultdict(lambda: dict.fromkeys(FIELDS + TOOL_FIELDS, 0))
     for path in files:
         who = agent(path)
+        calls, cut = {}, {}
         with open(path, encoding="utf-8") as f:
             for line in f:
                 try:
                     entry = json.loads(line)
                 except ValueError:
                     continue
-                msg = entry.get("message") if entry.get("type") == "assistant" else None
-                usage = msg and msg.get("usage")
-                model = msg and DATED.sub("", msg.get("model") or "")
-                if not usage or not model.startswith("claude"):
-                    continue
-                replies[(msg.get("id"), entry.get("requestId"))] = (who, entry)
+                tool_blocks(entry, calls, cut)
+                msg = reply(entry)
+                if msg is not None:
+                    replies[(msg.get("id"), entry.get("requestId"))] = (who, entry)
+        for tid, (name, args, entry) in calls.items():
+            if reply(entry) is None:
+                continue
+            t = totals[row_key(entry, who)]
+            if tid in cut:
+                t["bash"] += 1
+                t["cut"] += int(cut[tid])
+            reads, whole = read_size(name, args)
+            t["reads"] += reads
+            t["whole"] += whole
     for who, entry in replies.values():
-        msg = entry["message"]
-        usage = msg["usage"]
-        model = DATED.sub("", msg.get("model") or "")
-        when = datetime.datetime.fromisoformat(entry["timestamp"].replace("Z", "+00:00"))
-        day = DAY_BRANCH.match(entry.get("gitBranch") or "")
-        t = totals[(when.astimezone().date().isoformat(), int(day.group(1)) if day else None, model, who)]
+        usage = entry["message"]["usage"]
+        t = totals[row_key(entry, who)]
         t["input"] += usage.get("input_tokens", 0)
         t["cache_write"] += usage.get("cache_creation_input_tokens", 0)
         t["cache_read"] += usage.get("cache_read_input_tokens", 0)
@@ -195,8 +240,6 @@ def tool_text(content):
 
 
 def tools(files, since=None):
-    # A Bash result is cut by cap-output.py when its text has the marker at CUT_AT. A Read is sized
-    # by the file on disk now: a transcript keeps no size, so a file that grew since is counted too.
     s = dict(bash=0, cut=0, reads=0, whole=0)
     for path in files:
         if not after(path, since):
@@ -208,22 +251,13 @@ def tools(files, since=None):
                     entry = json.loads(line)
                 except ValueError:
                     continue
-                content = (entry.get("message") or {}).get("content")
-                if not isinstance(content, list):
-                    continue
-                for b in content:
-                    if not isinstance(b, dict):
-                        continue
-                    if b.get("type") == "tool_use":
-                        calls[b.get("id")] = (b.get("name"), b.get("input") or {})
-                    elif b.get("type") == "tool_result" and calls.get(b.get("tool_use_id"), (None,))[0] == "Bash":
-                        cut[b.get("tool_use_id")] = tool_text(b.get("content")).find("\n[cut ") == CUT_AT
+                tool_blocks(entry, calls, cut)
         s["bash"] += len(cut)
         s["cut"] += sum(cut.values())
-        for name, args in calls.values():
-            if name == "Read" and size(args.get("file_path") or "") > TOOL_LIMIT:
-                s["reads"] += 1
-                s["whole"] += not any(args.get(k) is not None for k in ("offset", "limit", "pages"))
+        for name, args, _ in calls.values():
+            reads, whole = read_size(name, args)
+            s["reads"] += reads
+            s["whole"] += whole
     return s
 
 
@@ -268,6 +302,8 @@ def main():
             t = totals[(r["date"], r["day"], r["model"], r["agent"])]
             for k in FIELDS:
                 t[k] = max(t[k], r[k])
+            for k in TOOL_FIELDS:
+                t[k] = max(t[k], r.get(k, 0))
         # A row written before agents were counted holds every agent's tokens: what it has beyond
         # the agents counted for its date, day and model is kept as unknown, not given to one of them.
         for r in (r for r in kept if "agent" not in r):
