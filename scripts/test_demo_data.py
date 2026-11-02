@@ -114,6 +114,15 @@ class DemoData(unittest.TestCase):
             self.assertGreaterEqual(row["reads"], row["whole"])
             self.assertGreaterEqual(row["bash"], row["cut"])
 
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_the_hooks_table_on_the_demo_data_shows_cut_from_day_four_and_whole_until_it(self):
+        error, panels, _ = test_spec_drift.drawn(**demo_data.demo())
+        self.assertIsNone(error, "a panel threw on the demo data")
+        cells = [re.findall(r'<td class="num">([^<]*)</td>', r) for r in re.findall(r"<tr><td>(.*?)</tr>", panels["token-hooks"])]
+        self.assertEqual(len(cells), 6)
+        self.assertEqual([c[1].endswith("(0.0%)") for c in cells[:3]], [True] * 3)
+        self.assertEqual([c[3] for c in cells[3:]], ["0 (0.0%)"] * 3)
+
     def test_the_same_dict_comes_out_on_every_call(self):
         self.assertEqual(demo_data.demo(), demo_data.demo())
 

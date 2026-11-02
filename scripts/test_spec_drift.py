@@ -1331,6 +1331,38 @@ class PageTest(unittest.TestCase):
         self.assertEqual(panels.get("token-agents"), '<p class="load-error">No agents to show: there are no token counts '
                                                  'to split by agent.</p>')
 
+    def test_the_hooks_table_gives_one_row_per_date_in_date_order_with_the_shares(self):
+        def hooks(date, bash, cut, reads, whole):
+            return dict(date=date, day=1, model="claude-opus-5-5", agent="main", input=100, cache_write=0,
+                        cache_read=0, output=10, replies=1, bash=bash, cut=cut, reads=reads, whole=whole)
+        tokens = [hooks("2026-10-13", 8, 1, 2, 0), hooks("2026-10-12", 10, 0, 3, 2)]
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=tokens)
+        self.assertIsNone(error)
+        rows = re.findall(r"<tr><td>.*?</tr>", panels["token-hooks"])
+        cells = [[re.sub("<[^>]+>", "", c) for c in re.findall(r"<td[^>]*>(.*?)</td>", r)] for r in rows]
+        self.assertEqual(cells, [["2026-10-12", "10", "0 (0.0%)", "3", "2 (66.7%)"],
+                                 ["2026-10-13", "8", "1 (12.5%)", "2", "0 (0.0%)"]])
+
+    def test_the_hooks_table_sums_a_date_over_its_agents(self):
+        def hooks(agent, bash, cut, reads, whole):
+            return dict(date="2026-10-12", day=1, model="claude-opus-5-5", agent=agent, input=100, cache_write=0,
+                        cache_read=0, output=10, replies=1, bash=bash, cut=cut, reads=reads, whole=whole)
+        tokens = [hooks("main", 4, 1, 1, 0), hooks("implementer", 6, 0, 2, 1)]
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=tokens)
+        self.assertIsNone(error)
+        rows = re.findall(r"<tr><td>.*?</tr>", panels["token-hooks"])
+        self.assertEqual([[re.sub("<[^>]+>", "", c) for c in re.findall(r"<td[^>]*>(.*?)</td>", r)] for r in rows],
+                         [["2026-10-12", "10", "1 (10.0%)", "3", "1 (33.3%)"]])
+
+    def test_with_no_hook_counts_the_hooks_table_says_what_is_missing(self):
+        old = dict(date="2026-10-12", day=1, model="claude-opus-5-5", agent="main", input=100, cache_write=0,
+                   cache_read=0, output=10, replies=1)  # a row counted before the hooks were
+        for tokens in ([old], []):
+            error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=tokens)
+            self.assertIsNone(error)
+            self.assertEqual(panels.get("token-hooks"), '<caption><p class="load-error">No hook counts yet: run '
+                                                     '<code>python scripts/token-usage.py</code>.</p></caption>')
+
     def test_with_no_finished_day_the_relabel_table_says_what_is_missing(self):
         # It held only an "All counted" row of dashes.
         days = [dict(a_day(1), status="ready", phase=0, title="t", prs=[])]
