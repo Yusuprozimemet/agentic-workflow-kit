@@ -740,7 +740,8 @@ def run_order(plan, spec_days):
     stops to be evaluated. Days the list does not name (the finished ones) come first. A day named
     twice runs at its last mention: Day 24's profile endpoint comes first, the rest of it last.
     "Numbered after the last" is a day not yet written, after every day the list names. A stop is
-    lifted once plan.md has the course correction for its phase. An item marked **cut** takes its
+    lifted once plan.md has the course correction for its phase; work waits at the first stop not
+    lifted, not the last (bearing: stops at Days 4 and 10). An item marked **cut** takes its
     days out of the order: Phase 6's Days 29-31, cut after Phase 7, run nowhere."""
     listed, cut, stop = [], [], None
     lines = plan_items(plan)
@@ -760,7 +761,8 @@ def run_order(plan, spec_days):
             continue
         listed += days
         phase = re.search(r"Phase (\d+)", line)
-        if "Stop and evaluate" in line and days and not (phase and lifted(plan, phase.group(1))):
+        if (stop is None and "Stop and evaluate" in line and days
+                and not (phase and lifted(plan, phase.group(1)))):
             stop = days[-1]
     listed = [d for i, d in enumerate(listed) if d not in listed[i + 1:]]
     return [d for d in sorted(spec_days) if d not in listed + cut] + listed, stop
