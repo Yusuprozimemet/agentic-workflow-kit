@@ -218,8 +218,11 @@ def simulate(files):
     # Cut in dollars: each token no longer read saves the model's cache-read price, and each restart
     # costs one reply at the new session's starting context (the segment's first): written to the
     # 1-hour cache instead of read. No summary or hand-over is counted, and the Haiku long-prompt price is not applied.
+    # Cap in dollars: each token the cap removes is a cache read in every reply that reads it, so it saves that
+    # reply's cache-read price. A cap has no restart, so it adds no cost.
     s = dict(read=0, replies=0, sessions=0, cost=0.0, first="", last="",
-             cut=dict.fromkeys(CUTS, 0), cut_cost=dict.fromkeys(CUTS, 0.0), cap=dict.fromkeys(CAPS, 0))
+             cut=dict.fromkeys(CUTS, 0), cut_cost=dict.fromkeys(CUTS, 0.0), cap=dict.fromkeys(CAPS, 0),
+             cap_cost=dict.fromkeys(CAPS, 0.0))
     for path in files:
         segments = []
         for context, tool, model, usage, when in contexts(path):
@@ -236,7 +239,9 @@ def simulate(files):
                 s["replies"] += 1
                 if tool and i:
                     for cap in CAPS:
-                        s["cap"][cap] += max(0, context - seg[i - 1][0] - cap) * (len(seg) - i)
+                        excess = max(0, context - seg[i - 1][0] - cap)
+                        s["cap"][cap] += excess * (len(seg) - i)
+                        s["cap_cost"][cap] += excess * sum(p[3] for _, _, p in seg[i:]) / 1e6
             for cut in CUTS:
                 saved = 0
                 for context, _, p in seg:
@@ -410,7 +415,9 @@ def report(s):
         print(f"  fresh session whenever the context passes {cut // 1000}k: -{saved / max(s['read'], 1):.1%} tokens,"
               f" {sign}${abs(d):,.2f} ({sign}{abs(d) / max(s['cost'], 1e-9):.1%} of ${s['cost']:,.2f})")
     for cap, saved in s["cap"].items():
-        print(f"  each tool result capped at {cap // 1000}k tokens: -{saved / max(s['read'], 1):.1%}")
+        d = s["cap_cost"][cap]
+        print(f"  each tool result capped at {cap // 1000}k tokens: -{saved / max(s['read'], 1):.1%} tokens,"
+              f" -${d:,.2f} (-{d / max(s['cost'], 1e-9):.1%} of ${s['cost']:,.2f})")
     print(f"  upper bounds, at the list prices checked {PRICES_CHECKED}: a fresh session re-reads what it needs, and"
           " each restart costs one reply writing its starting context; a capped result may be read again")
 
