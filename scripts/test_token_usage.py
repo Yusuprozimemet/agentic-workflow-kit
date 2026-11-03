@@ -6,12 +6,14 @@ a reply is counted once, from its last streamed line, and the day comes from the
     python scripts/test_token_usage.py
 """
 import contextlib
+import datetime
 import importlib.util
 import io
 import json
 import os
 import re
 import shutil
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -391,6 +393,53 @@ class RouteTest(unittest.TestCase):
         self.assertAlmostEqual(s["cost"]["judgment"], 0.025, places=9)
         self.assertAlmostEqual(s["haiku"], 0.00425, places=9)
         self.assertAlmostEqual(s["unread"], 0.0008, places=9)
+
+
+class CompareTest(unittest.TestCase):
+    """The main sessions' replies before and after the day the hooks landed, each side at list prices."""
+
+    def compare(self, *sessions):
+        with tempfile.TemporaryDirectory() as folder:
+            paths = []
+            for i, lines in enumerate(sessions):
+                paths.append(os.path.join(folder, f"session{i}.jsonl"))
+                with open(paths[-1], "w", encoding="utf-8") as f:
+                    f.write("\n".join(lines) + "\n")
+            return tu.compare(paths)
+
+    def test_replies_are_split_at_the_day_by_their_local_date(self):
+        # Noon UTC keeps each reply on its date in every time zone from UTC-11 to UTC+11.
+        s = self.compare([reply("1", 50_000, when="2026-11-01T12:00:00Z"), reply("2", 60_000, when="2026-11-02T12:00:00Z"),
+                          reply("3", 70_000, when="2026-11-03T12:00:00Z")])
+        self.assertEqual(s["before"]["contexts"], [50_000])
+        self.assertEqual(s["after"]["contexts"], [60_000, 70_000])
+        self.assertEqual(s["after"]["days"], {datetime.date(2026, 11, 2), datetime.date(2026, 11, 3)})
+
+    def test_context_read_after_a_session_passed_300k_is_the_share_past_it(self):
+        # One session: 150k, 350k, 400k. Only the 400k reply follows a reply over 300k, so 400k of its 900k
+        # is past it. A second session reads 320k, which is the first reply of its session: nothing of it is past.
+        before = "2026-11-01T12:00:00Z"
+        s = self.compare([reply("1", 150_000, when=before), reply("2", 350_000, when=before), reply("3", 400_000, when=before)],
+                         [reply("4", 320_000, when=before)])
+        self.assertEqual(s["before"]["read"], 1_220_000)
+        self.assertEqual(s["before"]["past"], 400_000)
+
+    def test_each_reply_is_priced_at_its_models_list_price(self):
+        # Opus 5.5 at 50k: 1 input at $4, 9 writes at $8 (no 5-minute split, so the 1-hour write), 49,990 reads at
+        # $0.20 and 5 output at $20 per million: $0.010174.
+        s = self.compare([reply("1", 50_000, model="claude-opus-5-5", when="2026-11-01T12:00:00Z")])
+        self.assertAlmostEqual(s["before"]["cost"], 0.010174, places=9)
+
+    def test_the_report_prints_each_side_and_says_when_a_side_is_empty(self):
+        s = {"before": tu.side(), "after": tu.side()}
+        s["before"].update(contexts=[100_000, 200_000, 600_000], days={datetime.date(2026, 11, 1)}, read=900_000, past=0, cost=1.5)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            tu.report_compare(s)
+        self.assertIn("before 2026-11-02: 3 replies on 1 days, median 200,000 and mean 300,000 context tokens per reply;"
+                      " 0.0% of its context read after a session passed 300k; $1.50 at the list prices checked 2026-11-02"
+                      " ($0.5000 per reply)", out.getvalue())
+        self.assertIn("after 2026-11-02: no replies", out.getvalue())
 
 
 if __name__ == "__main__":

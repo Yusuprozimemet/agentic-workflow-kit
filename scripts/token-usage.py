@@ -10,6 +10,7 @@ committed; the closing PR of each day refreshes it.
     python scripts/token-usage.py --simulate   # what shorter sessions, capped tool output or a Haiku operator would save
     python scripts/token-usage.py --tools      # Bash results cap-output cut; Reads of files over 8,000 bytes
     python scripts/token-usage.py --tools --since 2026-11-01   # only the sessions that started since then
+    python scripts/token-usage.py --compare    # main sessions' context per reply before and after the hooks landed
 
 A reply is counted once, from its last line: a transcript repeats a reply's usage on every content
 block it streamed, and the usage is complete only on the last of those lines, so replies are keyed
@@ -25,6 +26,7 @@ import glob
 import json
 import os
 import re
+import statistics
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.normpath(os.path.join(HERE, os.pardir, "docs", "dashboard", "token-usage.json"))
@@ -34,6 +36,7 @@ DAY_BRANCH = re.compile(r"^day-(\d+)/")
 DATED = re.compile(r"-\d{8}$")
 CUTS = (100_000, 200_000, 300_000)
 CAPS = (2_000, 5_000)
+HOOKS_DAY = datetime.date(2026, 11, 2)  # read-guard.py and cap-output.py landed this day: --compare splits the replies at it
 TOOL_LIMIT = 8_000  # read-guard.py's LIMIT: a whole Read of a file over it is refused
 CUT_AT = 3_000  # cap-output.py's KEEP: its cut marker follows the head, this many characters in
 # List prices in dollars per million tokens: input, cache write for 5 minutes (1.25x input) and for
@@ -207,6 +210,31 @@ def contexts(path):
                 replies[key] = (context, tool, msg.get("model"), u, entry.get("timestamp") or "")
                 tool = False
     return list(replies.values())
+
+
+def side():
+    return dict(contexts=[], days=set(), read=0, past=0, cost=0.0)
+
+
+def compare(files):
+    # The main sessions' replies split at HOOKS_DAY by their local date. Per side: each reply's context, the
+    # days it covers, its cost at list prices, and the context read after a session had passed the largest
+    # CUTS size: a reply whose session had an earlier reply over it. A reply's cost is cost(), as in count().
+    sides = {"before": side(), "after": side()}
+    for path in files:
+        passed = False
+        for context, _, model, usage, when in contexts(path):
+            if not when:
+                continue
+            day = datetime.datetime.fromisoformat(when.replace("Z", "+00:00")).astimezone().date()
+            s = sides["after" if day >= HOOKS_DAY else "before"]
+            s["contexts"].append(context)
+            s["days"].add(day)
+            s["read"] += context
+            s["past"] += context if passed else 0
+            s["cost"] += cost(model, usage)
+            passed = passed or context > CUTS[-1]
+    return sides
 
 
 def simulate(files):
@@ -422,6 +450,18 @@ def report(s):
           " each restart costs one reply writing its starting context; a capped result may be read again")
 
 
+def report_compare(sides):
+    for name, s in sides.items():
+        n = len(s["contexts"])
+        if not n:
+            print(f"{name} {HOOKS_DAY}: no replies")
+            continue
+        print(f"{name} {HOOKS_DAY}: {n:,} replies on {len(s['days'])} days, median {statistics.median(s['contexts']):,.0f}"
+              f" and mean {statistics.mean(s['contexts']):,.0f} context tokens per reply;"
+              f" {s['past'] / max(s['read'], 1):.1%} of its context read after a session passed {CUTS[-1] // 1000}k;"
+              f" ${s['cost']:,.2f} at the list prices checked {PRICES_CHECKED} (${s['cost'] / n:,.4f} per reply)")
+
+
 def report_route(s):
     n, c = sum(s["replies"].values()), sum(s["cost"].values())
     for kind in ("mechanical", "judgment"):
@@ -443,11 +483,16 @@ def main():
                     help="print what fresh sessions or capped tool results would have saved; write nothing")
     ap.add_argument("--tools", action="store_true",
                     help="print the Bash results cap-output cut and the Reads of a file over 8,000 bytes; write nothing")
+    ap.add_argument("--compare", action="store_true",
+                    help=f"print the main sessions' context per reply before and after {HOOKS_DAY}; write nothing")
     ap.add_argument("--since", type=moment, metavar="DATE",
                     help="with --simulate or --tools: count only the sessions started at or after this date or time")
     args = ap.parse_args()
     if args.since and not (args.simulate or args.tools):
         ap.error("--since needs --simulate or --tools: token-usage.json is never written for part of the transcripts")
+    if args.compare:
+        report_compare(compare([p for p in transcripts(args.transcripts) if agent(p) == "main"]))
+        return
     if args.tools:
         report_tools(tools(transcripts(args.transcripts), args.since))
         return
