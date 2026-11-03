@@ -398,14 +398,14 @@ class RouteTest(unittest.TestCase):
 class CompareTest(unittest.TestCase):
     """The main sessions' replies before and after the day the hooks landed, each side at list prices."""
 
-    def compare(self, *sessions):
+    def compare(self, *sessions, splits=None):
         with tempfile.TemporaryDirectory() as folder:
             paths = []
             for i, lines in enumerate(sessions):
                 paths.append(os.path.join(folder, f"session{i}.jsonl"))
                 with open(paths[-1], "w", encoding="utf-8") as f:
                     f.write("\n".join(lines) + "\n")
-            return tu.compare(paths)
+            return tu.compare(paths, splits) if splits else tu.compare(paths)
 
     def test_replies_are_split_at_the_day_by_their_local_date(self):
         # Noon UTC keeps each reply on its date in every time zone from UTC-11 to UTC+11.
@@ -440,6 +440,47 @@ class CompareTest(unittest.TestCase):
                       " 0.0% of its context read after a session passed 300k; $1.50 at the list prices checked 2026-11-02"
                       " ($0.5000 per reply)", out.getvalue())
         self.assertIn("after 2026-11-02: no replies", out.getvalue())
+
+    def test_a_second_split_puts_the_replies_between_the_two_dates_on_a_side_of_their_own(self):
+        s = self.compare([reply("1", 50_000, when="2026-11-01T12:00:00Z"), reply("2", 60_000, when="2026-11-02T12:00:00Z"),
+                          reply("3", 70_000, when="2026-11-03T12:00:00Z"), reply("4", 80_000, when="2026-11-04T12:00:00Z")],
+                         splits=(datetime.date(2026, 11, 2), datetime.date(2026, 11, 3)))
+        self.assertEqual({n: s[n]["contexts"] for n in s},
+                         {"before": [50_000], "between": [60_000], "after": [70_000, 80_000]})
+
+    def test_merged_pull_requests_are_merge_commits_and_squashes_github_says_merged(self):
+        # #85 a merge commit; #86 a squash GitHub gives as merged; #87 a subject ending (#87) on a PR not merged;
+        # #88 "(#88)" on a merge commit with two parents, not a squash; a commit with no PR.
+        log = ["2026-11-03|a b|Merge pull request #85 from someone/specs/ladder",
+               "2026-11-03|c|Count replies per PR (#86)",
+               "2026-11-04|d|Revert a thing (#87)",
+               "2026-11-04|e f|Merge branch main (#88)",
+               "2026-11-04|g|Fix a typo"]
+        self.assertEqual(tu.merges(log, {86, 88}), [(datetime.date(2026, 11, 3), 85), (datetime.date(2026, 11, 3), 86)])
+
+    def test_each_side_counts_the_pull_requests_merged_from_its_first_reply_to_its_last(self):
+        s = {"before": tu.side(), "after": tu.side()}
+        s["before"]["days"] = {datetime.date(2026, 11, 1), datetime.date(2026, 11, 2)}
+        merged = [(datetime.date(2026, 10, 31), 1), (datetime.date(2026, 11, 1), 2), (datetime.date(2026, 11, 2), 3),
+                  (datetime.date(2026, 11, 3), 4)]
+        tu.per_pr(s, merged)
+        self.assertEqual(s["before"]["prs"], 2)
+        self.assertIsNone(s["after"]["prs"])
+
+    def test_the_report_prints_replies_per_merged_pull_request_and_the_split_dates(self):
+        splits = (datetime.date(2026, 11, 2), datetime.date(2026, 11, 3))
+        s = {"before": tu.side(), "between": tu.side(), "after": tu.side()}
+        s["between"].update(contexts=[100_000] * 9, days={datetime.date(2026, 11, 2)}, read=900_000, cost=0.9, prs=2)
+        s["after"].update(contexts=[100_000], days={datetime.date(2026, 11, 3)}, read=100_000, cost=0.1, prs=0)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            tu.report_compare(s, splits)
+        self.assertIn("before 2026-11-02: no replies", out.getvalue())
+        self.assertIn("from 2026-11-02, before 2026-11-03: 9 replies on 1 days,", out.getvalue())
+        self.assertIn("($0.1000 per reply); 2 pull requests merged on main from 2026-11-02 to 2026-11-02,"
+                      " 4.5 replies per merged pull request", out.getvalue())
+        self.assertIn("after 2026-11-03: 1 replies on 1 days,", out.getvalue())
+        self.assertIn("; no pull request merged on main from 2026-11-03 to 2026-11-03", out.getvalue())
 
 
 if __name__ == "__main__":
