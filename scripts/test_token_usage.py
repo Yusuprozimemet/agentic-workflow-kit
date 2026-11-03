@@ -224,6 +224,16 @@ class SimulateTest(unittest.TestCase):
         s = self.simulate([reply("1", 10_000), tool_result(), reply("2", 20_000), reply("3", 21_000)])
         self.assertEqual(s["cap"], {2_000: 16_000, 5_000: 10_000})
 
+    def test_a_capped_result_saves_the_cache_read_price_of_each_reply_that_reads_it(self):
+        # The tool result adds 10k, so the 2k cap removes 8k from each of the two replies that read it and
+        # the 5k cap removes 5k from each. The first reply is Opus 5.5, cache read $0.20/M; the second is
+        # Haiku 5.5, cache read $0.01/M. 2k: 8k x $0.20/M + 8k x $0.01/M = $0.00168. 5k: $0.00105.
+        opus, haiku = "claude-opus-5-5", "claude-haiku-5-5"
+        s = self.simulate([reply("1", 10_000, model=opus), tool_result(),
+                           reply("2", 20_000, model=opus), reply("3", 21_000, model=haiku)])
+        self.assertAlmostEqual(s["cap_cost"][2_000], 0.00168, places=9)
+        self.assertAlmostEqual(s["cap_cost"][5_000], 0.00105, places=9)
+
     def test_a_compaction_starts_a_new_segment(self):
         # 250k, compacted to 40k, then 260k: the 260k restarts from 40k, not from 250k.
         s = self.simulate([reply("1", 250_000), reply("2", 40_000), reply("3", 260_000)])
@@ -247,14 +257,15 @@ class SimulateTest(unittest.TestCase):
         self.assertAlmostEqual(s["cut_cost"][300_000], 0.0, places=9)
         self.assertEqual((s["first"][:10], s["last"][:10]), ("2026-10-12", "2026-10-14"))
 
-    def test_the_report_prints_each_cuts_dollar_saving_and_share(self):
+    def test_the_report_prints_each_cuts_and_each_caps_dollar_saving_and_share(self):
         s = dict(read=1_000, replies=2, sessions=1, first="2026-10-12T10:00:00Z", last="2026-10-14T10:00:00Z",
-                 cost=200.0, cut={100_000: 205}, cut_cost={100_000: 30.0}, cap={2_000: 0})
+                 cost=200.0, cut={100_000: 205}, cut_cost={100_000: 30.0}, cap={2_000: 250}, cap_cost={2_000: 20.0})
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             tu.report(s)
         self.assertIn("2026-10-12 to 2026-10-14", out.getvalue())
         self.assertIn("passes 100k: -20.5% tokens, -$30.00 (-15.0% of $200.00)", out.getvalue())
+        self.assertIn("capped at 2k tokens: -25.0% tokens, -$20.00 (-10.0% of $200.00)", out.getvalue())
 
 
 def call(tool_use_id, name, args=None, when="2026-11-05T10:00:00Z", branch="day-43/track-a2-x"):
