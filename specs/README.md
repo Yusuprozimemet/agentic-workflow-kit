@@ -179,6 +179,17 @@ Ticked short-spec criteria join the behaviour index; a later day replaces one wi
   Criterion wording, tags and IDs change only in a spec-change PR on `day-NN/spec-<slug>`.
   CI's "Criteria keep their wording" job enforces this against the branch's merge base on
   every other PR, including tracks, closing PRs and tooling PRs.
+- **Every spec-auditor finding ends one way, one line each, in the spec-change PR.** List each
+  finding of the day's spec-auditor report, a hand-off it marked MISSING included, under
+  "Why this approach" as `<N>: <the finding's one line> → <ending>`, with exactly one ending:
+  - `fixed`: this spec-change PR changes the spec (or names the PR that already did);
+  - `known limit: <reason>`: the spec stays as it is, and its Notes record the limit;
+  - `maintainer action: <what>`: outside the repository, on the maintainer's own accounts;
+  - `rejected: <reason>`: the maintainer's call, with their reason.
+
+  These are the four endings jobmatch-microservices gave its end-of-phase audit findings. A
+  report with no findings is one line, `Auditor findings: none`. Nothing counts the endings
+  yet: the dashboard waits until there are spec-change PRs to count.
 - Specs written before the `new`/`hold` rule get their criteria tagged in that day's
   spec-change PR, when the spec is read against the code.
 

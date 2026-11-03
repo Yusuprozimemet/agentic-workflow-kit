@@ -68,6 +68,7 @@ Checks run
 
 Findings
 1. [must fix | should fix | note] <spec file:line>
+   One line: <the finding in one sentence; the spec-change PR copies it and adds its ending>
    Claims: <what the spec says>
    True:   <what the code shows>
    Evidence: <command and output>

@@ -37,3 +37,5 @@ None
 - [ ] Every number in this description was counted from the diff or a run, not copied
 - [ ] Spec changes only: every acceptance criterion is tagged `new` or `hold`, and each check
       has been seen to fail (see `specs/README.md`)
+- [ ] Spec changes only: every spec-auditor finding is listed, one line each, with one ending:
+      fixed, known limit (why), maintainer action, or rejected (why)
