@@ -2,7 +2,9 @@
 
     python scripts/evidence.py specs/day-05-json.md [...] [--ref main]
 
-For each spec, at the merge commit of its day's close (`day-NN/close-the-day`) on --ref:
+For each spec, at the merge commit of its day's close (`day-NN/close-the-day`) on --ref, or for a
+short spec, `specs/changes/<slug>.md`, at the merge of `change/<slug>` (or the squash that added
+the spec), its breaks in specs/breaks/<slug>.json:
 
 - every test a ticked criterion names (`CliTest.test_name`) is defined there, in a class of that
   name under tests/ or in a tests.py at the root;
@@ -54,7 +56,9 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 BREAK = os.path.join(HERE, "break.py")
 
-CRITERION = re.compile(r"^- \[([ x])\] (C\d+\.\d+)\b")
+CRITERION = re.compile(r"^- \[([ x])\] (C\d+\.\d+|S-[a-z0-9]+(?:-[a-z0-9]+)*\.\d+)\b")
+CHANGE_MERGE = re.compile(r"^Merge pull request #\d+ from \S+/change/([a-z0-9]+(?:-[a-z0-9]+)*)$")
+SQUASHED = re.compile(r" \(#\d+\)$")
 TEST = re.compile(r"`(\w+)\.(test_\w+)`")
 # At the last arrow: what was broken can hold an arrow itself.
 BROKEN = re.compile(r"^\s*broken: (.+) → (.*)$", re.S)
@@ -92,7 +96,10 @@ def closing_spec(commit):
     match = (close_pattern(day_pattern).match(subject) if count >= 2 else
              squash_pattern(day_pattern).match(subject) if count == 1 else None)
     if not match:
-        return None  # This commit does not close a day.
+        spec = change_spec(commit, count, subject)
+        if spec and not git("ls-tree", "--name-only", commit, "--", spec).strip():
+            raise ValueError(f"{spec}: not at {commit[:7]}")
+        return spec  # None: this commit neither closes a day nor lands a short spec.
     day = match.group("day")
     specs = [p for p in git("ls-tree", "-r", "--name-only", commit, "--", "specs").splitlines()
              if fnmatch.fnmatchcase(p, f"specs/day-{day}-*.md") and p.count("/") == 1]
@@ -109,6 +116,29 @@ def close_commit(day, ref):
         parents = parent_text.split()
         if (len(parents) >= 2 and merge.match(subject) or
                 len(parents) == 1 and squash.match(subject)):
+            return sha
+    return None
+
+
+def change_spec(commit, count, subject):
+    """The short spec a commit with that many parents and that subject lands: the merge of
+    `change/<slug>`, or a squash that adds one `specs/changes/<slug>.md`; or None."""
+    if count >= 2:
+        m = CHANGE_MERGE.match(subject)
+        return f"specs/changes/{m.group(1)}.md" if m else None
+    if count != 1 or not SQUASHED.search(subject):
+        return None
+    added = [p for p in git("diff-tree", "--no-commit-id", "--name-only", "-r", "--diff-filter=A", commit,
+                            "--", "specs/changes").splitlines() if p.endswith(".md") and p.count("/") == 2]
+    return added[0] if len(added) == 1 else None
+
+
+def change_commit(slug, ref):
+    """The latest commit on ref that lands specs/changes/<slug>.md, or None."""
+    path = f"specs/changes/{slug}.md"
+    for line in git("log", "--first-parent", "--format=%H%x00%P%x00%s", ref, "--", path).splitlines():
+        sha, parent_text, subject = line.split("\0", 2)
+        if change_spec(sha, len(parent_text.split()), subject) == path:
             return sha
     return None
 
@@ -265,7 +295,7 @@ def input_file(path):
 def check_spec(path, ref):
     """One spec's record: what it was checked from and at, and its checks."""
     name = os.path.basename(path)
-    record = {"spec": input_file(path), "day": None, "close_sha": None, "verify_base_sha": None,
+    record = {"spec": input_file(path), "day": None, "change": None, "close_sha": None, "verify_base_sha": None,
               "breaks": None, "checks": []}
 
     def add(key, kind, status, label, diagnostic=None, criterion=None, sha=None):
@@ -273,19 +303,29 @@ def check_spec(path, ref):
                                  "status": status, "label": label, "diagnostic": diagnostic})
 
     day = re.match(r"day-(\d{2})-", name)
-    if not day or not os.path.isfile(path):
-        add("close", "close", "failed", name, "no such file" if day else "not a day spec")
+    # A short spec, specs/changes/<slug>.md, replays at the merge of change/<slug>.
+    slug = re.fullmatch(r"([a-z0-9]+(?:-[a-z0-9]+)*)\.md", name)
+    slug = slug and os.path.basename(os.path.dirname(os.path.abspath(path))) == "changes" and slug.group(1)
+    if not (day or slug) or not os.path.isfile(path):
+        add("close", "close", "failed", name, "no such file" if day or slug else "neither a day spec nor a short spec")
         return record
-    record["day"] = day.group(1)
     with open(path, encoding="utf-8") as f:
         text = f.read()
-    commit = record["close_sha"] = close_commit(day.group(1), ref)
-    breaks_file = os.path.join(os.path.dirname(path), "breaks", f"day-{day.group(1)}.json")
+    if day:
+        record["day"] = day.group(1)
+        commit = record["close_sha"] = close_commit(day.group(1), ref)
+        breaks_file = os.path.join(os.path.dirname(path), "breaks", f"day-{day.group(1)}.json")
+        landed, missing = "close merged", f"no merged day-{day.group(1)}/close-the-day on {ref}"
+    else:
+        record["change"] = slug
+        commit = record["close_sha"] = change_commit(slug, ref)
+        breaks_file = os.path.join(os.path.dirname(os.path.dirname(path)), "breaks", f"{slug}.json")
+        landed, missing = "change merged", f"no merged change/{slug} on {ref}"
     record["breaks"] = input_file(breaks_file)
     if not commit:
-        add("close", "close", "failed", name, f"no merged day-{day.group(1)}/close-the-day on {ref}")
+        add("close", "close", "failed", name, missing)
         return record
-    add("close", "close", "passed", f"{name}: close merged in {commit[:7]}", sha=commit)
+    add("close", "close", "passed", f"{name}: {landed} in {commit[:7]}", sha=commit)
     ticked = criteria(text)
     if not ticked:
         add("criteria", "close", "failed", name, "no ticked criterion: nothing was checked")

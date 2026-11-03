@@ -308,5 +308,62 @@ class EvidenceTest(unittest.TestCase):
             self.assertEqual(json.load(f)["days"][0]["checks"][0]["status"], "failed")
 
 
+SHORT = ("# Keep the ok\n\n## Acceptance criteria\n"
+         "- [x] S-keep-ok.1 **hold** — Test: `CliTest.test_a`.\n"
+         "      broken: the ok removed → AssertionError: broken (#3)\n\n"
+         "## Verify\n```bash\necho 0    # 0\n```\n")
+
+
+class ShortSpecTest(unittest.TestCase):
+    """A short spec, specs/changes/<slug>.md, replays at the merge of change/<slug>."""
+    git, write = EvidenceTest.git, EvidenceTest.write
+
+    def setUp(self):
+        self.repo = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.repo, ignore_errors=True)
+        self.write("tests/test_cli.py",
+                   "class CliTest(unittest.TestCase):\n    def test_a(self):\n        pass\n")
+        self.write("app.txt", "ok\n")
+        self.git("init", "-q", "-b", "main")
+        self.git("add", ".")
+        self.git("commit", "-q", "-m", "base")
+        self.git("switch", "-q", "-c", "change/keep-ok")
+        self.write("specs/changes/keep-ok.md", SHORT)
+        self.write("specs/breaks/keep-ok.json", json.dumps([BREAK]))
+        self.git("add", ".")
+        self.git("commit", "-q", "-m", "keep the ok")
+        self.git("switch", "-q", "main")
+        self.git("merge", "-q", "--no-ff", "-m", "Merge pull request #3 from me/change/keep-ok", "change/keep-ok")
+        self.merge = self.git("rev-parse", "HEAD").strip()
+
+    def run_evidence(self, spec="specs/changes/keep-ok.md"):
+        return subprocess.run([sys.executable, SCRIPT, spec, "--json", "report.json"], cwd=self.repo, env=GIT_ENV,
+                              capture_output=True, text=True, encoding="utf-8")
+
+    def test_a_short_spec_replays_at_its_change_merge_with_its_own_breaks(self):
+        run = self.run_evidence()
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn(f"keep-ok.md: change merged in {self.merge[:7]}", run.stdout)
+        self.assertIn("ok    S-keep-ok.1 broken: the ok removed", run.stdout)
+        with open(os.path.join(self.repo, "report.json"), encoding="utf-8") as f:
+            day = json.load(f)["days"][0]
+        self.assertEqual((day["day"], day["change"], day["close_sha"]), (None, "keep-ok", self.merge))
+        self.assertEqual(day["breaks"]["path"], "specs/breaks/keep-ok.json")
+
+    def test_a_short_spec_whose_recorded_break_no_longer_fails_is_reported(self):
+        self.write("specs/breaks/keep-ok.json", json.dumps([dict(BREAK, command=[sys.executable, "-c", "pass"])]))
+        run = self.run_evidence()
+        self.assertEqual(run.returncode, 1)
+        failures = [l for l in run.stdout.splitlines() if l.startswith("FAIL")]
+        self.assertEqual(len(failures), 1, run.stdout)
+        self.assertIn("S-keep-ok.1 broken: the ok removed", failures[0])
+
+    def test_a_short_spec_never_merged_and_a_file_outside_changes_fail(self):
+        self.write("specs/changes/other.md", SHORT)
+        self.assertIn("no merged change/other on main", self.run_evidence("specs/changes/other.md").stdout)
+        self.write("specs/keep-ok.md", SHORT)
+        self.assertIn("neither a day spec nor a short spec", self.run_evidence("specs/keep-ok.md").stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -18,7 +18,7 @@ Take the lowest rung that qualifies, and say which in the PR.
 | Rung | Branch | Qualifies | Keeps |
 |---|---|---|---|
 | area branch | `<area>/<slug>` | no product behaviour changes: kit tooling, docs, dashboard, CI, plan | the branch and title rules, the diff limit, a seen-red test and a `broken:` line when the PR has a check |
-| short spec | `change/<slug>` | one product behaviour, one PR, no contract test, frozen file or `Replaces:` | `S-<slug>.N` criteria tagged `new` or `hold`, seen red, breaks, `Defect` lines in its Notes, the behaviour index; not replayed yet |
+| short spec | `change/<slug>` | one product behaviour, one PR, no contract test, frozen file or `Replaces:` | `S-<slug>.N` criteria tagged `new` or `hold`, seen red, breaks, `Defect` lines in its Notes, the behaviour index, the replay |
 | day spec | `day-NN/...` | plan work, and anything the rows above exclude | the auditors, tracks, the close, the blind relabel, the replay |
 
 The areas are those `scripts/pr-names.py` accepts (`workflow`, `tooling`, `dashboard`, `docs`,
@@ -38,7 +38,9 @@ land together: no separate spec-change or closing PR. Put the `seen red:` line a
 `broken:` lines in the PR. Run `python scripts/track-red.py --branch change/<slug> --runner
 unittest` to check each new criterion's test against base code and the head; CI runs it when
 `TRACK_RED_RUNNER` is `unittest`, and reports not configured when unset. Hold checks must also
-be broken on purpose as in the day rules below.
+be broken on purpose as in the day rules below, and the PR commits their break manifest as
+`specs/breaks/<slug>.json` ([Evidence at the close](#evidence-at-the-close)): after the merge,
+the Evidence replay replays the short spec at the merge of `change/<slug>`.
 Before opening the PR, read the saved spec as UTF-8 and inspect its punctuation, including
 any `?` where a dash or arrow was intended.
 Tick each criterion in the same PR once its seen-red or broken evidence is in the PR body.
@@ -214,7 +216,9 @@ Retain the report and inspect each result: named tests are checked for existence
 Verify commands are executed, and recorded breaks are replayed at historical commits.
 Replay finds a **merged closing commit**; the post-merge gate cannot block its own closing PR's
 merge and is not a required status check. The workflow's manual dispatch accepts an optional
-day number to replay a previously closed day on `main`.
+day number to replay a previously closed day on `main`. A short spec replays the same way at its
+`change/<slug>` merge (or the squash that added it), its breaks in `specs/breaks/<slug>.json`:
+`python scripts/evidence.py specs/changes/<slug>.md --ref main`.
 
 Keep three evidence states separate: **missing** means required evidence or its report is absent;
 **stale** means a saved report's spec, break inputs or closing commit no longer match;

@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from evidence import close_commit, closing_spec
+from evidence import change_commit, close_commit, closing_spec
 from test_evidence import GIT_ENV
 
 
@@ -96,6 +96,44 @@ class ClosingSpecTest(unittest.TestCase):
         latest = self.squash("Day 01 close: second (#3)")
         with patch("evidence.git", side_effect=self.git):
             self.assertEqual(close_commit("01", "main"), latest)
+
+    def change(self, slug="keep-ok", subject="Merge pull request #9 from owner/change/keep-ok"):
+        """A change branch that adds specs/changes/<slug>.md, merged with that subject."""
+        self.git("switch", "-q", "-c", "change")
+        os.makedirs(os.path.join(self.repo, "specs", "changes"), exist_ok=True)
+        if slug:
+            with open(os.path.join(self.repo, "specs", "changes", f"{slug}.md"), "w") as file:
+                file.write("# Keep the ok\n")
+        self.git("add", ".")
+        self.git("commit", "-q", "--allow-empty", "-m", "change")
+        self.git("switch", "-q", "main")
+        self.git("merge", "-q", "--no-ff", "-m", subject, "change")
+        return self.git("rev-parse", "HEAD").strip()
+
+    def test_change_merge_lands_its_short_spec(self):
+        sha = self.change()
+        self.assertEqual(self.lookup(), "specs/changes/keep-ok.md")
+        with patch("evidence.git", side_effect=self.git):
+            self.assertEqual(change_commit("keep-ok", "main"), sha)
+            self.assertIsNone(change_commit("other", "main"))
+
+    def test_change_merge_without_its_spec_fails(self):
+        self.change(slug=None)
+        with self.assertRaisesRegex(ValueError, "specs/changes/keep-ok.md: not at"):
+            self.lookup()
+
+    def test_squash_that_adds_a_short_spec_lands_it(self):
+        os.makedirs(os.path.join(self.repo, "specs", "changes"))
+        with open(os.path.join(self.repo, "specs", "changes", "keep-ok.md"), "w") as file:
+            file.write("# Keep the ok\n")
+        self.git("add", ".")
+        self.git("commit", "-q", "-m", "Keep the ok (#4)")
+        sha = self.git("rev-parse", "HEAD").strip()
+        self.assertEqual(self.lookup(), "specs/changes/keep-ok.md")
+        with patch("evidence.git", side_effect=self.git):
+            self.assertEqual(change_commit("keep-ok", "main"), sha)
+        self.git("commit", "-q", "--allow-empty", "-m", "Another change (#5)")
+        self.assertIsNone(self.lookup())  # a squash that adds no short spec lands none
 
     def test_merge_with_squash_subject_is_not_close(self):
         self.merge(subject="Day 01 close: wrong branch (#2)")
