@@ -659,7 +659,7 @@ Two kit bugs turned up, beyond the cleanup (items 38 and 39): each would break t
     order's example, the ratio's 1,000 lines). Of the three boxes allowed, one differs on
     jobmatch's data, `evidence`, saved with `--write`; `readout` and `placed` draw jobmatch's last
     merge, which shows neither sentence. Not changed: the `moved` chart's label, "Share of the four
-    services' main source lines under services/", is in a box the Decision does not allow; open.
+    services' main source lines under services/", is in a box the Decision does not allow; changed in `dashboard/moved-label` (kit PR #25), the Decision below.
     - `broken: the boxes say a part-moved service is still in the monolith → AssertionError: '<b>b[28 chars]es) · <b>orders</b> 40 lines out, 30 still in the monolith</p>' != '<b>b[28 chars]es) · <b>orders</b> 40 lines out, 30 still in place</p>'`
 
     **Decision (maintainer, `dashboard/moved-label`):** a stated diff in the `moved` box, that
@@ -2008,3 +2008,188 @@ if a reliable, small rule can be defined; use the explicit review step now.
   the auditor guard and the diff limit; it now states their limits and names the procedural controls.
 - **Break on purpose:**
   - `broken: none → docs only`
+
+### 101. Refresh the architecture controls
+
+- [#53](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/53) changed `docs/architecture.md`.
+  The old text omitted the passing baseline and squash-merge support, and implied that the evidence gate and every pictured CI job were enforced automatically. It now says what is automatic.
+- **Break on purpose:**
+  - `broken: none → documentation only`
+
+### 102. Add AGENTS.md, a style check slot and more test runners
+
+- [#54](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/54) changed `AGENTS.md` (new), `CLAUDE.md`, `README.md`, `.github/workflows/pr-checks.yml`, `scripts/break.py`, `scripts/spec-drift.py`, `scripts/track-red.py` and their tests.
+  It adds cross-agent instructions, an optional check-only style job, three test runners, and recognition of JavaScript test summaries and skip markers. A configurable check leaves each copied project's tool choices to its maintainers; a runner's summary must show tests ran and failed on the base and passed on the head.
+- **Breaks on purpose:**
+  - `seen red: RunnerTest.test_more_runner_commands_and_results → AttributeError: module 'track_red' has no attribute 'runner_command' on main.`
+  - `seen red: SummaryTest.test_javascript_summaries_precede_failure_details → AssertionError: '1 failed, 4 passed, 5 total' != 'Tests: 1 failed, 4 passed, 5 total' on main.`
+  - `seen red: EvidenceTest.test_javascript_skip_markers_and_near_misses → AssertionError: unexpectedly None : it.skip( on main.`
+  - `broken: xit skip recognition removed → AssertionError: unexpectedly None : xit(`
+
+### 103. Tidy the documentation style instruction
+
+- [#55](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/55) changed `CLAUDE.md` and `README.md`: wording and whitespace only, with the guidance unchanged.
+- **Break on purpose:**
+  - `broken: none → documentation-only wording and whitespace change`
+
+### 104. One evidence row per criterion
+
+- [#56](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/56) changed `scripts/spec-drift.py`, `scripts/behaviour-index.py` and `scripts/test_spec_drift.py`.
+  `spec-drift.py` now computes a `criteria_index` with one row per criterion: ID, day, phase, tag, claim, spec, track, PRs, tests, citation and test-found states, seen-red evidence, replay state, and replacement links. Attention items come in severity order. Unknown evidence stays null. Only Python computes these; the page follows in a later PR.
+- **Breaks on purpose:**
+  - `seen red: CriterionIndexTest and EvidenceReportTest → AttributeError: module 'spec_drift' has no attribute 'criterion_index'; KeyError: 'checks' (5 tests, 2 errors)`
+  - `broken: unknown cited becomes false → AssertionError: False is not None`
+
+### 105. Needs-attention panel, evidence matrix and inspector
+
+- [#57](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/57) changed `docs/dashboard/dashboard.css`, `dashboard.js`, `index.html`, `kit/page/jobmatch-boxes.sha256` and `scripts/test_spec_drift.py`.
+  The dashboard gains a needs-attention panel, a criterion evidence matrix and an inspector for criteria and days. It shows the order and statuses that `criteria_index` supplies, without recomputing them. A null is shown as an en dash. The spec is shown as text: Pages publishes only `index.html`, so a relative link would be dead.
+- **Breaks on purpose:**
+  - `seen red: python -m unittest test_spec_drift.CriterionPanelsTest → Ran 2 tests; FAILED (errors=2)`
+  - `broken: null rendered as no → AssertionError: '<td><span title="not measured">–</span></td>' not found in '<thead><tr><th>Criterion</th>…`
+
+### 106. Split "Other" merges by branch prefix
+
+- [#58](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/58) changed `docs/dashboard/dashboard.js`, `index.html`, `scripts/spec-drift.py` and `scripts/test_spec_drift.py`.
+  In the "Pull requests per day" total bar and its legend, "Other" is split into one part per branch prefix, each with its count. `other_group(branch)` makes the split in Python; the per-day chart is unchanged. GitHub Copilot wrote it from a prompt and could not run commands, so the main session ran the checks, the seen-red and the break.
+- **Breaks on purpose:**
+  - `seen red: OtherGroupsTest → FAILED (failures=1, errors=2)`
+  - `broken: drawPerDay ignores DATA.other_groups → AssertionError: 'tooling · 3' not found in '<span><i class="dot" style="background:var(--spec)"></i>Spec change · 0</span>…`
+
+### 107. Let the auditor hook pass outside Claude Code
+
+- [#59](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/59) changed `.claude/settings.json`, `CLAUDE.md`, `scripts/auditor-guard.py` and `scripts/test_auditor_guard.py`.
+  The hooks in `.claude/settings.json` now pass when they are not run under Claude Code. VS Code Copilot reads the same file and had every tool call denied (seen in #58). Under Claude Code the auditor block works as before. Copilot ignores the `Bash` matcher and sets no `CLAUDE_PROJECT_DIR`, so the guard never ran there.
+- **Breaks on purpose:**
+  - `seen red: python scripts/test_auditor_guard.py, with main's .claude/settings.json (stashed) → test_the_hooks_pass_outside_claude_code failed with AssertionError: 2 != 0 for both PreToolUse and SubagentStop.`
+  - `broken: the PreToolUse hook exits 2 when CLAUDE_PROJECT_DIR is unset → AssertionError: 2 != 0`
+
+### 108. Simulate shorter sessions and capped tool output
+
+- [#60](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/60) changed `scripts/token-usage.py`, `scripts/test_token_usage.py` and `CLAUDE.md`.
+  `token-usage.py --simulate` replays this repository's main-session transcripts. It prints the share of context tokens read that two levers would have saved: a fresh session whenever the context passes 100k, 200k or 300k, and each tool result capped at 2k or 5k tokens. It writes nothing. CLAUDE.md's "One session per step" names it.
+- **Breaks on purpose:**
+  - `seen red: python scripts/test_token_usage.py on main's code → FAILED (errors=4): the four SimulateTest tests, since simulate does not exist.`
+  - `broken: a fresh session restarts from nothing, not the segment's first context → AssertionError: {100000: 300000, 200000: 250000, 300000: 0} != {100000: 300000, 200000: 200000, 300000: 0}`
+  - `broken: a capped tool result saves on its own reply only → AssertionError: {2000: 8000, 5000: 5000} != {2000: 16000, 5000: 10000}`
+  - `broken: no compaction splits a session → AssertionError: 10000 != 220000`
+
+### 109. Cut long Bash output to its head and tail
+
+- [#61](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/61) changed `scripts/cap-output.py` (new), `scripts/test_cap_output.py`, `.claude/settings.json`, `CLAUDE.md` and `.gitignore`.
+  A PostToolUse hook for Bash, `scripts/cap-output.py`, cuts stdout over 8,000 characters to its first and last 3,000, with one line between them giving the count and the path of the full output. The full stdout is saved first, to `.claude/tool-output/`, which `.gitignore` now lists. Every later reply re-reads a long Bash result, so this is the cost it limits.
+- **Break on purpose:**
+  - `broken: the 8,000-character limit removed, so every result is cut → AssertionError: {'hookSpecificOutput': {'hookEventName': 'PostToolUse', 'updatedToolOutput': …`
+
+### 110. Leave Bash output Claude Code already saved
+
+- [#62](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/62) changed `scripts/cap-output.py`, `scripts/test_cap_output.py` and `CLAUDE.md`.
+  Bash stdout of 30,000 characters or more now passes unchanged. That is Claude Code's own limit, `BASH_MAX_OUTPUT_LENGTH`, read when set, and it already saves the full output. The hook acts only between 8,000 and 30,000 characters. Two tests: output at 30,000 is passed and nothing is saved; output at 29,999 is still cut.
+- **Break on purpose:**
+  - `broken: the default ceiling raised to 300,000 → AssertionError: False is not true : cut output Claude Code had already saved`
+
+### 111. Say that Bash merges stderr into stdout
+
+- [#63](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/63) changed `CLAUDE.md`, `scripts/cap-output.py` and `scripts/test_cap_output.py`.
+  Documentation and tests for a case the hook already handled. Claude Code's Bash merges stderr into stdout, so a failing command arrives with `stderr: ''` and its error at the end of stdout. The hook cuts that like any other output, and the last 3,000 characters keep the error. The suite has 15 tests, 13 before this change.
+- **Break on purpose:**
+  - `broken: hook leaves output whole when its tail holds "Error" (merged stderr) → AssertionError: unexpectedly None : the merged error passed the stderr guard whole`
+
+### 112. Refuse a whole-file Read of a file over 8,000 bytes
+
+- [#64](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/64) changed `scripts/read-guard.py` (new), `scripts/test_read_guard.py`, `.claude/settings.json` and `CLAUDE.md`.
+  A PreToolUse hook on Read, `scripts/read-guard.py`, refuses a Read with no `offset`, `limit` or `pages` of a file over 8,000 bytes. The refusal names the file's size and line count and says how to go on: find the part with `grep -n`, or pass the `limit` it names. CLAUDE.md had asked for partial reads since the kit's first commit; before the hook, 16 whole-file Reads of files over 8,000 characters put 164k characters into the main sessions, each re-read by every later reply.
+- **Breaks on purpose:**
+  - `broken: the size check lets files up to 80,000 bytes through → AssertionError: unexpectedly None : a whole read of 20,800 bytes passed`
+  - `broken: offset and limit no longer count as a ranged read → AssertionError: 'read-guard: <tmp>\\big.md is 20,800 bytes, 400 lines. Read the part you need: find it with grep -n, then Read with offset and limit. To read all of it, give limit=401.' is not None : {'offset': 10}`
+
+### 113. Count cut Bash results and large-file Reads, add --since
+
+- [#65](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/65) changed `scripts/token-usage.py` and `scripts/test_token_usage.py`.
+  `--tools` prints how many Bash results `cap-output.py` cut, found by the marker at position 3,000 of the result text, and how many Reads of a file over 8,000 bytes were whole or ranged. `--since DATE` restricts `--simulate` and `--tools` to the transcripts whose first timestamp is at or after that date.
+- **Breaks on purpose:**
+  - `broken: the cut marker checked one character past CUT_AT → AssertionError: Tuples differ: (2, 0) != (2, 1)`
+  - `broken: the Read size threshold doubled to 16,000 bytes → AssertionError: Tuples differ: (0, 0) != (2, 1)`
+  - `broken: the --since check let every session through → AssertionError: 2 != 1`
+
+### 114. Made-up dashboard data for sample-shop
+
+- [#66](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/66) changed `scripts/demo-data.py` (new) and `scripts/test_demo_data.py`.
+  Made-up data in the shape `spec-drift.py` writes for `window.SPEC_DRIFT`, and a test that draws every panel on it. The data is written out by hand, so the same call gives the same dict and reads no date from the clock. Nothing reads it yet; #67 wires it in.
+- **Break on purpose:**
+  - `broken: demo() drops the rows key the dashboard reads → AssertionError: "Cannot read properties of undefined (reading 'length')" is not None : a panel threw on the demo`
+
+### 115. Build the dashboard from example data when there are no day specs
+
+- [#67](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/67) changed `scripts/spec-drift.py`, `scripts/demo-data.py`, `scripts/test_demo_data.py`, `scripts/test_spec_drift.py`, `docs/dashboard/dashboard.css`, `dashboard.js`, `index.html`, `kit/page/jobmatch-boxes.sha256` and `CLAUDE.md`.
+  `spec-drift.py --build` shows example data when the repository has no day specs yet, with a banner under the header. The real data returns once the first day spec merges, and `--out` still writes only real data. `page_data(real, spec_days)` makes the choice, so the tests can check it without git or gh. `--build` was not run end to end, because it reads GitHub through `gh`; the decision and the banner are covered by tests.
+- **Breaks on purpose:**
+  - `seen red: python scripts/test_demo_data.py on main's code → FAILED (errors=4): two AttributeError (no page_data), two TypeError (no #demo-banner).`
+  - `broken: page_data returns the real data even with no day specs → AssertionError: None is not True`
+  - `broken: the banner is hidden even on the demo data → AssertionError: True is not false`
+
+### 116. Fill the demo dashboard's empty charts
+
+- [#68](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/68) changed `scripts/demo-data.py` and `scripts/test_demo_data.py`.
+  The example data now fills the two charts that drew only their axes: "The sawtooth, up close" (coverage) and "Merge by merge" (evidence history). A new test draws the demo and fails on any chart box that draws no data line.
+- **Breaks on purpose:**
+  - `seen red: DemoData.test_every_chart_box_draws_a_data_line_on_the_demo_data → AssertionError: Lists differ: ['cover', 'evidence-history'] != []`
+  - `broken: the demo's coverage left None on every merge → AssertionError: Lists differ: ['cover'] != []`
+
+### 117. Count hook results per date in token-usage.json
+
+- [#69](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/69) changed `scripts/token-usage.py`, `scripts/test_token_usage.py`, `scripts/demo-data.py` and `scripts/test_demo_data.py`.
+  Each row of `docs/dashboard/token-usage.json` carries the four `--tools` counts next to its tokens: `bash`, `cut`, `reads` and `whole`. A tool call is keyed by its `tool_use` id and counts toward the reply whose line holds it. `tools()` and `count()` share `tool_blocks()` and `read_size()`, so `--tools` prints what it printed before. `demo-data.py` gives its token rows the same fields. 411 tests pass.
+- **Break on purpose:**
+  - `broken: the cut increment on a reply row adds 0 → AssertionError: {'bash': 1, 'cut': 0, 'reads': 1, 'whole': 1} != {'bash': 1, 'cut': 1, 'reads': 1, 'whole': 1}`
+
+### 118. Show the hook counts per date in the Tokens panel
+
+- [#70](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/70) changed `docs/dashboard/dashboard.js`, `index.html`, `kit/page/jobmatch-boxes.sha256`, `scripts/test_demo_data.py` and `scripts/test_spec_drift.py`.
+  The Tokens panel gets a "Hooks at work" table: one row per date, with Bash results, Cut (count and share of the Bash results cut), Large Reads, and Whole (count and share of Reads of files over 8,000 bytes that were whole). Rows from before the hook counts are left out; with none, the table says what to run. #69 counted the fields, but nothing showed them. 415 tests pass.
+- **Break on purpose:**
+  - `broken: the Cut column sums bash instead of cut → AssertionError: Lists differ: ['2026-10-12', '10 (100.0%)', ...] != ['2026-10-12', '0 (0.0%)', ...]`
+
+### 119. Count tool calls only on assistant lines
+
+- [#72](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/72) changed `scripts/token-usage.py`, `scripts/test_token_usage.py` and `docs/dashboard/token-usage.json`.
+  `tool_blocks()` records a `tool_use` only from a line whose `type` is `assistant`. Before, a Bash call's last line was often an `api-request-blob` line, which `count()` skips, so the call went uncounted. A request blob repeats earlier messages, `tool_use` blocks included. This supersedes #71 (closed), which committed the undercounted `token-usage.json`; this PR commits the corrected file.
+- **Break on purpose:**
+  - `broken: tool_use recorded from any line, not only assistant (type check no longer filters) → AssertionError: {'bash': 0, 'cut': 0, 'reads': 0, 'whole': 0} != {'bash': 1, 'cut': 1, 'reads': 0, 'whole': 0}`
+
+### 120. Price token usage and estimate a Haiku operator
+
+- [#73](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/73) changed `scripts/token-usage.py`, `scripts/test_token_usage.py`, `docs/dashboard/dashboard.js` and `docs/dashboard/token-usage.json`.
+  Prices sit in one table, `PRICES`, checked on 2026-11-02 against the claude-api skill. The estimate prices the replies that call only Bash as mechanical, and runs them in a Haiku subagent: 105 replies (3.8%), $8.05 of $151.93 (5.3%). Net of Haiku's own cost and the re-read of their output, the saving is −$8.10 (−5.3%). The estimate moved from 6.2% to 16.0% to 5.3%, and the tests pin the last. **Dropped:** under the 10% bar the experiment set for building the step.
+- **Breaks on purpose:**
+  - `seen red: python scripts/test_token_usage.py against main's token-usage.py → 24 tests, FAILED (errors=5): the 3 CostTest and 2 RouteTest tests (no cost, mechanical or route).`
+  - `broken: Haiku 5.5's long-prompt price dropped → AssertionError: 0.00100001 != 0.00500005 within 9 places (0.00400004 difference)`
+  - `broken: an unsplit cache write priced as a 5-minute one → AssertionError: 0.002675 != 0.00425 within 9 places (0.0015750000000000004 difference)`
+  - `broken: grep/head on a file counted as a filter → AssertionError: True is not false : grep -n def scripts/break.py`
+  - `broken: a git diff without a stat flag counted as mechanical → AssertionError: True is not false : git diff main -- a.py`
+  - `broken: what a mechanical reply added never counted as re-read → AssertionError: 0.0 != 0.0008 within 9 places (0.0008 difference)`
+  - `broken: the cost clause shown for data with no costs → 61 of 62 boxes the same; 1 differ: token-legend (changed)`
+
+### 121. Price the fresh-session simulation in dollars
+
+- [#74](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/74) changed `scripts/token-usage.py` and `scripts/test_token_usage.py`.
+  `--simulate` prices the fresh-session simulation in dollars. A fresh session whenever the context passes 100k cuts tokens read by 20.9%, but costs +$6.36 (+4.1% of $153.37): 48 restarts each write a starting context averaging 51,817 tokens, at the one-hour cache-write price. The 200k and 300k lines save nothing. **Dropped:** the 100k saving does not reach the 10% the decision rule needs, so CLAUDE.md's "One session per step" stays at 300k.
+- **Breaks on purpose:**
+  - `seen red: python scripts/test_token_usage.py on main's token-usage.py → 26 tests, FAILED (failures=1, errors=1); both are the new tests.`
+  - `broken: a restart's write of its starting context left unpriced → AssertionError: 0.06 != -0.72 within 9 places (0.78 difference)`
+
+### 122. Price the tool-result cap in dollars
+
+- [#75](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/75) changed `scripts/token-usage.py` and `scripts/test_token_usage.py`.
+  `--simulate` prices the tool-result cap in dollars. Capping each result at 2k tokens cuts tokens read by 17.8%, saving $8.55 (−5.3% of $160.03). At 5k it cuts 6.2%, saving $2.98 (−1.9%). Both are under the 10% bar, so the cap is dropped, with the two levers #74 dropped. No cap hook is proposed. These totals are not comparable with #74's run, since the transcripts grew in between.
+- **Breaks on purpose:**
+  - `seen red: python -m unittest scripts/test_token_usage.py on main's code → 27 tests, FAILED (failures=1, errors=1); the new cap test: KeyError: 'cap_cost'.`
+  - `broken: the cap's dollar saving priced at the input price (p[0]) instead of the cache-read price → AssertionError: 0.0328 != 0.00168 within 9 places`
+
+### 123. Add --compare: context per reply before and after the hooks
+
+- [#76](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/76) changed `scripts/token-usage.py` and `scripts/test_token_usage.py`.
+  `--compare` prints the context tokens per reply on each side of 2026-11-02, the day the hooks landed. Before: 2,172 replies on 5 days, median 86,996 tokens. After: 797 replies on 2 days, median 70,926. Both sides show 0.0% of replies past 300k. That is real, not a bug: the largest main session is 196,621 tokens, so this measure cannot show the effect yet.
+- **Breaks on purpose:**
+  - `seen red: CompareTest.test_context_read_after_a_session_passed_300k_is_the_share_past_it, run on the 100k threshold, reported AssertionError: 750000 != 400000`
+  - `broken: the 300k line moved to 100k → AssertionError: 750000 != 400000`
