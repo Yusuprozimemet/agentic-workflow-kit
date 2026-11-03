@@ -51,13 +51,17 @@ days on a small Python CLI. What that evidence does and does not show is in
    the kit's `.git`). There, delete `kit/` (`rm -r kit`) and start the history on `main`:
    `git init -b main`. The dashboard reads the branch `main` by name and stops without it.
 2. Fill every `<!-- PROJECT: … -->`: `git grep -n "PROJECT:"` lists them (`CLAUDE.md`, the
-   agents, `specs/README.md`, the PR template, `docs/workflow.md`, `scripts/spec-drift.py`). Fill
+   agents, `specs/README.md`, the PR template, `docs/workflow.md`, `scripts/spec-drift.py`, `evidence.yml`). Fill
    `plan.md`'s `<name>` and `<NN>`, and `spec-drift.config.json`: every field is empty until the
    project has what it names (services, moved paths, an infra workflow, PR areas, frozen files).
    `test_count` is absent: added as `{"files": "<path regex>", "test": "<line regex>"}`, "Frozen
    files stay unedited" also fails a PR whose count of matching lines falls (`scripts/invariants.py`).
 3. Add a workflow that runs the project's own tests: the kit's CI checks the workflow, not the
-   code. Require it with the others below.
+   code. Require it with the others below. The Evidence replay re-runs the days' checks and
+   breaks after each close, so it needs what they need: put the install command that workflow
+   uses (`python -m pip install -r doc/requirements.txt`, say, for a docs build) in the
+   `PROJECT:` step of `.github/workflows/evidence.yml`. By default it installs
+   `requirements.txt` when there is one.
 4. Write each day's spec from [specs/_template.md](specs/_template.md), as
    `specs/day-NN-<slug>.md`. At a stop (**Stop and evaluate.** in `plan.md`'s list) the next
    step waits until `plan.md` has a `## Course correction after Phase N` section, N the stop

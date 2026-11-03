@@ -141,6 +141,15 @@ class EvidenceTest(unittest.TestCase):
         self.assertEqual(run.returncode, 1)
         self.assertIn("passed with the break in", run.stdout)
 
+    def test_a_check_judged_by_what_it_prints_sees_the_break_only_with_its_expected_stdout(self):
+        # as `grep -c`: it prints a count, and exits 0 at 1 and with the break in
+        check = [sys.executable, "-c", "print(open('app.txt').read().split().count('ok'))"]
+        run = self.run_evidence(spec(report="0"), breaks=(dict(BREAK, command=check, expect_stdout="^1$"),))
+        self.assertEqual(run.returncode, 0, run.stdout)
+        run = self.run_evidence(spec(report="0"), breaks=(dict(BREAK, command=check),))
+        self.assertEqual(run.returncode, 1)
+        self.assertIn("passed with the break in", run.stdout)
+
     def test_a_temporary_directory_s_name_does_not_count_as_a_difference(self):
         report = "AssertionError: C:\\Temp\\tmpab12cd34\\a.txt"
         check = [sys.executable, "-c",

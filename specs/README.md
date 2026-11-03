@@ -177,7 +177,10 @@ repository root), `find`, `replace` and `command` (an argument list run from tha
 
 Use the actual arguments from the earlier break, not this illustrative mutation. Optional
 `at` names the historical commit when the close no longer contains the text to edit;
-`passes: true` marks a near miss that must pass with the mutation in. On Windows, `bash` in
+`passes: true` marks a near miss that must pass with the mutation in; `expect_stdout` holds
+the regex the break gave `break.py --expect-stdout`, for a check judged by what it prints
+(`grep -c`): without it, the replay goes by the exit code and that check passes with the
+break in. On Windows, `bash` in
 the command means Git's Bash. See [`scripts/evidence.py`](../scripts/evidence.py) for the format.
 Write `[]` when there are no mutations to replay, and retain the reasons for inapplicable checks.
 
