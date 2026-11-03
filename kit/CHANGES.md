@@ -2218,3 +2218,43 @@ if a reliable, small rule can be defined; use the explicit review step now.
 - **No code or tests changed,** so there was nothing to break on purpose.
 - **Still deferred:** both runs, the three-task comparison, keep-or-simplify, comparing another
   model, and everything item 90 left deferred.
+
+### 125. Let a copy of the kit keep fewer auditors than the guard knows
+
+- [#81](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/81) changed `scripts/test_auditor_guard.py`.
+  This is [the comparison's](comparison/results.md#kit-defects-found-by-run-a) defect 1. Run A
+  copied the kit without the three end-of-phase auditors, and the test's fixed count of five
+  failed that copy's own CI. Now every read-only agent with Bash must be one the guard knows, and
+  there must be at least one. A name the guard knows that has no agent is harmless. A second test
+  runs the check on a scratch copy with only `plan-auditor` and `spec-auditor`, then adds an
+  unknown auditor. A fixed it the same way in its own repository (its PR #3).
+- `broken: the guard check wants exactly the guard's five auditors, as before → AssertionError: Items in the first set but not the second:`
+
+### 126. Find a project's tests in a root tests.py, and count an error a test raised as red
+
+- [#81](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/81) changed `scripts/evidence.py`,
+  `scripts/spec-drift.py`, `scripts/seen-red.py`, `scripts/track-red.py` and their tests.
+  This is the comparison's defect 2. python-json-pointer keeps its tests in one `tests.py` at the
+  root.
+  - `evidence.py` replayed every named test there as "not defined", and `spec-drift.py` read
+    them as missing. Both now read `tests.py` as well, as A's PR #2 did.
+  - `seen-red.py` copied in only `tests/`, so it refused with "no new test", and `track-red.py`
+    ran the base's own `tests.py`. Both now copy in `tests.py` too. `track-red.py` needed no
+    change to list them: `discover('tests')` already imports a root `tests.py`.
+  - `track-red.py` turned away any `errors=` on the base as "an error, not an assertion". A's red
+    runs were all `errors=`: the test raised AttributeError for a name the day adds, which is
+    the red the spec asked for. The kit's own seen-red lines in items 108 and 115 are `errors=`
+    for the same reason. Now an error a test raised counts as red. Only a test module that did not
+    load (unittest's `_FailedTest`) is turned away, as before. Other runners are unchanged.
+- **Seen red, on `main`'s scripts:** four of the five new tests failed, as below. The root `tests.py`
+  test of `track-red.py` first passed on `main`, because it committed the new test into the base.
+  It was rewritten to put the new test only in the working tree, as on a track's branch, and then
+  failed.
+- **Breaks on purpose:**
+  - `broken: evidence.py greps tests/ only, as before → 1 failed` (run from a scratch copy of
+    `break.py`: the test's `evidence.py` calls the kit's `break.py`, whose lock the outer run held)
+  - `broken: TEST_PATH leaves tests.py out, as before → AssertionError: {'ContestTest.test_c': 'missing', 'RootTest.test_b': 'missing'} != {'RootTest.test_b': 'present', 'ContestTest.test_c': 'missing'}`
+  - `broken: seen-red.py copies in tests/ only, as before → AssertionError: 2 != 0 : seen-red.py: no file under tests/ and no tests.py differs from main: there is no new test to see red`
+  - `broken: seen-red.py copies in tests/ only, so track-red.py runs the base's tests.py → AssertionError: 1 != 0 : FAIL: C1.1: tests.T.test_double_a_string reports FAILED (errors=1) on 32f1d08: a test module did not load`
+  - `broken: every error is an error again, as before → AssertionError: 1 != 0 : FAIL: C1.1: tests.test_more.M.test_triple reports FAILED (errors=1) on afa1b9e: a test module did not load`
+  - `broken: NOT_LOADED never matches, so a module that did not load counts as red → AssertionError: 0 != 1`

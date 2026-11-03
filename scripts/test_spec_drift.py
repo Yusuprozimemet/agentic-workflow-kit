@@ -523,6 +523,16 @@ class EvidenceTest(unittest.TestCase):
                                  "CliTest.test_gone": "missing", "RuleTest.test_word": "skippable",
                                  "HelperTest": "missing"})  # src/helper.py is not a test file
 
+    def test_a_python_test_in_a_root_tests_py_is_found(self):
+        # python-json-pointer keeps its tests in one tests.py at the root; contests.py is a near miss.
+        self.repo.merge({"tests.py": "import unittest\n\n\nclass RootTest(unittest.TestCase):\n"
+                                     "    def test_b(self):\n        pass\n",
+                         "contests.py": "class ContestTest:\n    def test_c(self):\n        pass\n"})
+        names = {"RootTest.test_b", "ContestTest.test_c"}
+        state = self.repo.inside(lambda blobs: sd.test_state(names, self.repo.snaps[-1]["sha"], blobs))
+        self.assertEqual(state, {"RootTest.test_b": "present", "ContestTest.test_c": "missing"})
+        self.assertEqual([sd.work_kind(p) for p in ("tests.py", "test.py", "contests.py")], ["test", "test", "prod"])
+
     def test_javascript_skip_markers_and_near_misses(self):
         for marker in ("it.skip(", "test.skip(", "describe.skip(", "xit(", "xdescribe(", "it.todo(", "test.todo("):
             self.assertIsNotNone(sd.SKIPPABLE.search(marker), marker)

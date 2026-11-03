@@ -21,7 +21,8 @@ tests pinning what holds is not a track):
   none in it, an item at the margin that is not `- [ ] CN.N **new**` or `**hold**`, or a repeated
   id fails, whichever track the branch is. A short spec's IDs must match its slug.
 - Each test runs alone on the base (seen-red.py's `on_base`) and here. There it must report
-  "FAILED (failures=N)", not `errors=` (an import, not the assertion); here, "OK".
+  "FAILED", by an assertion or by an error the test raised (a name the change adds is missing),
+  not because a test module did not load (an import, not the behaviour); here, "OK".
 
 Exit 0 when every test does both, or nothing applies; 1 when any check fails; 2 when it cannot run.
 """
@@ -49,6 +50,7 @@ RAN = re.compile(r"^Ran (\d+) tests?\b", re.M)
 SUMMARY = re.compile(r"^(OK.*|FAILED \((.*)\))$", re.M)
 LIST_TESTS = ("import unittest\nwalk = lambda s: [i for t in s for i in (walk(t) if isinstance(t, unittest.TestSuite) "
               "else [t.id()])]\nprint('\\n'.join(walk(unittest.defaultTestLoader.discover('tests', top_level_dir='.'))))")
+NOT_LOADED = re.compile(r"^ERROR: .*\(unittest\.loader\._FailedTest\b", re.M)
 ENV = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
 RUNNERS = {
     "unittest": lambda name: [sys.executable, "-m", "unittest", name],
@@ -151,12 +153,15 @@ def test_ids():
 
 
 def result(run):
-    """(tests run, the summary line, failures, errors) of one unittest run."""
+    """(tests run, the summary line, failures, errors) of one unittest run. An error a test raised
+    counts as a failure: a name the change adds is missing on the base (AttributeError). Only a
+    test module that did not load is an error."""
     output = run.stdout + run.stderr
     ran, summary = RAN.findall(output), SUMMARY.findall(output)
     line, counts = summary[-1] if summary else ("no summary line", "")
     count = lambda kind: int((re.search(rf"\b{kind}=(\d+)", counts) or [0, 0])[1])
-    return int(ran[-1]) if ran else 0, line, count("failures"), count("errors")
+    not_loaded = len(NOT_LOADED.findall(output))
+    return int(ran[-1]) if ran else 0, line, count("failures") + count("errors") - not_loaded, not_loaded
 
 
 def main(args=None):
@@ -243,7 +248,8 @@ def main(args=None):
         if ran < 1:
             problems.append(f"{c}: {t} ran no test on {base}: {line}")
         elif before.returncode == 0 or errors or not failures:
-            why = "it does not see the change" if line.startswith("OK") else "an error, not an assertion"
+            why = ("it does not see the change" if line.startswith("OK") else
+                   "a test module did not load" if a.runner == "unittest" else "an error, not an assertion")
             problems.append(f"{c}: {t} reports {line} on {base}: {why}")
         elif ran_here < 1 or here.returncode != 0 or failures_here or errors_here:
             problems.append(f"{c}: {t} does not pass on the head: {line_here}")
@@ -253,7 +259,7 @@ def main(args=None):
     for problem in problems:
         print(f"FAIL: {problem}")
     print(f"{label}: {red} of {sum(map(len, new.values()))} tests the new criteria "
-          f"name fail on {base} by assertion and pass on the head.")
+          f"name fail on {base}, their modules loaded, and pass on the head.")
     return 1 if problems else 0
 
 

@@ -1,7 +1,7 @@
 """scripts/auditor-guard.py blocks an auditor's writing commands and finds what got past it. The
 command tests read command text; the stop tests change a scratch repository between the auditor's
 first command and its stop; the settings tests check that .claude/settings.json wires both hooks,
-that the guard acts for the five auditors, and that it lets the main session and other agents by,
+that the guard acts for every auditor the repository has, and that it lets the main session and other agents by,
 and run the settings' commands through the shell with and without CLAUDE_PROJECT_DIR.
 
     python scripts/test_auditor_guard.py
@@ -171,16 +171,33 @@ class SettingsTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, empty, True)
         self.assertEqual(self.hook("PreToolUse", data, empty).returncode, 2)
 
-    def test_the_guard_acts_for_the_five_auditors(self):
+    def unguarded(self, agents):
+        """The read-only agents with Bash in agents that the guard does not know."""
         auditors = set()
-        for name in sorted(os.listdir(AGENTS)):
-            with open(os.path.join(AGENTS, name), encoding="utf-8") as f:
+        for name in sorted(os.listdir(agents)):
+            with open(os.path.join(agents, name), encoding="utf-8") as f:
                 front = f.read().split("\n---", 1)[0]
             self.assertNotIn("\nhooks:", front, name)  # VS Code's Claude Code ignores these
             tools = re.search(r"^tools: (.*)$", front, re.M).group(1)
             if "Read-only" in front and "Bash" in tools:
                 auditors.add(re.search(r"^name: (.*)$", front, re.M).group(1).strip())
-        self.assertEqual((len(auditors), auditors), (5, guard.AUDITORS))
+        self.assertTrue(auditors, "no read-only agent with Bash in " + agents)
+        return auditors - guard.AUDITORS
+
+    def test_the_guard_acts_for_every_auditor_this_repository_has(self):
+        self.assertEqual(self.unguarded(AGENTS), set())
+
+    def test_a_copy_without_the_end_of_phase_auditors_passes_and_an_unknown_auditor_does_not(self):
+        # A copy of the kit may drop the three end-of-phase auditors (python-json-pointer kept two);
+        # a name the guard knows and no agent has is harmless.
+        agents = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, agents, True)
+        for name in ("plan-auditor.md", "spec-auditor.md", "implementer.md"):
+            shutil.copyfile(os.path.join(AGENTS, name), os.path.join(agents, name))
+        self.assertEqual(self.unguarded(agents), set())
+        with open(os.path.join(agents, "x.md"), "w", encoding="utf-8") as f:
+            f.write("---\nname: cost-auditor\ndescription: Read-only.\ntools: Read, Bash\n---\n")
+        self.assertEqual(self.unguarded(agents), {"cost-auditor"})
 
     def test_lets_the_main_session_and_other_agents_by(self):
         store = tempfile.mkdtemp()

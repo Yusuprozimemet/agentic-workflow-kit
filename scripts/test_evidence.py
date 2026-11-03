@@ -37,6 +37,9 @@ class EvidenceTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.repo, ignore_errors=True)
         self.write("tests/test_cli.py",
                    "class CliTest(unittest.TestCase):\n    def test_a(self):\n        pass\n")
+        # a project whose tests are one tests.py at the root (python-json-pointer), and a module that is not a test file
+        self.write("tests.py", "class RootTest(unittest.TestCase):\n    def test_b(self):\n        pass\n")
+        self.write("helper.py", "class HelperTest:\n    def test_c(self):\n        pass\n")
         self.write("app.txt", "ok\n")
         self.git("init", "-q", "-b", "main")
         self.git("add", ".")
@@ -90,6 +93,14 @@ class EvidenceTest(unittest.TestCase):
         self.assertEqual(run.returncode, 1)
         self.assertEqual(len(self.failures(run)), 1, run.stdout)
         self.assertIn("CliTest.test_renamed → not defined", run.stdout)
+
+    def test_a_test_in_a_root_tests_py_is_found_and_one_in_another_module_is_not(self):
+        run = self.run_evidence(spec(test="RootTest.test_b"))
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn("all evidence holds", run.stdout)
+        run = self.run_evidence(spec(test="HelperTest.test_c"))
+        self.assertEqual(run.returncode, 1)
+        self.assertIn("HelperTest.test_c → not defined", run.stdout)
 
     def test_a_test_in_another_class_fails(self):
         run = self.run_evidence(spec(test="OtherTest.test_a"))

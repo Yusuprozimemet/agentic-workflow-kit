@@ -51,8 +51,8 @@ class SeenRedTest(unittest.TestCase):
         with open(os.path.join(self.dir, path), "w", newline="\n") as f:
             f.write(text)
 
-    def seen_red(self, *extra):
-        return subprocess.run([sys.executable, SCRIPT, *extra, "--", *CHECK], cwd=self.dir,
+    def seen_red(self, *extra, check=CHECK):
+        return subprocess.run([sys.executable, SCRIPT, *extra, "--", *check], cwd=self.dir,
                               capture_output=True, text=True, encoding="utf-8")
 
     def test_a_new_test_that_fails_on_the_base_is_seen_red_though_it_passes_here(self):
@@ -71,6 +71,18 @@ class SeenRedTest(unittest.TestCase):
         run = self.seen_red()
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn("seen red: ", run.stdout)
+
+    def test_a_root_tests_py_is_copied_in(self):
+        # python-json-pointer keeps its tests in one tests.py at the root, not under tests/
+        self.git("rm", "-q", "-r", "tests")
+        self.write("tests.py", TEST)
+        self.git("add", ".")
+        self.git("commit", "-q", "-m", "tests at the root")
+        self.write("app.py", "def double(x):\n    return x * 2\n")
+        self.write("tests.py", NEW_TEST)
+        run = self.seen_red(check=[sys.executable, "-m", "unittest", "tests"])
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn(" on main → AssertionError: 'ab' != 'abab'", run.stdout)
 
     def test_a_new_test_that_passes_on_the_base_is_refused(self):
         self.write("tests/test_app.py", TEST + "\n    def test_zero(self):\n        self.assertEqual(double(0), 0)\n")
