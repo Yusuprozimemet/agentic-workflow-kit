@@ -1,4 +1,4 @@
-"""Replay the day closed by a push, or an explicitly requested day on main."""
+"""Replay the day closed, or the short spec landed, by a push, or an explicitly requested day on main."""
 import argparse
 import subprocess
 import sys
