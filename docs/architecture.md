@@ -258,13 +258,17 @@ stateDiagram-v2
     Replaced --> [*]
 ```
 
-Outside the days, a small behaviour change takes a short spec:
+Outside the days, a change takes the lowest rung that qualifies
+([size of change](../specs/README.md#size-of-change)): an area branch when no product behaviour
+changes, a short spec for one small behaviour change:
 
 ```mermaid
 flowchart TD
     Q{"What kind of change?"}
+    Q -- "no product behaviour:<br/>tooling, docs, dashboard, CI, plan" --> AREA["area branch<br/>area/slug, no spec"]
     Q -- "part of the plan" --> DAY["day spec<br/>specs/day-NN-slug.md"]
     Q -- "small, one PR, no contract test,<br/>no frozen file, no Replaces:" --> SHORT["short spec<br/>specs/changes/slug.md<br/>on change/slug"]
+    AREA --> ARF["one PR: diff limit,<br/>seen red and broken: when it has a check"]
     DAY --> DAYF["spec-change PR, tracks, closing PR<br/>criteria CNN.M"]
     SHORT --> SHF["spec and code in one PR<br/>criteria S-slug.N"]
     DAYF & SHF --> BI[behaviour-index.py]
