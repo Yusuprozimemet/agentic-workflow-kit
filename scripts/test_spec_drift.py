@@ -1879,6 +1879,13 @@ Go on.
         plan = "## Day-by-day specs\n\n1. Phase 0: Days 3, 1, 2. **Stop and evaluate.**\n2. Phase 1: Days 4-5.\n"
         self.assertEqual(sd.run_order(plan, [1, 2, 3, 4, 5]), ([3, 1, 2, 4, 5], 2))
 
+    def test_the_first_stop_not_lifted_is_the_one_work_waits_at(self):
+        # bearing's plan, stops at Days 4 and 10: the last one won, so Day 5 was offered after Day 4.
+        plan = ("## Day-by-day specs\n\n1. Phase 0: Day 1.\n2. Phase 1: Days 2-4. **Stop and evaluate.**\n"
+                "3. Phase 2: Days 5-7.\n4. Phase 3: Days 8-10. **Stop and evaluate.**\n5. Phase 4: Days 11-12.\n")
+        lift = "## Course corrections\n\n- **Phase 1 stop:** go on.\n\n"
+        self.assertEqual([sd.run_order(plan, [])[1], sd.run_order(lift + plan, [])[1]], [4, 10])
+
     def test_the_source_projects_plan_runs_in_its_order(self):
         # The source project's list as it ended: phase numbers inside words and after "after".
         plan = """## Day-by-day specs
