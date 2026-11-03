@@ -129,7 +129,9 @@ Ticked short-spec criteria join the behaviour index; a later day replaces one wi
   track merged; never stack branches. Track 0 lands first. Dependencies may change the table's
   order; explain that in the PR. Day N assumes N-1 is merged.
 - **Record every defect in the day's *Notes* when it is found**, one `Defect` line each, with
-  three fields:
+  an ID and three fields:
+  - the ID, after `**Defect**`: `D<NN>.<n>`, the day's defects numbered from 1 in the order they
+    are written (`- **Defect** D28.1 — found: …`). A short spec's Defect lines take none.
   - `found:` where, exactly one of `auditor`, `spec-change PR` (before any code); `review`,
     `break on purpose`, `self`, `Track <X>` (before merge); `close`, `dashboard`,
     `Day <NN> review` (after the track merged: an escape).
@@ -139,6 +141,11 @@ Ticked short-spec criteria join the behaviour index; a later day replaces one wi
     and never opened) or `environment` (tooling, CI, the machine, a library).
   - `made:` the day whose work holds the defect, merged or not (`Day 21`, or `none` for work outside any
     day). When it is not this day, the defect is an escape from that day, whatever `found:` says.
+  - `same-as:`, only when the defect repeats one an earlier Defect line records: that line's ID
+    (`same-as: D21.2`), after `made:` and before the text. `scripts/spec-drift.py` counts it as
+    a recurrence, in the dashboard's defect-tag table, and reports an ID it cannot place
+    (malformed, unknown, used twice, or not earlier); `scripts/relabel.py` strips it with the
+    tags, so the blind rater does not read the earlier defect's.
 
   Two tags are easy to get wrong; in wordtally, Days 1 and 3 got both wrong and Day 2 the
   first, and the blind rater's pass corrected each:

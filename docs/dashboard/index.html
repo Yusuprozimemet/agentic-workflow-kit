@@ -141,9 +141,10 @@
   <section class="panel">
     <div class="panel-head">
       <h2>Does a second reader agree with the defect tags?</h2>
-      <p>At each close, <code>scripts/relabel.py</code> strips the <code>found:</code>, <code>cause:</code> and <code>made:</code> tags from the day's Defect lines, and the defect-rater agent, which wrote none of the day's work, tags the text again. This is how many of the day's tags it gave the same way, as the spec's Notes quote <code>relabel.py compare</code>. Where they agree the tags measure the defects; where they do not, the tags may only measure what the session that wrote them believed. A day whose Notes quote no counts from <code>relabel.py compare</code>, because it skipped the comparison or told it in prose, is not counted.</p>
+      <p>At each close, <code>scripts/relabel.py</code> strips the <code>found:</code>, <code>cause:</code> and <code>made:</code> tags from the day's Defect lines, and the defect-rater agent, which wrote none of the day's work, tags the text again. This is how many of the day's tags it gave the same way, as the spec's Notes quote <code>relabel.py compare</code>. Where they agree the tags measure the defects; where they do not, the tags may only measure what the session that wrote them believed. A day whose Notes quote no counts from <code>relabel.py compare</code>, because it skipped the comparison or told it in prose, is not counted. <i>Repeats</i> counts the day's Defect lines whose <code>same-as:</code> names an earlier defect's ID: a problem that came back.</p>
     </div>
     <div class="scroll-x"><table id="relabel"></table></div>
+    <p id="recurrence"></p>
   </section>
 
   <section class="panel" id="infra">

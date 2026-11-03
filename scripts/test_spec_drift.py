@@ -730,6 +730,61 @@ class RemovalTest(unittest.TestCase):
             repo.close()
 
 
+DEFECT_NOTES = {
+    21: """## Notes
+- **Defect** D21.1 — found: auditor · cause: spec · made: Day 21 · C21.3 counted the wrong files.
+- **Defect** D21.2 — found: review · cause: implementation · made: Day 21 · the grep
+  matched comments.
+- **Defect** — found: close · cause: process · made: Day 21 · an older line, with no ID.
+""",
+    28: """## Notes
+- **Defect** D28.1 — found: close · cause: spec · made: Day 28 · same-as: D21.2 · the grep
+  matched comments again.
+- **Defect** D28.2 — found: review · cause: spec · made: Day 28 ·
+  same-as: D21.1 · counted the wrong files again.
+- **Defect** D28.3 — found: self · cause: spec · made: Day 28 · same-as: D21.9 · no such defect.
+- **Defect** D27.4 — found: self · cause: spec · made: Day 28 · an ID of another day.
+- **Defect** D28.5 — found: self · cause: spec · made: Day 28 · same-as: D30.1 · a later one.
+- **Defect** D28.6 — found: self · cause: spec · made: Day 28 · same-as: 21.2 · no D.
+- **Defect** D28 — found: self · cause: spec · made: Day 28 · no number.
+- **Defect** D28.8 — found: self · cause: spec · made: Day 28 · the text · same-as: D21.1 · is text.
+- A line citing D21.2 · same-as: D21.1 is not a Defect line.
+""",
+    30: "## Notes\n- **Defect** D30.1 — found: self · cause: spec · made: Day 30 · later.\n",
+}
+
+
+class DefectTest(unittest.TestCase):
+    """Defect lines' IDs, and the ones that repeat an earlier defect (specs/README.md)."""
+
+    def setUp(self):
+        self.days = [dict(day=d, defects=sd.defect_lines(t, d)) for d, t in DEFECT_NOTES.items()]
+
+    def test_each_defect_line_gives_its_id_and_same_as_and_no_other_line_does(self):
+        self.assertEqual([[(x["id"], x["same_as"]) for x in d["defects"]] for d in self.days], [
+            [("D21.1", None), ("D21.2", None), (None, None)],
+            [("D28.1", "D21.2"), ("D28.2", "D21.1"), ("D28.3", "D21.9"), ("D27.4", None), ("D28.5", "D30.1"),
+             ("D28.6", "21.2"), ("D28", None), ("D28.8", None)],
+            [("D30.1", None)]])
+
+    def test_a_recurrence_names_an_earlier_defect_and_every_bad_id_is_reported(self):
+        self.assertEqual(sd.recurrence(self.days), dict(
+            defects=12, with_id=9,
+            recurrences=[dict(id="D28.1", same_as="D21.2"), dict(id="D28.2", same_as="D21.1")],
+            problems=["D28.3: same-as: D21.9 names no Defect line",
+                      "Day 28: Defect ID D27.4 is not D28.<n>",
+                      "D28.5: same-as: D30.1 is not an earlier defect",
+                      "D28.6: same-as: 21.2 is not an ID like D21.2",
+                      "Day 28: Defect ID D28 is not D28.<n>"]))
+
+    def test_an_id_used_twice_or_a_same_as_with_no_id_is_reported(self):
+        days = [dict(day=5, defects=sd.defect_lines(
+            "- **Defect** D5.1 — found: self · x.\n- **Defect** D5.1 — found: self · y.\n"
+            "- **Defect** — same-as: D5.1 · found: self · z.\n", 5))]
+        self.assertEqual(sd.recurrence(days), dict(defects=3, with_id=1, recurrences=[], problems=[
+            "Day 5: Defect ID D5.1 is used twice", "Day 5: a Defect line with same-as: D5.1 has no ID"]))
+
+
 class HandOffTest(unittest.TestCase):
     """What finished days leave to days not yet run, and whether the receiving spec took it."""
 
@@ -1381,6 +1436,21 @@ class PageTest(unittest.TestCase):
         relabel = panels.get("relabel", "")
         self.assertNotIn("All counted", relabel)
         self.assertIn("No finished day yet: a day is counted once its Notes quote", relabel)
+
+    def test_the_relabel_table_counts_each_days_repeated_defects(self):
+        days = [dict(a_day(n), status="done", phase=0, title="t", prs=[]) for n in (21, 28)]
+        rec = dict(defects=5, with_id=4, recurrences=[dict(id="D28.1", same_as="D21.2")],
+                   problems=["D28.3: same-as: D21.9 names no Defect line"])
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], days, [21, 28], defect_recurrence=rec)
+        self.assertIsNone(error)
+        rows = re.findall(r"<tr><td.*?</tr>", panels["relabel"])
+        self.assertEqual([re.findall(r'<td class="r">(\d+)</td>', r) for r in rows], [["0"], ["1"], ["1"]])
+        self.assertEqual(re.sub("<[^>]+>", "", panels["recurrence"]),
+                         "1 of 4 Defect lines with an ID repeats an earlier defect: D28.1 (same as D21.2). "
+                         "Not counted: D28.3: same-as: D21.9 names no Defect line.")
+        _, panels, _ = drawn([page_row(0, None, "origin", 50)], days, [21, 28])  # data from before the count
+        self.assertNotIn("Repeats", panels["relabel"])
+        self.assertNotIn("recurrence", panels)
 
     def test_the_name_phases_and_stops_come_from_the_data(self):
         days = [dict(a_day(n), status="ready", phase=p, title="t", prs=[]) for n, p in ((1, 0), (2, 0), (3, 1))]

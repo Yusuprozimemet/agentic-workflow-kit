@@ -169,6 +169,7 @@ def build_days(rows):
                       evidence_format=True, break_format=True, evidence=evidence,
                       removal_checks=[f'grep -rn "TODO day {d:02d}" src/'],
                       relabel=dict(stage=[3, 4], cause=[3, 4], made=[4, 4]) if d in (1, 2) else None,
+                      defects=[dict(id=f"D{d}.1", same_as="D1.1" if d == 2 else None, problem=None)] if d in (1, 2) else [],
                       broken_at_close=[])
         if finished:
             record["ended_at"] = by_pr[close]["i"]
@@ -226,6 +227,7 @@ def demo():
                    dict(to=6, source="src/receipts/views.py:12", picked=False,
                         text="Receipts are numbered per shop, not per customer")],
         criteria_index=index, attention=attention,
+        defect_recurrence=dict(defects=2, with_id=2, recurrences=[dict(id="D2.1", same_as="D1.1")], problems=[]),
         other_groups=[dict(name="tooling", count=4), dict(name="docs", count=3), dict(name="dashboard", count=2)],
         vocab_size=136, tokens=tokens, verification=verification,
         infra=dict(runs=runs, latest=dict(runs[0], summary=summary)), deployment=dict(
