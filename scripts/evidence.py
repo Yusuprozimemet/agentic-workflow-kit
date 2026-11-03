@@ -18,7 +18,11 @@ the spec), its breaks in specs/breaks/<slug>.json:
   directory names aside, and a report pasted across lines or with its backslashes undoubled read
   as the escapes break.py printed. A `broken:` line with no recorded arguments fails: prose cannot
   be re-run. A near miss recorded with "passes" must pass with the break in instead, its report
-  the check's last line.
+  the check's last line;
+- every criterion names what proved it: a test, a command (`git ...`, `python ...` and the like,
+  quoted), a break, or a reader. An unticked criterion is `not proven`, and a ticked one with none
+  of the first three fails, each unless a `Not proven: <why>` line sits under it in the spec at that
+  commit: a line added to the spec since does not count.
 
 The breaks file is a list of {"what", "file", "find", "replace", "command"}, "what" being the text
 of the `broken:` line before its last arrow, "file" a path from the repository root, and "command"
@@ -28,8 +32,8 @@ an argument list run from that root, `bash` meaning Git's bash on Windows. Three
 break edits; and "expect_stdout": the regex break.py's --expect-stdout took, for a check judged by
 what it prints (`grep -c`), without which such a check replays as passing with the break in.
 
-Missing evidence is a check that fails, not one that is skipped: a ticked criterion that names no
-test and no command, a hold criterion with no `broken:` line, a spec with no Verify block or no
+Missing evidence is a check that fails, not one that is skipped: a criterion nothing proved, an
+unticked one with no `Not proven:` line, a hold criterion with no `broken:` line, a spec with no Verify block or no
 ticked criterion. A criterion checked by a command instead of a named test, and a `broken: none →
 <why>`, are recorded as not applicable, with the reason.
 
@@ -69,6 +73,7 @@ TEMP_PATH = re.compile(r"[^\s'\"()\[\]]*?[\\/]+tmp[a-z0-9_]{8}(?![a-z0-9_])")
 COMMENT = re.compile(r"^(.*?)\s{2,}#\s*(.*)$")
 # A criterion checked by a command it quotes, not by a named test, as a hold criterion often is.
 COMMAND = re.compile(r"`((?:git|python|diff|grep|bash) [^`]+)`")
+NOT_PROVEN = re.compile(r"^\s+Not proven: (\S.*)$")
 SCHEMA = 1
 MARK = {"passed": "ok  ", "failed": "FAIL", "error": "ERR ", "not_applicable": "n/a "}
 
@@ -144,7 +149,7 @@ def change_commit(slug, ref):
 
 
 def criteria(text):
-    """{id: lines} for each ticked criterion under Acceptance criteria."""
+    """{id: lines} for each criterion under Acceptance criteria, ticked or not: its first line says which."""
     found, current, inside = {}, None, False
     for line in text.splitlines():
         if line.startswith("## "):
@@ -155,14 +160,24 @@ def criteria(text):
             continue
         m = CRITERION.match(line)
         if m:
-            current = m.group(2) if m.group(1) == "x" else None
-            if current:
-                found[current] = []
+            current = m.group(2)
+            found[current] = []
         elif line.startswith("- "):
             current = None
         if current:
             found[current].append(line)
     return found
+
+
+def not_proven(lines):
+    """The reason a `Not proven:` line under a criterion gives, or None."""
+    return next((m.group(1).strip() for line in lines[1:] if (m := NOT_PROVEN.match(line))), None)
+
+
+def spec_at(commit, path):
+    """The spec's text at the commit, or "" when it is not there."""
+    prefix = git("-C", os.path.dirname(os.path.abspath(path)), "rev-parse", "--show-prefix").strip()
+    return git("show", f"{commit}:{prefix}{os.path.basename(path)}", check=False)
 
 
 def verify_lines(text):
@@ -326,21 +341,38 @@ def check_spec(path, ref):
         add("close", "close", "failed", name, missing)
         return record
     add("close", "close", "passed", f"{name}: {landed} in {commit[:7]}", sha=commit)
-    ticked = criteria(text)
+    found = criteria(text)
+    ticked = {cid: lines for cid, lines in found.items() if lines[0].startswith("- [x]")}
     if not ticked:
         add("criteria", "close", "failed", name, "no ticked criterion: nothing was checked")
+    # A Not proven: line counts as the close merged it, not as added to the spec since.
+    reasons = {cid: not_proven(lines) for cid, lines in criteria(spec_at(commit, path)).items()}
 
-    for cid, lines in ticked.items():
+    for cid, lines in found.items():
+        reason = reasons.get(cid)
+        if cid not in ticked:
+            add(f"{cid}/proof", "proof", "passed" if reason else "failed", f"{cid} not proven",
+                reason or f"no Not proven: line under it at {commit[:7]}", cid, commit)
+            continue
         body = "\n".join(lines)
         tests = dict.fromkeys(TEST.findall(body))
         for cls, test in tests:
             ok = test_exists(commit, cls, test)
             add(f"{cid}/test/{cls}.{test}", "named_test", "passed" if ok else "failed", f"{cid} {cls}.{test}",
                 None if ok else f"not defined at {commit[:7]}", cid, commit)
-        if not tests:
-            command = COMMAND.search(body)
-            add(f"{cid}/test", "named_test", "not_applicable" if command else "failed", f"{cid} named test",
-                f"none: checked by `{command.group(1)}`" if command else "none, and no command named", cid)
+        command = COMMAND.search(body)
+        broken = any(m and m.group(1) != "none" for m in map(BROKEN.match, joined(lines)))
+        proof = [w for w, hit in (("a test", tests), ("a command", command), ("a break", broken)) if hit]
+        if not tests and (proof or reason):
+            add(f"{cid}/test", "named_test", "not_applicable", f"{cid} named test",
+                f"none: checked by `{command.group(1)}`" if command else
+                "none: checked by its break" if broken else "none: judged by a reader", cid)
+        if proof:
+            add(f"{cid}/proof", "proof", "passed", f"{cid} proved by {', '.join(proof)}", None, cid, commit)
+        else:
+            add(f"{cid}/proof", "proof", "passed" if reason else "failed", f"{cid} proved by a reader" if reason
+                else f"{cid} proved by nothing", reason or "no test, command or break, and no Not proven: line "
+                f"under it at {commit[:7]}", cid, commit)
 
     recorded = {}
     if os.path.exists(breaks_file):

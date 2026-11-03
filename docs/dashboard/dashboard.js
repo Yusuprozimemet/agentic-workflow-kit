@@ -769,7 +769,7 @@ function drawEvidence() {
 
 // The report scripts/evidence.py wrote, as spec-drift.py read it. No report is "not checked", and a
 // day the report leaves out is too: neither is ever drawn as a pass.
-const CHECK_KINDS = [["named_test", "Named tests"], ["verify", "Verify"], ["break", "Breaks replayed"]];
+const CHECK_KINDS = [["named_test", "Named tests"], ["verify", "Verify"], ["break", "Breaks replayed"], ["proof", "Criteria proved"]];
 function drawEvidenceChecks() {
   const ec = DATA.evidence_checks || { state: "absent" }, box = document.getElementById("evidence-checks");
   if (ec.state === "absent") {
