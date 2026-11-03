@@ -76,6 +76,10 @@ days on a small Python CLI. What that evidence does and does not show is in
 Set `STYLE_CHECK_COMMAND` as a repository variable to a check-only command, and fill the matching placeholder in `CLAUDE.md`. For example:
 
 - Python: configure `[tool.ruff]` in `pyproject.toml`, then use `ruff check . && ruff format --check .`.
+  The kit's `scripts/` are in the kit's style, not yours, and fail a whole-tree lint: add
+  `extend-exclude = ["scripts"]` under `[tool.ruff]`. For flake8 the kit ships `.flake8` with
+  `extend-exclude = scripts`; flake8 reads only the first of `setup.cfg`, `tox.ini` and `.flake8`
+  with a `[flake8]` section, so if yours is in another, move the line there.
 - JavaScript/TypeScript: `npx eslint . && npx prettier --check .`.
 - Java: `mvn spotless:check`, or your Maven lint plugin's `check` goal with its rules file committed.
 

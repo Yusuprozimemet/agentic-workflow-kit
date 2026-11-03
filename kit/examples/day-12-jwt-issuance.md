@@ -144,9 +144,9 @@ uses no key. No Track 0: nothing observable changes, and the hold below needs no
 ## Verify
 ```bash
 # The whole suite: the day's tests are in tokens/, database/ and the harness self-tests, and
-# the hold is over all of contract/. Read the reports, not the exit code.
+# the hold is over all of contract/. Read the reports, not the exit code: `clean` deletes the
+# old ones (no `rm -rf`, which Claude Code refuses).
 cd backend
-rm -rf */target/surefire-reports
 ./mvnw clean verify
 ./mvnw -B checkstyle:check
 

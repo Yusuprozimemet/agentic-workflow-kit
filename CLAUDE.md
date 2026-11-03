@@ -40,7 +40,8 @@ maintainer, and nothing starts after a phase ends until they say so.
    `<dir>/blind.md` to the **defect-rater** agent, save its JSON as `<dir>/labels.json`, run
    `python scripts/relabel.py compare <dir>`, and put its lines in the PR with a decision on each
    disagreement: the tag kept, and why, or changed in the Notes. Commit the break manifest
-   `specs/breaks/day-NN.json` with the actual mutation arguments (format and example in
+   `specs/breaks/day-NN.json` with the actual mutation arguments, the `manifest:` lines the
+   track PRs recorded (format and example in
    [`specs/README.md`](specs/README.md#evidence-at-the-close)). After this closing PR merges,
    on fresh `main`, run
    `python scripts/evidence.py specs/day-NN-slug.md --ref main --json evidence.json` and retain
@@ -163,7 +164,8 @@ every check CI runs that the local build does not -->
   dashboard reads no other wording. `scripts/break.py` does one break this way and prints the
   line: one exact replacement, the file's bytes put back, the command run without a shell, a build
   only with `clean`. Hand-run breaks have half-applied, skipped the compile, never started the
-  build, and lost unstaged work.
+  build, and lost unstaged work. Above the `broken:` line it prints `manifest: {...}`, the
+  break's entry for the close's break manifest: put it in the PR beside its `broken:` line.
 - The PR diff must stay under **400 changed lines** (CI: "Diff stays reviewable"). If it does not,
   split the PR along a line where each part stands alone. An `Oversized:` line in the
   description turns the failure into a warning. <!-- PROJECT: each time Oversized: was used,
@@ -194,6 +196,10 @@ and who creates them, the setup scripts -->
 ## Pitfalls this repository has already hit
 
 - A small out-of-day behaviour change still needs a seen-red test: use [Short specs](specs/README.md#short-specs) when it qualifies.
+- Claude Code refuses `rm -rf`, so a spec or brief that ends a command with it stops the
+  session (a scratch virtualenv in the kit's workflow comparison). Leave a scratch directory in
+  the session's scratchpad, remove it with `python -c "import shutil; shutil.rmtree('<dir>')"`,
+  or let the build's `clean` delete old reports.
 
 What a session learns goes here, not into the next session's prompt: every session reads this
 file. <!-- PROJECT: each pitfall this project has hit, one bullet each: what happened and

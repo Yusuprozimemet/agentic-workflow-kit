@@ -175,7 +175,11 @@ repository root), `find`, `replace` and `command` (an argument list run from tha
 [{"what":"the total left out","file":"app.py","find":"return total","replace":"return 0","command":["python","-m","unittest","tests.test_app.CliTest.test_counts"]}]
 ```
 
-Use the actual arguments from the earlier break, not this illustrative mutation. Optional
+Use the actual arguments from the earlier break, not this illustrative mutation: `break.py`
+prints them as `manifest: {...}` above its `broken:` line, and a track PR records that line
+beside the `broken:` line, so the close copies each entry instead of rebuilding it from the
+merged code. A break run with `--cwd`, or on a file outside the directory it ran from, prints
+`manifest: none` with the reason: run it from the repository root. Optional
 `at` names the historical commit when the close no longer contains the text to edit;
 `passes: true` marks a near miss that must pass with the mutation in; `expect_stdout` holds
 the regex the break gave `break.py --expect-stdout`, for a check judged by what it prints
