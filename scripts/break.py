@@ -11,11 +11,12 @@ kept in memory and written back as they were, line endings included, whatever th
 is never used to revert, so unstaged work elsewhere is untouched. The command runs as an argument
 list, with no shell: on Windows, `mvnw` runs as `mvnw.cmd`. A Maven command must clean, or an
 incremental build can skip the broken source and pass. One break at a time: a second run while one
-is active refuses.
+is active refuses; a break run by the check of another takes a lock of its own.
 
 It runs the check first without the break, and refuses if it does not pass. It exits 0 only when
 the check then failed with the break in and the file is back as it was, and prints
-the record for the PR (specs/README.md): `broken: <what> → <what the check reported>`. A check judged
+the record for the PR (specs/README.md): `broken: <what> → <what the check reported>`, and before it
+the break's entry for the close's break manifest, `manifest: {...}`. A check judged
 by what it prints, not its exit code (`grep -c` exits 1 at a count of 0), takes --expect-stdout: it
 failed when the regex no longer matches its stdout. break.py checks that the regex matches without
 the break itself. A command that started but did not run the check (on
@@ -28,8 +29,10 @@ that skipped a break (D23-027), breaks run through cmd.exe into WSL's bash that 
 (D26-056), `git checkout` over unstaged work (D21-007, D25-050), two breaks run together (D25-043).
 """
 import argparse
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -103,6 +106,23 @@ def argv_for(command, cwd):
     return [head, *command[1:]]
 
 
+def manifest(a):
+    """The line before the broken: line: the break's entry for specs/breaks/day-NN.json
+    (specs/README.md), to copy into the track PR beside it, or why there is none. The replay runs the
+    command from the repository root, so the entry holds only a break run from there."""
+    try:
+        file = os.path.relpath(a.file)
+    except ValueError:  # another drive
+        file = os.pardir
+    if os.path.abspath(a.cwd) != os.getcwd() or file.startswith(os.pardir):
+        return "manifest: none → run break.py from the repository root, without --cwd, for an entry the replay can run"
+    entry = {"what": a.what, "file": file.replace(os.sep, "/"), "find": a.find, "replace": a.replace,
+             "command": a.command}
+    if a.expect_stdout is not None:
+        entry["expect_stdout"] = a.expect_stdout
+    return "manifest: " + json.dumps(entry, ensure_ascii=False)
+
+
 def refuse(message):
     print(f"break.py: {message}", file=sys.stderr)
     return 2
@@ -137,17 +157,21 @@ def main(args=None):
     find, replace = a.find.encode(), a.replace.encode()
     if original.count(find) != 1:
         return refuse(f"--find occurs {original.count(find)} times in {a.file}, want exactly once")
-    lock = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", LOCK)
+    # A break's check that runs break.py itself (a break of break.py, or of evidence.py) takes the
+    # lock its parent names, in a directory of its own: one under the same root would be refused.
+    lock = os.environ.get("BREAK_LOCK") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", LOCK)
     try:
         fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
         return refuse(f"another break is active ({os.path.normpath(lock)}); finish it, or delete the file")
+    nested = tempfile.mkdtemp()
+    env = dict(os.environ, BREAK_LOCK=os.path.join(nested, LOCK))
     try:
         os.write(fd, a.file.encode())
         os.close(fd)
         try:
             baseline = subprocess.run(argv_for(a.command, a.cwd), cwd=a.cwd, capture_output=True, text=True,
-                                      encoding="utf-8", errors="replace")
+                                      encoding="utf-8", errors="replace", env=env)
         except FileNotFoundError as e:
             return refuse(f"the command did not start: {e}")
         output = baseline.stdout + baseline.stderr
@@ -160,13 +184,14 @@ def main(args=None):
             f.write(original.replace(find, replace))
         try:
             run = subprocess.run(argv_for(a.command, a.cwd), cwd=a.cwd, capture_output=True, text=True,
-                                 encoding="utf-8", errors="replace")
+                                 encoding="utf-8", errors="replace", env=env)
         except FileNotFoundError as e:
             return refuse(f"the command did not start: {e}")
     finally:
         with open(a.file, "wb") as f:
             f.write(original)
         os.remove(lock)
+        shutil.rmtree(nested, ignore_errors=True)
     with open(a.file, "rb") as f:
         if f.read() != original:
             return refuse(f"{a.file} is not back as it was: restore it by hand")
@@ -177,6 +202,7 @@ def main(args=None):
     if not caught(run.returncode, run.stdout, a.expect_stdout):
         print(f"The check passed with the break in: it cannot see this break.\n  last line: {reported(output)}")
         return 1
+    print(manifest(a))
     print(f"broken: {a.what} → {untemp(reported(output))}")
     return 0
 

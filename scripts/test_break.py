@@ -6,6 +6,7 @@ command as the check: it fails when the file holds the broken text.
     python scripts/test_break.py
 """
 import importlib.util
+import json
 import os
 import subprocess
 import sys
@@ -15,7 +16,7 @@ from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(HERE, "break.py")
-LOCK = os.path.join(HERE, "..", ".break-active")
+LOCK = os.environ.get("BREAK_LOCK") or os.path.join(HERE, "..", ".break-active")
 
 
 def check(path):
@@ -61,14 +62,14 @@ class BreakTest(unittest.TestCase):
     def test_a_check_that_fails_gives_the_broken_line_and_the_file_comes_back_byte_for_byte(self):
         run = self.run_break("// ok", "// broken")
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual(run.stdout.strip(), "broken: the guard removed → AssertionError: expected ok but was broken")
+        self.assertEqual(run.stdout.strip().splitlines()[-1], "broken: the guard removed → AssertionError: expected ok but was broken")
         self.assertEqual(self.contents(), self.original)
         self.assertFalse(os.path.exists(LOCK))
 
     def test_a_command_with_options_needs_no_dashes_before_it(self):
         run = self.run_break("// ok", "// broken", dash=())
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual(run.stdout.strip(), "broken: the guard removed → AssertionError: expected ok but was broken")
+        self.assertEqual(run.stdout.strip().splitlines()[-1], "broken: the guard removed → AssertionError: expected ok but was broken")
 
     def test_an_arrow_in_what_is_refused_before_anything_changes(self):
         # spec-drift.py reads <what> up to the first arrow: a pilot's "if not paths: → if False:".
@@ -84,7 +85,7 @@ class BreakTest(unittest.TestCase):
                 "print(' 1 file changed, 1 insertion(+)') if 'broken' in t else None; "
                 "sys.exit(\"warning: in the working copy of 'a.py', LF will be replaced by CRLF\") if 'broken' in t else None"]
         run = self.run_break("// ok", "// broken", command=diff)
-        self.assertEqual(run.stdout.strip(), "broken: the guard removed → 1 file changed, 1 insertion(+)")
+        self.assertEqual(run.stdout.strip().splitlines()[-1], "broken: the guard removed → 1 file changed, 1 insertion(+)")
 
     def test_a_temporary_path_in_the_report_is_written_tmp(self):
         # a pilot: unittest's repr of a path under the user's temp directory, its start cut.
@@ -92,7 +93,7 @@ class BreakTest(unittest.TestCase):
         said = f"AssertionError: {full!r} != '[27 chars]1\\\\AppData\\\\Local\\\\Temp\\\\tmp2ewplof6\\\\a.txt' in {full}"
         run = self.run_break("// ok", "// broken", command=[sys.executable, "-c",
                              f"import sys; t = open({self.file!r}).read(); sys.exit({said!r}) if 'broken' in t else None"])
-        line = run.stdout.strip()
+        line = run.stdout.strip().splitlines()[-1]
         self.assertNotIn(tempfile.gettempdir(), line)
         self.assertNotIn("tmp2ewplof6", line)
         self.assertEqual(line.count("<tmp>"), 3, line)
@@ -158,7 +159,7 @@ class BreakTest(unittest.TestCase):
         count = [sys.executable, "-c", f"import sys; n = open({self.file!r}).read().count('broken'); "
                  "print(n); sys.exit(0 if n else 1)"]
         run = self.run_break("// ok", "// broken", count, extra=("--expect-stdout", "^0$"))
-        self.assertEqual((run.returncode, run.stdout.strip()), (0, "broken: the guard removed → 1"))
+        self.assertEqual((run.returncode, run.stdout.strip().splitlines()[-1]), (0, "broken: the guard removed → 1"))
         by_exit = self.run_break("// ok", "// broken", count)
         self.assertEqual(by_exit.returncode, 2)  # by exit code, the unbroken check fails
         self.assertIn("fails without the break", by_exit.stderr)
@@ -202,6 +203,33 @@ class BreakTest(unittest.TestCase):
         head = script.argv_for(["../../mvnw", "clean"], os.path.join(self.dir, "services", "job-service"))[0]
         self.assertEqual(head, os.path.join(self.dir, "mvnw") + (".cmd" if os.name == "nt" else ""))
         self.assertEqual(script.argv_for(["python", "-V"], self.dir), ["python", "-V"])
+
+    def test_the_manifest_entry_comes_before_the_broken_line(self):
+        # the comparison's run A: no track PR kept break.py's arguments, and the close rebuilt 15.
+        command = [sys.executable, "-c", "import sys; t = open('Guard.java').read(); print(t.count('broken'))"]
+        run = subprocess.run([sys.executable, SCRIPT, "--file", "Guard.java", "--find", "// ok", "--replace",
+                              "// broken", "--what", "the guard removed", "--expect-stdout", "^0$", "--", *command],
+                             capture_output=True, text=True, encoding="utf-8", cwd=self.dir)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        manifest, broken = run.stdout.strip().splitlines()[-2:]
+        self.assertTrue(broken.startswith("broken: the guard removed → "), broken)
+        self.assertEqual(json.loads(manifest[len("manifest: "):]),
+                         {"what": "the guard removed", "file": "Guard.java", "find": "// ok", "replace": "// broken",
+                          "command": command, "expect_stdout": "^0$"})
+
+    def test_a_break_run_from_another_directory_says_why_it_has_no_manifest_entry(self):
+        run = self.run_break("// ok", "// broken", extra=("--cwd", self.dir))
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("manifest: none → ", run.stdout.strip().splitlines()[-2])
+
+    def test_a_break_inside_a_break_s_check_takes_its_own_lock(self):
+        # item 130: a break of break.py, or of what runs it, needed break.py run from a scratch copy.
+        inner = [sys.executable, SCRIPT, "--file", self.file, "--find", "// ok", "--replace", "// broken",
+                 "--what", "inner", "--", *check(self.file)]
+        run = self.run_break("// ok", "// broken", command=inner)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("broken: the guard removed → ", run.stdout)
+        self.assertEqual(self.contents(), self.original)
 
     def test_a_second_break_while_one_is_active_is_refused(self):
         with open(LOCK, "w") as f:

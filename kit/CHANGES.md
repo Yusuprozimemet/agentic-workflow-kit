@@ -2289,3 +2289,38 @@ if a reliable, small rule can be defined; use the explicit review step now.
   wrong reason; it now counts words.
 - `broken: evidence.py leaves expect_stdout out, as before → 1 failed` (run from a scratch copy
   of `break.py`: the test's `evidence.py` calls the kit's `break.py`, whose lock the outer run held)
+
+### 129. Ship the kit's flake8 exclusion, stop handing out `rm -rf`, and print each break's manifest entry
+
+- [#83](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/83) fixes the workflow
+  comparison's kit defects 3, 4 and 7 (`kit/comparison/results.md`).
+- **3. `scripts/` failed a whole-tree flake8** (2,852 problems, 2,796 of them line length; run
+  A's S1A excluded them). Making them pass would rewrite nearly every file, so the kit ships
+  `.flake8` with `extend-exclude = scripts`, and the README's style check setup says so, with the
+  same line for ruff (40 problems at its defaults). `scripts/test_lint_config.py` checks both.
+- **4. Claude Code refuses `rm -rf`.** CLAUDE.md has a pitfall bullet with what to do instead, and
+  the one place the kit gave the command, the Day 12 example's Verify block, now relies on
+  `clean`, which deletes the old reports.
+- **7. A track PR kept no break arguments,** so run A's close rebuilt 15 breaks from the merged
+  code. `break.py` now prints `manifest: {...}`, the entry for `specs/breaks/day-NN.json`
+  (`expect_stdout` included), above its `broken:` line, or `manifest: none` with the reason when
+  the replay could not run it as given. The PR template, CLAUDE.md and `specs/README.md` ask a
+  track PR to record it. The `broken:` line stays last: `evidence.py` reads the last line.
+- **Seen red, on `main`'s `break.py`:** the manifest tests found one output line where they
+  wanted two; on `main`'s tree with no `.flake8`, the lint tests reported
+  "'scripts' not found in ['']" and flake8's count.
+- `broken: break.py prints no manifest line → FAILED (errors=1)`
+- `broken: .flake8 leaves kit/ out instead of scripts/ → AssertionError: 'scripts' not found in ['kit']`
+
+### 130. Let a break's check run break.py
+
+- [#83](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/83). `break.py`'s lock is
+  `.break-active` at the root, so a break whose check runs `break.py` (a break of `break.py`, or
+  of `evidence.py`, as in item 128) was refused inside, and needed `break.py` run from a scratch
+  copy. A break now hands its check `BREAK_LOCK`, a lock path in a directory of its own; a second
+  break from another shell still meets the root lock and is refused.
+- **Seen red, on `main`'s `break.py`:** "another break is active".
+- `broken: break.py ignores the lock its parent names → AssertionError: 2 != 0 : break.py: the check fails without the break, so a failure with it proves nothing: break.py: another break is active (C:\Users\HackYourFuture\yusup\agentic-workflow-kit\.break-active); finish it, or delete the file`
+- A near miss: breaking the other side, a parent that hands its check an empty `BREAK_LOCK`,
+  passed: run under `break.py`, the test's own outer run takes the parent's lock, not the
+  root's, so the inner run finds the root free. The break above, on the side that reads it, fails.
