@@ -19,6 +19,8 @@
 | B | | CNN.2 |
 
 ## Acceptance criteria
+Tick each box in the closing PR once its evidence is in it; under a box left unticked, write
+`Not proven: <why>` (`specs/README.md`, "Evidence at the close").
 - [ ] CNN.1 **new** — <checkable by someone who did not write the code>. Red today: <how it
       fails on the code as it is, e.g. "the grep finds two">.
       Test: `ExampleTest.test_new_behavior`.

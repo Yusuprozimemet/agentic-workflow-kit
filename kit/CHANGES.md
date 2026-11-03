@@ -2324,3 +2324,89 @@ if a reliable, small rule can be defined; use the explicit review step now.
 - A near miss: breaking the other side, a parent that hands its check an empty `BREAK_LOCK`,
   passed: run under `break.py`, the test's own outer run takes the parent's lock, not the
   root's, so the inner run finds the root free. The break above, on the side that reads it, fails.
+
+### 131. Add the six-kits plan: what to adopt, fix and improve
+
+- [#84](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/84) adds
+  `kit/six-kits-plan.md`, the plan from comparing this kit with six others, after both of Fable
+  5.1's passes were checked against the code: five items to adopt now, three after the token
+  re-measure (around 2026-11-09), what was dropped and why, and the order of the PRs. Committed
+  so that each later PR's fresh session reads it instead of having it re-pasted. A first draft's
+  implementer stop hook could not work (`test_count` reads committed trees) and is listed under
+  Dropped.
+- `broken: none → docs only; no behaviour to break`
+
+### 132. Add the size-of-change ladder: area branch, short spec, day spec
+
+- [#85](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/85), plan item 1. A table in
+  `specs/README.md` ("Size of change", before "Short specs") with three rungs, what qualifies for
+  each and what each keeps: take the lowest rung that qualifies and say which in the PR. It names
+  the areas `pr-names.py` accepts, and a short spec records its defects as `Defect` lines
+  (`made: none`), so `specs/_short-template.md` gains a Notes section with one. `CLAUDE.md` points
+  at the table from "A day, in order"; `docs/architecture.md`'s "What kind of change?" diagram
+  gains the area-branch arm.
+- `broken: none → docs only, no check or code changed`
+
+### 133. Count replies per merged PR in `token-usage.py --compare`, with a second `--split` date
+
+- [#86](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/86), plan item 3.
+  `--compare --split DATE` splits the main sessions' replies at a second date beside `HOOKS_DAY`,
+  and each side prints its replies per merged pull request, the PRs merged on `main` from its
+  first reply's date to its last's. The re-measure keeps the ladder only if that number falls.
+  The PRs are read as `snapshots()` in `spec-drift.py` reads them (first-parent merges, and a
+  squash only when GitHub gives it as merged), in a 15-line `merges()` so the tests need neither
+  git nor gh. `--split` without `--compare` is refused.
+- **Seen red, on `main`'s code:** `python -m unittest test_token_usage` → FAILED (errors=4).
+- `broken: squashes counted whatever GitHub says of the PR → AssertionError: Lists differ: [(dat[34 chars]etime.date(2026, 11, 3), 86), (datetime.date(2026, 11, 4), 87)] != [(dat[34 chars]etime.date(2026, 11, 3), 86)]`
+
+### 134. Replay short specs at their `change/<slug>` merge
+
+- [#87](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/87), plan item 2.
+  `scripts/evidence.py` replays a short spec, `specs/changes/<slug>.md`, at the merge of
+  `change/<slug>` on `--ref` (or a squash commit that adds the spec), reading its `S-<slug>.N`
+  criteria and taking its breaks from `specs/breaks/<slug>.json`; until then it reported every
+  short spec as "not a day spec". `closing_spec()` recognises the same commits, so
+  `close-evidence.py` and `evidence.yml` replay a short spec after its merge. The ladder's
+  short-spec row drops "not replayed yet".
+- **Seen red, on `main`'s code:** `python -m unittest test_evidence.ShortSpecTest test_close_evidence` → FAILED (failures=3, errors=1).
+- `broken: the short spec's breaks read from specs/breaks/day-<slug>.json → 1 failed`
+
+### 135. Report unticked criteria as not proven, and what proved each, in `evidence.py`
+
+- [#88](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/88), plan item 4.
+  `evidence.py` reports every criterion, not only the ticked ones. An unticked one is a
+  `not proven` check that passes only when a `Not proven: <why>` line sits under it in the spec
+  at the closing commit (read with `git show <close>:<spec>`, so a line added later does not
+  count). Each ticked one gets a check naming what proved it: a test, a command, a break, or a
+  reader. A break alone now proves a criterion; one proved by nothing gets one failure, and
+  `broken: none → …` is not a break. Day specs and short specs both.
+- **Seen red, on `main`'s code:** `python -m unittest test_evidence` → FAILED (failures=7) of 38;
+  `main` skipped an unticked criterion and exited 0.
+- `broken: the Not proven: lines read from the working tree, not the closing commit → AssertionError: 'FAIL  C1.2 not proven → no Not proven: line under it at' not found in …` (the full line is in the PR)
+
+### 136. Give every spec-auditor finding one ending in the spec-change PR
+
+- [#89](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/89), plan item 5. Each
+  finding ends one way, one line each, in the spec-change PR: `fixed`, `known limit: <reason>`,
+  `maintainer action: <what>` or `rejected: <reason>`, jobmatch's four endings, unchanged, so the
+  two projects compare. A hand-off the auditor marks MISSING counts as a finding; a report with
+  none is `Auditor findings: none`. `.claude/agents/spec-auditor.md` gives each finding a
+  `One line:` for the PR to copy; the PR template gains a self-check line. Counting endings on
+  the dashboard waits for data.
+- `broken: none → docs only: no check reads the new lines, so there is nothing to break`
+
+### 137. Give Defect lines an ID and `same-as:`, and count recurrences in `spec-drift.py`
+
+- [#90](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/90), plan item 7, landed
+  before the re-measure the plan put it after (`kit/lessons/item-7-before-remeasure.md`). Each
+  day spec's Defect line takes an ID, `D<NN>.<n>`, and `same-as: <earlier ID>` when it repeats
+  one; a short spec's take none, since nothing reads them. `spec-drift.py`'s `defect_lines()`
+  reads them and `recurrence()` counts a line whose `same-as:` names an earlier line's ID; what
+  it cannot place goes to `problems`, never raises. The console prints the count, and the
+  dashboard's relabel panel gains a Repeats column; data without `defect_recurrence` draws as
+  before, so `kit/page/jobmatch-boxes.sha256` is unchanged. `relabel.py` reads a line with an ID
+  (on `main` its blind file dropped them) and strips `same-as:` with the tags.
+- **Seen red, on `main`'s code:** the DefectTest tests → "module 'spec_drift' has no attribute
+  'defect_lines'"; `test_relabel` → the blind file was empty.
+- `broken: relabel.py's FIELD without same-as → AssertionError: '### D44-1 (Day 44)\nthe grep matched comments again.\n\n' != '### D44-1 (Day 44)\nsame-as: D21.2 · the grep matched comments again.\n\n'`
+- `broken: spec-drift.py's recurrence() without the earlier-ID check → AssertionError: {'def[108 chars]1.1'}, {'id': 'D28.5', 'same_as': 'D30.1'}], '[183 chars]n>']} != {'def[108 chars]1.1'}], 'problems': ['D28.3: same-as: D21.9 na[196 chars]n>']}`
