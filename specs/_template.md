@@ -34,9 +34,10 @@
 
 ## Notes
 - <risks, gotchas, decisions deferred>
-- **Defect** — found: <auditor | spec-change PR | review | break on purpose | self | Track X |
+- **Defect** DNN.1 — found: <auditor | spec-change PR | review | break on purpose | self | Track X |
   close | dashboard | Day NN review> · cause: <spec | implementation | process | environment> ·
-  made: <Day NN | none> · <one problem: what was wrong, and the PR that fixed it>.
+  made: <Day NN | none> · [same-as: <the earlier Defect's ID, e.g. D21.2> ·] <one problem: what
+  was wrong, and the PR that fixed it>.
 - **Rewrite** — Track <X>: <what the main session rewrote in the implementer's code beyond
   review fixes, and why>.
 - **Hand-off** HNN.1 → Day <m> | the maintainer: <what this day leaves undone, and why>.

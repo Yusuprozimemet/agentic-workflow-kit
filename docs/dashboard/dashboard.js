@@ -993,10 +993,18 @@ function drawRelabel() {
   const cell = p => !p ? `<td class="r pre">–</td>`
     : `<td class="r"><span class="meter"><i style="width:${p[0] / p[1] * 100}%"></i></span>${p[0]} of ${p[1]}</td>`;
   const tot = F.map(f => days.reduce((a, d) => d.relabel && d.relabel[f] ? [a[0] + d.relabel[f][0], a[1] + d.relabel[f][1]] : a, [0, 0]));
-  document.getElementById("relabel").innerHTML = `<thead><tr><th>Day</th>${F.map(f => `<th class="r">${f[0].toUpperCase() + f.slice(1)}</th>`).join("")}<th>Title</th></tr></thead><tbody>` +
+  // Defect lines whose same-as: names an earlier defect (scripts/spec-drift.py, recurrence()); older data has
+  // none, and draws as it did.
+  const R = DATA.defect_recurrence, rep = ns => !R ? ""
+    : `<td class="r">${R.recurrences.filter(r => ns.includes(+r.id.slice(1).split(".")[0])).length}</td>`;
+  document.getElementById("relabel").innerHTML = `<thead><tr><th>Day</th>${F.map(f => `<th class="r">${f[0].toUpperCase() + f.slice(1)}</th>`).join("")}${R ? '<th class="r">Repeats</th>' : ""}<th>Title</th></tr></thead><tbody>` +
     days.map(d => `<tr><td class="num">${dd(d.day)}</td>${d.relabel ? F.map(f => cell(d.relabel[f])).join("")
-      : `<td class="r pre" colspan="3">not counted: the Notes give no counts</td>`}<td class="t">${md(d.title)}</td></tr>`).join("") +
-    `<tr><td><b>All counted</b></td>${tot.map(p => cell(p[1] ? p : null)).join("")}<td></td></tr></tbody>`;
+      : `<td class="r pre" colspan="3">not counted: the Notes give no counts</td>`}${rep([d.day])}<td class="t">${md(d.title)}</td></tr>`).join("") +
+    `<tr><td><b>All counted</b></td>${tot.map(p => cell(p[1] ? p : null)).join("")}${rep(days.map(d => d.day))}<td></td></tr></tbody>`;
+  if (R) document.getElementById("recurrence").innerHTML =
+    `${R.recurrences.length} of ${R.with_id} Defect lines with an ID ${R.recurrences.length === 1 ? "repeats" : "repeat"} an earlier defect` +
+    (R.recurrences.length ? ": " + R.recurrences.map(r => `<code>${esc(r.id)}</code> (same as <code>${esc(r.same_as)}</code>)`).join(", ") : "") + "." +
+    (R.problems.length ? ` Not counted: ${R.problems.map(esc).join("; ")}.` : "");
 }
 
 // The infra workflow's last summary on main (scripts/infra-summary.py), and each of its runs on main.

@@ -333,6 +333,67 @@ def relabel(text):
     return None
 
 
+# A Defect line (specs/README.md): "- **Defect** D28.1 — found: … · same-as: D21.2 · <text>". The
+# ID and same-as: are optional; same-as: is one of the fields before the text, as relabel.py reads them.
+DEFECT_LINE = re.compile(r"^- \*\*Defect\*\*(?:[ \t]+(\S+))?\s*[—-]\s*(.*)$")
+DEFECT_FIELD = re.compile(r"^(found|cause|made|same-as):\s*(.*)$")
+DEFECT_ID = re.compile(r"D(\d+)\.(\d+)")
+
+
+def defect_lines(text, day):
+    """Each Defect line in a spec: its ID and the ID its same-as: names, as written (None if absent),
+    and a problem when its own ID is not one of this day's."""
+    lines, out = text.splitlines(), []
+    for i, line in enumerate(lines):
+        m = DEFECT_LINE.match(line)
+        if not m:
+            continue
+        rest = [m.group(2)]
+        for more in lines[i + 1:]:
+            if not more.startswith("  ") or not more.strip():
+                break
+            rest.append(more.strip())
+        fields = {}
+        for part in (p.strip() for p in " ".join(rest).split(" · ")):
+            f = DEFECT_FIELD.match(part)
+            if not f or f.group(1) in fields:
+                break
+            fields[f.group(1)] = f.group(2)
+        ok = DEFECT_ID.fullmatch(m.group(1) or "")
+        out.append(dict(id=m.group(1), same_as=fields.get("same-as"),
+                        problem=None if m.group(1) is None or ok and int(ok.group(1)) == day
+                        else f"Day {day}: Defect ID {m.group(1)} is not D{day}.<n>"))
+    return out
+
+
+def recurrence(days):
+    """How many Defect lines repeat an earlier defect: a same-as: naming the ID of a Defect line from
+    before it. A malformed, unknown, duplicate or later ID is a problem, reported, never counted."""
+    key = lambda i: tuple(map(int, DEFECT_ID.fullmatch(i).groups()))
+    lines = [(d["day"], x) for d in sorted(days, key=lambda d: d["day"]) for x in d.get("defects", [])]
+    known = {x["id"] for _, x in lines if x["id"] and not x["problem"]}
+    found, problems, seen = [], [], set()
+    for day, x in lines:
+        if x["problem"] or not x["id"]:
+            if x["problem"] or x["same_as"]:
+                problems.append(x["problem"] or f"Day {day}: a Defect line with same-as: {x['same_as']} has no ID")
+            continue
+        if x["id"] in seen:
+            problems.append(f"Day {day}: Defect ID {x['id']} is used twice")
+            continue
+        seen.add(x["id"])
+        if not x["same_as"]:
+            continue
+        why = ("is not an ID like D21.2" if not DEFECT_ID.fullmatch(x["same_as"])
+               else "names no Defect line" if x["same_as"] not in known
+               else "is not an earlier defect" if key(x["same_as"]) >= key(x["id"]) else None)
+        if why:
+            problems.append(f"{x['id']}: same-as: {x['same_as']} {why}")
+        else:
+            found.append(dict(id=x["id"], same_as=x["same_as"]))
+    return dict(defects=len(lines), with_id=len(known), recurrences=found, problems=problems)
+
+
 def break_state(body, number):
     """What a PR description says about breaking the code on purpose: "recorded", "none" (only
     `broken: none → <why>`), "silent", or "not measured" for a PR from before the line."""
@@ -943,7 +1004,8 @@ def roadmap(snaps, prs, blobs):
                          worked=[worked[0], worked[-1]] if worked else None,
                          evidence_format=in_evidence_format(ev),
                          break_format=any(p["number"] >= BREAK_LINE_FROM_PR for p in mine),
-                         evidence=ev, removal_checks=removal_checks(text), relabel=relabel(text)))
+                         evidence=ev, removal_checks=removal_checks(text), relabel=relabel(text),
+                         defects=defect_lines(text, d)))
         days[-1]["broken_at_close"] = broken_at_close(days[-1])
     order, stop = run_order(blobs.read(head, "plan.md"), [d["day"] for d in days])
     return evidence(settle(days, order), snaps, blobs), order, stop
@@ -1559,6 +1621,7 @@ def main():
                     out_of_order=out_of_order(order),
                     removals=removal_history(days, snaps, blobs),
                     hand_offs=handoffs, criteria_index=index, attention=attention,
+                    defect_recurrence=recurrence(days),
                     other_groups=other_groups(rows),
                     vocab_size=vocab, tokens=token_usage(),
                     verification=verification(prs, runs),
@@ -1580,6 +1643,10 @@ def main():
         save_cache(args.cache)
     print(f"{target}: {len(rows)} snapshots, {len(days)} days, next: {now['next_step']}" + (f" ({note})" if note else "")
           + (" (example data: no day specs yet)" if payload.get("demo") else ""))
+    rec = real["defect_recurrence"]
+    print(f"defects: {len(rec['recurrences'])} of {rec['with_id']} with an ID repeat an earlier one")
+    for p in rec["problems"]:
+        print(f"defect ID not counted: {p}")
 
 
 if __name__ == "__main__":
