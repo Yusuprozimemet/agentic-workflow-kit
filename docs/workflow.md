@@ -50,6 +50,17 @@ flowchart TD
     X["Stop and ask, do not patch:<br/>a frozen test needs an edit,<br/>anything applied needs an edit,<br/>a criterion cannot be met as written"] --> R(["record the departure;<br/>never deviate silently"])
 ```
 
+## How big a change
+
+Not every change is a day. Take the lowest rung that qualifies, and say which in the PR
+([`specs/README.md`](../specs/README.md#size-of-change) has the full table).
+
+| Rung | Branch | Qualifies | Keeps |
+|---|---|---|---|
+| area branch | `<area>/<slug>` | no product behaviour changes: kit tooling, docs, dashboard, CI, plan | the branch and title rules, the diff limit, a seen-red test and a `broken:` line when the PR has a check |
+| short spec | `change/<slug>` | one product behaviour, one PR, no contract test, frozen file or `Replaces:` | `S-<slug>.N` criteria, seen red, breaks, `Defect` lines, the behaviour index, the replay |
+| day spec | `day-NN/...` | plan work, and anything the rows above exclude | the auditors, tracks, the close, the blind relabel, the replay |
+
 ## What triggers what
 
 ```mermaid
