@@ -11,6 +11,20 @@ Spec-driven development. **No code without a spec. No spec without checkable acc
 4. Copy the acceptance criteria into the PR description and tick them.
 5. The day is done when every box is ticked and **Verify** passes on `main`.
 
+## Size of change
+
+Take the lowest rung that qualifies, and say which in the PR.
+
+| Rung | Branch | Qualifies | Keeps |
+|---|---|---|---|
+| area branch | `<area>/<slug>` | no product behaviour changes: kit tooling, docs, dashboard, CI, plan | the branch and title rules, the diff limit, a seen-red test and a `broken:` line when the PR has a check |
+| short spec | `change/<slug>` | one product behaviour, one PR, no contract test, frozen file or `Replaces:` | `S-<slug>.N` criteria tagged `new` or `hold`, seen red, breaks, `Defect` lines in its Notes, the behaviour index; not replayed yet |
+| day spec | `day-NN/...` | plan work, and anything the rows above exclude | the auditors, tracks, the close, the blind relabel, the replay |
+
+The areas are those `scripts/pr-names.py` accepts (`workflow`, `tooling`, `dashboard`, `docs`,
+`specs`, `plan`, `ci`), plus any the project file lists. A docs-only area PR with no check
+records `broken: none`.
+
 ## Short specs
 
 For one small behaviour change outside the days that fits one PR and touches no contract test
@@ -28,6 +42,8 @@ be broken on purpose as in the day rules below.
 Before opening the PR, read the saved spec as UTF-8 and inspect its punctuation, including
 any `?` where a dash or arrow was intended.
 Tick each criterion in the same PR once its seen-red or broken evidence is in the PR body.
+Record each defect found along the way in the spec's Notes, one `Defect` line each, as the day
+rules below say; `made:` is `none`, since the work is outside any day.
 Ticked short-spec criteria join the behaviour index; a later day replaces one with
 `Replaces: S-<slug>.N`.
 

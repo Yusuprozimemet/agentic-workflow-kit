@@ -17,3 +17,9 @@ Tick each box in this PR once its evidence is in the PR body.
 ```bash
 <command anyone can run>
 ```
+
+## Notes
+- <risks, gotchas, decisions deferred>
+- **Defect** — found: <auditor | review | break on purpose | self | close | dashboard |
+  Day NN review> · cause: <spec | implementation | process | environment> · made: none ·
+  <one problem: what was wrong, and the PR that fixed it>.

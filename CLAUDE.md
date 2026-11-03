@@ -21,6 +21,9 @@ maintainer, and nothing starts after a phase ends until they say so.
 
 ## A day, in order
 
+Not every change is a day: take the lowest rung of the [size-of-change ladder](specs/README.md#size-of-change)
+that qualifies (area branch, short spec, day spec) and say which in the PR.
+
 1. **Audit before writing anything.** On the first day of a phase, run the **plan-auditor**
    agent on the phase first: do the specs still add up to what `plan.md` wants from it, and
    does the code still match their premises? Then, every day, run the **spec-auditor** agent on
