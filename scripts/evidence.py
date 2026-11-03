@@ -20,10 +20,11 @@ For each spec, at the merge commit of its day's close (`day-NN/close-the-day`) o
 
 The breaks file is a list of {"what", "file", "find", "replace", "command"}, "what" being the text
 of the `broken:` line before its last arrow, "file" a path from the repository root, and "command"
-an argument list run from that root, `bash` meaning Git's bash on Windows. Two keys are optional:
-"passes": true for a near miss that passes by design, which break.py does not record (it exits 1),
-and "at": a commit to run the break at instead of the close, when the close no longer has what the
-break edits.
+an argument list run from that root, `bash` meaning Git's bash on Windows. Three keys are optional:
+"passes": true for a near miss that passes by design, which break.py does not record (it exits 1);
+"at": a commit to run the break at instead of the close, when the close no longer has what the
+break edits; and "expect_stdout": the regex break.py's --expect-stdout took, for a check judged by
+what it prints (`grep -c`), without which such a check replays as passing with the break in.
 
 Missing evidence is a check that fails, not one that is skipped: a ticked criterion that names no
 test and no command, a hold criterion with no `broken:` line, a spec with no Verify block or no
@@ -227,9 +228,10 @@ def run_break(entry, worktree, env):
     command = entry["command"]
     if command[0] == "bash":
         command = [bash(), *command[1:]]
+    expect = ["--expect-stdout", entry["expect_stdout"]] if "expect_stdout" in entry else []
     run = subprocess.run([sys.executable, BREAK, "--file", os.path.join(worktree, entry["file"]),
                           "--find", entry["find"], "--replace", entry["replace"], "--what", entry["what"],
-                          "--cwd", worktree, "--", *command],
+                          "--cwd", worktree, *expect, "--", *command],
                          capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     lines = (run.stdout + run.stderr).strip().splitlines()
     if entry.get("passes"):

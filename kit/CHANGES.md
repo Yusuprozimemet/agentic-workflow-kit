@@ -2258,3 +2258,34 @@ if a reliable, small rule can be defined; use the explicit review step now.
   - `broken: seen-red.py copies in tests/ only, so track-red.py runs the base's tests.py → AssertionError: 1 != 0 : FAIL: C1.1: tests.T.test_double_a_string reports FAILED (errors=1) on 32f1d08: a test module did not load`
   - `broken: every error is an error again, as before → AssertionError: 1 != 0 : FAIL: C1.1: tests.test_more.M.test_triple reports FAILED (errors=1) on afa1b9e: a test module did not load`
   - `broken: NOT_LOADED never matches, so a module that did not load counts as red → AssertionError: 0 != 1`
+
+### 127. Install what a replayed check needs before the Evidence replay runs it
+
+- [#82](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/82) changed `.github/workflows/evidence.yml`
+  and the setup in `README.md`. This is [the comparison's](comparison/results.md#kit-defects-found-by-run-a)
+  defect 5. The workflow installed nothing, so a replayed check or break that needs a project
+  dependency errored: in run A, Sphinx for C01.12's breaks. A fixed it in its own repository by
+  installing its docs requirements (its PR #8). The kit now has a step "Install what the
+  replayed checks need" before the replay, marked `PROJECT:`, so `git grep -n "PROJECT:"` lists
+  it. By default it installs `requirements.txt` when there is one; README's setup step 3 says to
+  put there what the project's own test workflow installs.
+- A new `scripts/test_evidence_workflow.py` runs the step's own text in bash, in a scratch
+  directory, with a stand-in `python` that records its arguments: it installs a
+  `requirements.txt`, installs nothing without one, and comes before the replay. On `main` all
+  three failed: "no step named 'Install what the replayed checks need' in evidence.yml".
+- `broken: the install step looks for another file → AssertionError: Lists differ: [] != ['-m pip install -r requirements.txt']`
+
+### 128. Replay a check judged by what it prints with the regex its break used
+
+- [#82](https://github.com/Yusuprozimemet/agentic-workflow-kit/pull/82) changed `scripts/evidence.py`,
+  its test and the manifest format in `specs/README.md`. This is the comparison's defect 6.
+  `break.py --expect-stdout` sees a break in a check that prints a count and exits 0 (`grep -c`),
+  but the manifest had no field for it, so `evidence.py` replayed such a check by its exit code
+  and it passed with the break in (A's H01.2). An entry may now hold `expect_stdout`, which
+  `evidence.py` passes to `break.py` as `--expect-stdout`; an entry without it runs as before.
+- **Seen red, on `main`'s `evidence.py`:** the new test's entry with `expect_stdout` reported
+  "The check passed with the break in: it cannot see this break." The test's first version
+  counted `ok` in "broken", which holds it, so the count never changed and it was red for the
+  wrong reason; it now counts words.
+- `broken: evidence.py leaves expect_stdout out, as before → 1 failed` (run from a scratch copy
+  of `break.py`: the test's `evidence.py` calls the kit's `break.py`, whose lock the outer run held)
