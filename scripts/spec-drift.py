@@ -263,7 +263,7 @@ def code_like(tok):
 WORK_KINDS = ("spec", "context", "prod", "test", "tooling")
 PLACES = ("prod", "test", "tooling", "other")  # where a code name was found: a work kind, or other for the rest
 NOT_WRITTEN = re.compile(r"(^|/)package-lock\.json$|^docs/dashboard/token-usage\.json$|^docs/dashboard/deployment\.json$|^screenshots/")
-TEST_PATH = re.compile(r"(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$|(Test|Tests|IT)\.java$"
+TEST_PATH = re.compile(r"(^|/)tests?/|(^|/)(tests?|test_[^/]*|[^/]*_test|conftest)\.py$|(Test|Tests|IT)\.java$"
                        r"|\.(test|spec)\.[jt]sx?$")
 
 

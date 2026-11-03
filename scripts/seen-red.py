@@ -4,8 +4,8 @@
 
 A `new` check must fail on the code before the change (specs/README.md). This makes that run
 mechanical: it checks the base out into a scratch git worktree, copies in every file under tests/
-that differs from the base in the working tree (committed or not, untracked included), and runs the
-command there, as an argument list with no shell. Nothing in the working tree is touched.
+(or a tests.py at the root) that differs from the base in the working tree (committed or not,
+untracked included), and runs the command there, as an argument list with no shell. Nothing in the working tree is touched.
 
 It exits 0 only when the command failed there, and prints the record for the PR:
 `seen red: <command> on <base> → <what it reported>`. A command that passes on the base exits 1:
@@ -27,7 +27,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 _spec = importlib.util.spec_from_file_location("break_", os.path.join(HERE, "break.py"))
 break_ = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(break_)
-TESTS = "tests"
+TESTS = ("tests", "tests.py")  # tests/, or one tests.py at the root as in python-json-pointer
 
 
 def git(*args, cwd="."):
@@ -36,9 +36,9 @@ def git(*args, cwd="."):
 
 
 def changed_tests(base):
-    """The files under tests/ that differ from base in the working tree, deletions left out."""
-    tracked = git("diff", "--name-only", "--diff-filter=d", base, "--", TESTS).split()
-    untracked = git("ls-files", "--others", "--exclude-standard", "--", TESTS).split()
+    """The test files that differ from base in the working tree, deletions left out."""
+    tracked = git("diff", "--name-only", "--diff-filter=d", base, "--", *TESTS).split()
+    untracked = git("ls-files", "--others", "--exclude-standard", "--", *TESTS).split()
     return sorted(set(tracked + untracked))
 
 
@@ -79,7 +79,7 @@ def main(args=None):
     except subprocess.CalledProcessError as e:
         return refuse(f"cannot compare with {a.base}: {e.stderr.strip()}")
     if not files:
-        return refuse(f"no file under {TESTS}/ differs from {a.base}: there is no new test to see red")
+        return refuse(f"no file under tests/ and no tests.py differs from {a.base}: there is no new test to see red")
     try:
         [run] = on_base(a.base, [a.command], files)
     except FileNotFoundError as e:

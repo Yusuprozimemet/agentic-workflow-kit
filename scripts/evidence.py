@@ -5,7 +5,7 @@
 For each spec, at the merge commit of its day's close (`day-NN/close-the-day`) on --ref:
 
 - every test a ticked criterion names (`CliTest.test_name`) is defined there, in a class of that
-  name under tests/;
+  name under tests/ or in a tests.py at the root;
 - every line of the Verify block runs, with bash, in a scratch worktree at that commit, and gives
   what its comment says. A comment is a list split at ", ", a trailing "(...)" dropped: "nothing"
   wants no output, "exit N" that exit status, and anything else a line of output that is it or
@@ -141,7 +141,8 @@ def verify_lines(text):
 
 
 def test_exists(commit, cls, name):
-    hits = git("grep", "-l", "-E", rf"^class {cls}\b", commit, "--", "tests", check=False).split()
+    # tests/ as in most projects, or one tests.py at the root as in python-json-pointer
+    hits = git("grep", "-l", "-E", rf"^class {cls}\b", commit, "--", "tests", "tests.py", check=False).split()
     for hit in hits:  # <commit>:<path>
         if re.search(rf"^\s+def {name}\(", git("show", hit), re.M):
             return True

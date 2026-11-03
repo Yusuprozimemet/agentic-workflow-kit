@@ -1,5 +1,5 @@
-"""scripts/track-red.py passes a track only when each test its `new` criteria name fails on the base
-by assertion and passes on the head. The parsing tests read spec text; the rest commit a module, a
+"""scripts/track-red.py passes a track only when each test its `new` criteria name fails on the base,
+its module loaded, and passes on the head. The parsing tests read spec text; the rest commit a module, a
 test and a day spec to a scratch main, change them in the working tree, and run the script there.
 
     python scripts/test_track_red.py
@@ -133,12 +133,15 @@ class TrackRedTest(unittest.TestCase):
         with open(os.path.join(self.dir, path), "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
 
-    def track_red(self, text=None, branch="day-01/track-a-double", fix="return x * 2", runner=None):
-        """Commit main with the spec, put the track's fix in the working tree, and run the check."""
+    def track_red(self, text=None, branch="day-01/track-a-double", fix="return x * 2", runner=None, tests=None):
+        """Commit main with the spec, put the track's fix (and tests: path to text) in the working
+        tree, and run the check."""
         self.write("specs/day-01-double.md", text or spec())
         self.git("add", ".")
         self.git("commit", "-q", "-m", "base")
         self.write("app.py", f"def double(x):\n    {fix}\n")
+        for path, test in (tests or {}).items():
+            self.write(path, test)
         extra = [] if runner is None else ["--runner", runner]
         run = subprocess.run([sys.executable, SCRIPT, "--branch", branch, *extra], cwd=self.dir,
                              capture_output=True, text=True, encoding="utf-8")
@@ -250,7 +253,24 @@ class TrackRedTest(unittest.TestCase):
                                          "    def test_triple(self):\n        self.assertEqual(triple(1), 3)\n")
         code, out = self.track_red(spec(test="`M.test_triple`"), fix="return x * 2\n\ndef triple(x):\n    return x * 3")
         self.assertEqual(code, 1)
-        self.assertRegex(out, r"reports FAILED \(errors=1\) on \w+: an error, not an assertion")
+        self.assertRegex(out, r"reports FAILED \(errors=1\) on \w+: a test module did not load")
+
+    def test_a_test_that_raises_for_a_name_the_change_adds_is_red(self):
+        # The module loads on the base; the test raises AttributeError there, as python-json-pointer's did.
+        self.write("tests/test_more.py", "import unittest\nimport app\n\nclass M(unittest.TestCase):\n"
+                                         "    def test_triple(self):\n        self.assertEqual(app.triple(1), 3)\n")
+        code, out = self.track_red(spec(test="`M.test_triple`"), fix="return x * 2\n\ndef triple(x):\n    return x * 3")
+        self.assertEqual(code, 0, out)
+        self.assertRegex(out, r"seen red: tests\.test_more\.M\.test_triple \(C1\.1\) on \w+ → FAILED \(errors=1\)")
+
+    def test_a_new_test_in_a_root_tests_py_is_run_on_the_base(self):
+        # python-json-pointer keeps its tests in one tests.py at the root, not under tests/; the
+        # new test is only in the working tree, as on a track's branch.
+        shutil.rmtree(os.path.join(self.dir, "tests"))
+        self.write("tests.py", TEST.split("\n    def test_double_a_string")[0] + "\n")
+        code, out = self.track_red(tests={"tests.py": TEST})
+        self.assertEqual(code, 0, out)
+        self.assertRegex(out, r"seen red: tests\.T\.test_double_a_string \(C1\.1\) on \w+ → FAILED \(failures=1\)")
 
     def test_a_test_that_fails_on_the_head_fails(self):
         code, out = self.track_red(fix="return x")
