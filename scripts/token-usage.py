@@ -11,6 +11,7 @@ committed; the closing PR of each day refreshes it.
     python scripts/token-usage.py --tools      # Bash results cap-output cut; Reads of files over 8,000 bytes
     python scripts/token-usage.py --tools --since 2026-11-01   # only the sessions that started since then
     python scripts/token-usage.py --compare    # main sessions' context per reply before and after the hooks landed
+    python scripts/token-usage.py --compare --split 2026-11-03   # a second split; each side's replies per merged PR
 
 A reply is counted once, from its last line: a transcript repeats a reply's usage on every content
 block it streamed, and the usage is complete only on the last of those lines, so replies are keyed
@@ -27,6 +28,8 @@ import json
 import os
 import re
 import statistics
+import subprocess
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.normpath(os.path.join(HERE, os.pardir, "docs", "dashboard", "token-usage.json"))
@@ -213,21 +216,24 @@ def contexts(path):
 
 
 def side():
-    return dict(contexts=[], days=set(), read=0, past=0, cost=0.0)
+    # prs stays None until per_pr() counts the side's merged pull requests.
+    return dict(contexts=[], days=set(), read=0, past=0, cost=0.0, prs=None)
 
 
-def compare(files):
-    # The main sessions' replies split at HOOKS_DAY by their local date. Per side: each reply's context, the
+def compare(files, splits=(HOOKS_DAY,)):
+    # The main sessions' replies split by their local date at one or two sorted dates (HOOKS_DAY, and --split):
+    # before the first, between them, from the last on. Per side: each reply's context, the
     # days it covers, its cost at list prices, and the context read after a session had passed the largest
     # CUTS size: a reply whose session had an earlier reply over it. A reply's cost is cost(), as in count().
-    sides = {"before": side(), "after": side()}
+    names = ("before", "between", "after") if len(splits) == 2 else ("before", "after")
+    sides = {name: side() for name in names}
     for path in files:
         passed = False
         for context, _, model, usage, when in contexts(path):
             if not when:
                 continue
             day = datetime.datetime.fromisoformat(when.replace("Z", "+00:00")).astimezone().date()
-            s = sides["after" if day >= HOOKS_DAY else "before"]
+            s = sides[names[sum(day >= d for d in splits)]]
             s["contexts"].append(context)
             s["days"].add(day)
             s["read"] += context
@@ -235,6 +241,49 @@ def compare(files):
             s["cost"] += cost(model, usage)
             passed = passed or context > CUTS[-1]
     return sides
+
+
+def merges(log, merged):
+    # The pull requests merged on main, read as spec-drift.py's snapshots() reads them. log is main's
+    # first-parent history, one "date|parents|subject" line per commit: a merge commit names its pull
+    # request; a single-parent commit whose subject ends "(#N)" is a squash only when N is in merged, the
+    # numbers GitHub gives as MERGED. Returns (date, number) pairs.
+    out = []
+    for line in log:
+        date, parents, subject = line.split("|", 2)
+        m = re.match(r"Merge pull request #(\d+)", subject)
+        if not m and len(parents.split()) == 1:
+            m = re.search(r" \(#(\d+)\)$", subject)
+            m = m if m and int(m.group(1)) in merged else None
+        if m:
+            out.append((datetime.date.fromisoformat(date), int(m.group(1))))
+    return out
+
+
+def merged_prs():
+    # merges() on this repository: main's history from git, with each commit's local date as the replies
+    # have theirs, and the merged numbers from gh. Without gh, squashes are not counted, and it says so.
+    root = os.path.join(HERE, os.pardir)
+    log = subprocess.run(["git", "-C", root, "log", "--first-parent", "main", "--format=%ad|%P|%s",
+                          "--date=format-local:%Y-%m-%d"], capture_output=True, text=True, encoding="utf-8",
+                         check=True).stdout.splitlines()
+    try:
+        gh = subprocess.run(["gh", "pr", "list", "--state", "merged", "--json", "number", "--limit", "1000"],
+                            cwd=root, capture_output=True, text=True, encoding="utf-8", check=True)
+        merged = {p["number"] for p in json.loads(gh.stdout)}
+    except (OSError, subprocess.CalledProcessError, ValueError) as e:
+        print(f"gh pr list failed, so squash merges are not counted: {e}", file=sys.stderr)
+        merged = set()
+    if len(merged) >= 1000:
+        sys.exit("gh pr list returned its limit of 1000 merged pull requests: some are missing, raise it")
+    return merges(log, merged)
+
+
+def per_pr(sides, merged):
+    # Each side's merged pull requests: those merged on main from the date of its first reply to its last's.
+    for s in sides.values():
+        if s["days"]:
+            s["prs"] = sum(min(s["days"]) <= day <= max(s["days"]) for day, _ in merged)
 
 
 def simulate(files):
@@ -450,16 +499,22 @@ def report(s):
           " each restart costs one reply writing its starting context; a capped result may be read again")
 
 
-def report_compare(sides):
+def report_compare(sides, splits=(HOOKS_DAY,)):
+    labels = {"before": f"before {splits[0]}", "between": f"from {splits[0]}, before {splits[-1]}", "after": f"after {splits[-1]}"}
     for name, s in sides.items():
         n = len(s["contexts"])
         if not n:
-            print(f"{name} {HOOKS_DAY}: no replies")
+            print(f"{labels[name]}: no replies")
             continue
-        print(f"{name} {HOOKS_DAY}: {n:,} replies on {len(s['days'])} days, median {statistics.median(s['contexts']):,.0f}"
+        prs = ""
+        if s["prs"] is not None:
+            window = f"merged on main from {min(s['days'])} to {max(s['days'])}"
+            prs = (f"; {s['prs']} pull requests {window}, {n / s['prs']:,.1f} replies per merged pull request" if s["prs"]
+                   else f"; no pull request {window}")
+        print(f"{labels[name]}: {n:,} replies on {len(s['days'])} days, median {statistics.median(s['contexts']):,.0f}"
               f" and mean {statistics.mean(s['contexts']):,.0f} context tokens per reply;"
               f" {s['past'] / max(s['read'], 1):.1%} of its context read after a session passed {CUTS[-1] // 1000}k;"
-              f" ${s['cost']:,.2f} at the list prices checked {PRICES_CHECKED} (${s['cost'] / n:,.4f} per reply)")
+              f" ${s['cost']:,.2f} at the list prices checked {PRICES_CHECKED} (${s['cost'] / n:,.4f} per reply){prs}")
 
 
 def report_route(s):
@@ -484,14 +539,22 @@ def main():
     ap.add_argument("--tools", action="store_true",
                     help="print the Bash results cap-output cut and the Reads of a file over 8,000 bytes; write nothing")
     ap.add_argument("--compare", action="store_true",
-                    help=f"print the main sessions' context per reply before and after {HOOKS_DAY}; write nothing")
+                    help=f"print the main sessions' context per reply before and after {HOOKS_DAY}"
+                         " and replies per merged pull request; write nothing")
+    ap.add_argument("--split", type=datetime.date.fromisoformat, metavar="DATE",
+                    help="with --compare: a second date to split the replies at, such as the day a change landed")
     ap.add_argument("--since", type=moment, metavar="DATE",
                     help="with --simulate or --tools: count only the sessions started at or after this date or time")
     args = ap.parse_args()
     if args.since and not (args.simulate or args.tools):
         ap.error("--since needs --simulate or --tools: token-usage.json is never written for part of the transcripts")
+    if args.split and not args.compare:
+        ap.error("--split needs --compare")
     if args.compare:
-        report_compare(compare([p for p in transcripts(args.transcripts) if agent(p) == "main"]))
+        splits = tuple(sorted({HOOKS_DAY, args.split or HOOKS_DAY}))
+        sides = compare([p for p in transcripts(args.transcripts) if agent(p) == "main"], splits)
+        per_pr(sides, merged_prs())
+        report_compare(sides, splits)
         return
     if args.tools:
         report_tools(tools(transcripts(args.transcripts), args.since))
