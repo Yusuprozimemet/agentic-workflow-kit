@@ -2193,3 +2193,28 @@ if a reliable, small rule can be defined; use the explicit review step now.
 - **Breaks on purpose:**
   - `seen red: CompareTest.test_context_read_after_a_session_passed_300k_is_the_share_past_it, run on the 100k threshold, reported AssertionError: 750000 != 400000`
   - `broken: the 300k line moved to 100k → AssertionError: 750000 != 400000`
+
+### 124. Write the protocol for a one-task workflow comparison
+
+- **Item 91's cheaper route, written down before either run:**
+  [the protocol](comparison/protocol.md). It covers one unseen task, run once with the kit (A) and
+  once with a minimal `CLAUDE.md` (B), B first. Nothing has been run.
+- **The task:** Relative JSON Pointer support in `stefankoegl/python-json-pointer`, from
+  `7c78531`, with the statement fixed word for word. It comes from none of jobmatch, wordtally or
+  the replay set.
+- **Hidden acceptance tests:** 44 methods and a reference implementation, held outside every
+  repository and pinned by sha256. Pass, partial and fail are defined.
+- **Fixed in advance:**
+  - both runs on `claude-opus-5-5`, with A's implementer on `claude-haiku-5-5`, a named
+    confound;
+  - private GitHub repositories, by the maintainer's choice;
+  - a cap of 48 million tokens with cache reads or 4.7 million without, 8 times item 90's
+    baseline, and 6 hours of agent time;
+  - the assistance rule and what gets recorded;
+  - what result would justify the three-task comparison.
+- **Not yet checked:** this session was not allowed to run the upstream code. Before run B, the
+  maintainer checks that the hidden tests all fail at the starting commit and all pass with the
+  reference appended.
+- **No code or tests changed,** so there was nothing to break on purpose.
+- **Still deferred:** both runs, the three-task comparison, keep-or-simplify, comparing another
+  model, and everything item 90 left deferred.
