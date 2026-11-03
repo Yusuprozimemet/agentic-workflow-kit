@@ -23,11 +23,13 @@ CHECK = [sys.executable, "-c",
 BREAK = {"what": "the ok removed", "file": "app.txt", "find": "ok", "replace": "broken", "command": CHECK}
 
 
-def spec(test="CliTest.test_a", verify="echo 0    # 0", report="AssertionError: broken (#2)"):
+UNTICKED = "- [ ] C1.2 **new** — not ticked: `CliTest.test_never` is not checked.\n"
+
+
+def spec(test="CliTest.test_a", verify="echo 0    # 0", report="AssertionError: broken (#2)", more=""):
     return (f"# Day 01\n\n## Acceptance criteria\n"
             f"- [x] C1.1 **new** — Test: `{test}`.\n"
-            f"      broken: the ok removed → {report}\n"
-            f"- [ ] C1.2 **new** — not ticked: `CliTest.test_never` is not checked.\n\n"
+            f"      broken: the ok removed → {report}\n{more}\n"
             f"## Verify\n```bash\n{verify}\n```\n")
 
 
@@ -81,12 +83,39 @@ class EvidenceTest(unittest.TestCase):
     def failures(self, run):
         return [l for l in run.stdout.splitlines() if l.startswith("FAIL")]
 
-    def test_evidence_that_holds_passes_and_an_unticked_criterion_is_not_checked(self):
+    def close_with(self, text):
+        """A second close of the day, which merges the spec as written."""
+        self.git("switch", "-q", "-c", "day-01/close-the-day-2")
+        self.write("specs/day-01-x.md", text)
+        self.git("add", "specs/day-01-x.md")
+        self.git("commit", "-q", "-m", "spec")
+        self.git("switch", "-q", "main")
+        self.git("merge", "-q", "--no-ff", "-m", "Merge pull request #4 from me/day-01/close-the-day-2",
+                 "day-01/close-the-day-2")
+
+    def test_evidence_that_holds_passes(self):
         run = self.run_evidence(spec())
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertIn("all evidence holds", run.stdout)
-        self.assertNotIn("test_never", run.stdout)
+        self.assertIn("ok    C1.1 proved by a test, a break", run.stdout)
         self.assertIn("C1.1 broken: the ok removed", run.stdout)
+
+    def test_an_unticked_criterion_with_no_not_proven_line_fails(self):
+        run = self.run_evidence(spec(more=UNTICKED))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertEqual(self.failures(run), ["FAIL  C1.2 not proven → no Not proven: line under it at "
+                                              + self.git("rev-parse", "--short=7", "HEAD").strip()])
+        self.assertNotIn("test_never", run.stdout)
+
+    def test_an_unticked_criterion_passes_with_a_not_proven_line_only_as_the_close_merged_it(self):
+        text = spec(more=UNTICKED + "      Not proven: the page needs a browser.\n")
+        run = self.run_evidence(text)
+        self.assertIn("FAIL  C1.2 not proven → no Not proven: line under it at", run.stdout)
+        self.close_with(text)
+        run, report = self.report(text)
+        self.assertEqual(run.returncode, 0, run.stdout)
+        self.assertIn("ok    C1.2 not proven → the page needs a browser.", run.stdout)
+        self.assertEqual(self.statuses(report)["C1.2/proof"], "passed")
 
     def test_a_renamed_test_fails(self):
         run = self.run_evidence(spec(test="CliTest.test_renamed"))
@@ -213,9 +242,10 @@ class EvidenceTest(unittest.TestCase):
         run, report = self.report(spec())
         self.assertEqual(run.returncode, 0, run.stdout)
         self.assertEqual(self.statuses(report), {"close": "passed", "C1.1/test/CliTest.test_a": "passed",
-                                                 "verify/1": "passed", "C1.1/break/the ok removed": "passed"})
+                                                 "C1.1/proof": "passed", "verify/1": "passed",
+                                                 "C1.1/break/the ok removed": "passed"})
         printed = run.stdout.splitlines()[:-1]
-        self.assertEqual(len(printed), 4)
+        self.assertEqual(len(printed), 5)
         for line, check in zip(printed, report["days"][0]["checks"]):
             self.assertEqual(line, "ok    " + check["label"])
         self.assertEqual(report["summary"]["break"], {"passed": 1, "failed": 0, "error": 0, "not_applicable": 0})
@@ -249,11 +279,24 @@ class EvidenceTest(unittest.TestCase):
         check = report["days"][0]["checks"][-1]
         self.assertEqual((check["status"], check["sha"]), ("passed", self.base))
 
-    def test_a_criterion_with_no_named_test_and_no_command_fails(self):
-        run, report = self.report(spec().replace("Test: `CliTest.test_a`", "Test: by eye"))
+    def test_a_criterion_with_no_test_command_or_break_fails_unless_a_reader_judged_it(self):
+        by_eye = spec().replace("Test: `CliTest.test_a`", "Test: by eye")
+        run, report = self.report(by_eye)
+        self.assertEqual(run.returncode, 0, run.stdout)
+        self.assertIn("ok    C1.1 proved by a break", run.stdout)
+        self.assertIn("n/a   C1.1 named test → none: checked by its break", run.stdout)
+        text = by_eye.replace("      broken: the ok removed → AssertionError: broken (#2)\n", "")
+        run = self.run_evidence(text)
         self.assertEqual(run.returncode, 1)
-        self.assertEqual(self.statuses(report)["C1.1/test"], "failed")
-        self.assertIn("C1.1 named test → none, and no command named", run.stdout)
+        self.assertEqual(self.failures(run), ["FAIL  C1.1 proved by nothing → no test, command or break, and no "
+                                              "Not proven: line under it at " + self.git("rev-parse", "--short=7",
+                                                                                          "HEAD").strip()])
+        text = text.replace("by eye.\n", "by eye.\n      Not proven: a reader compared the page with the design.\n")
+        self.close_with(text)
+        run = self.run_evidence(text)
+        self.assertEqual(run.returncode, 0, run.stdout)
+        self.assertIn("ok    C1.1 proved by a reader → a reader compared the page with the design.", run.stdout)
+        self.assertIn("n/a   C1.1 named test → none: judged by a reader", run.stdout)
 
     def test_a_criterion_checked_by_a_command_is_not_applicable_for_a_named_test(self):
         run, report = self.report(spec().replace("`CliTest.test_a`", "`git diff --exit-code main`"))
@@ -310,7 +353,9 @@ class EvidenceTest(unittest.TestCase):
 
 SHORT = ("# Keep the ok\n\n## Acceptance criteria\n"
          "- [x] S-keep-ok.1 **hold** — Test: `CliTest.test_a`.\n"
-         "      broken: the ok removed → AssertionError: broken (#3)\n\n"
+         "      broken: the ok removed → AssertionError: broken (#3)\n"
+         "- [ ] S-keep-ok.2 **new** — the ok stays bold.\n"
+         "      Not proven: left to a day spec.\n\n"
          "## Verify\n```bash\necho 0    # 0\n```\n")
 
 
@@ -345,6 +390,7 @@ class ShortSpecTest(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertIn(f"keep-ok.md: change merged in {self.merge[:7]}", run.stdout)
         self.assertIn("ok    S-keep-ok.1 broken: the ok removed", run.stdout)
+        self.assertIn("ok    S-keep-ok.2 not proven → left to a day spec.", run.stdout)
         with open(os.path.join(self.repo, "report.json"), encoding="utf-8") as f:
             day = json.load(f)["days"][0]
         self.assertEqual((day["day"], day["change"], day["close_sha"]), (None, "keep-ok", self.merge))
@@ -357,6 +403,13 @@ class ShortSpecTest(unittest.TestCase):
         failures = [l for l in run.stdout.splitlines() if l.startswith("FAIL")]
         self.assertEqual(len(failures), 1, run.stdout)
         self.assertIn("S-keep-ok.1 broken: the ok removed", failures[0])
+
+    def test_a_short_spec_s_unticked_criterion_with_no_not_proven_line_fails(self):
+        self.write("specs/changes/keep-ok.md", SHORT.replace("\n\n## Verify", "\n- [ ] S-keep-ok.3 **new** — x.\n\n## Verify"))
+        run = self.run_evidence()
+        self.assertEqual(run.returncode, 1)
+        self.assertEqual([l for l in run.stdout.splitlines() if l.startswith("FAIL")],
+                         [f"FAIL  S-keep-ok.3 not proven → no Not proven: line under it at {self.merge[:7]}"])
 
     def test_a_short_spec_never_merged_and_a_file_outside_changes_fail(self):
         self.write("specs/changes/other.md", SHORT)

@@ -206,6 +206,13 @@ break in. On Windows, `bash` in
 the command means Git's Bash. See [`scripts/evidence.py`](../scripts/evidence.py) for the format.
 Write `[]` when there are no mutations to replay, and retain the reasons for inapplicable checks.
 
+A box the close leaves unticked needs its reason under it, indented like the criterion's other
+lines: `Not proven: <why>`. The replay reports each unticked criterion as "not proven" and passes
+it only when that line is in the spec at the closing commit; a line added to the spec since does
+not count. For each ticked criterion it names what proved it: a test, a command, a break, or a
+reader. One with none of the first three fails unless its `Not proven:` line says why a reader
+judged it instead (`Not proven: a reader compared the page with the design`).
+
 After the closing PR's "merged", CI runs the Evidence replay workflow automatically. Check the
 run for that merge commit with `gh run list --workflow evidence.yml --commit <sha>`, then
 `gh run view <run-id> --exit-status`. Require a completed successful run before the next step;
