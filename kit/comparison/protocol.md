@@ -78,8 +78,13 @@ The hashes are checked again before scoring. A mismatch voids the comparison.
 
 Both runs start from the same **setup commit S0**, made by the maintainer on top of the starting
 commit and nothing more: the branch is renamed `main`; the two `master` filters in
-`.github/workflows/test.yaml` become `main`; `.github/workflows/publish.yml` is deleted, so no
-run can publish to PyPI.
+`.github/workflows/test.yaml` become `main`; the "Upload coverage to Coveralls" step and the
+"Finish Coveralls" job are removed from it, and nothing else in it changes;
+`.github/workflows/publish.yml` is deleted, so no run can publish to PyPI.
+
+The Coveralls removal was added during setup, before either run started: on a private
+repository the Coveralls steps fail ("Private repositories need a Coveralls subscription"), so
+upstream CI could not go green in either run and no merge in A could pass.
 
 **A, the kit.** On S0, the kit is copied in as its README's "Starting a project from it" says,
 from the kit's `main` at the merge of this protocol's PR (its sha goes in the run log). `kit/`
