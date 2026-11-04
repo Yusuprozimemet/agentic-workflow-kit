@@ -155,7 +155,7 @@ the PR; exit 1 means they pass there. Otherwise, without a Track 0 or an extra c
 code change (`git stash push -- <the code's directory>`), run the new tests on `main`'s code,
 compare with what the spec says fails today, `git stash pop`, and put what they reported in the
 PR. CI's "Track tests seen red" re-runs each `new` criterion's test this way only when the
-repository variable `TRACK_RED_RUNNER` is `unittest` (README, setup); unset, it reports "not
+repository variable `TRACK_RED_RUNNER` names the project's runner (README, setup); unset, it reports "not
 configured" and passes.
 
 Re-count any number the implementer reports (lines, tests, entries in a file) before it goes in
@@ -177,6 +177,10 @@ every check CI runs that the local build does not -->
   only with `clean`. Hand-run breaks have half-applied, skipped the compile, never started the
   build, and lost unstaged work. Above the `broken:` line it prints `manifest: {...}`, the
   break's entry for the close's break manifest: put it in the PR beside its `broken:` line.
+  Paste it as printed into the body file and check it with `gh pr view <n> --json body`: retyped
+  or passed through a shell string, it loses a level of backslashes (`\s` for `\\s`) and no
+  longer parses or matches (bearing D01.21). GitHub's rendered page drops one too: copy from the
+  raw body.
 - The PR diff must stay under **400 changed lines** (CI: "Diff stays reviewable"). If it does not,
   split the PR along a line where each part stands alone. An `Oversized:` line in the
   description turns the failure into a warning. <!-- PROJECT: each time Oversized: was used,
