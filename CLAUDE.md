@@ -63,7 +63,14 @@ that qualifies (area branch, short spec, day spec) and say which in the PR.
    [public one](<!-- PROJECT: GitHub Pages URL -->) by itself (`.github/workflows/dashboard.yml`). On fresh
    `main`, run `python scripts/spec-drift.py` and report the next step it prints. The page on
    GitHub Pages is the only dashboard; nothing else is republished.
-6. **When a phase's last closing PR has merged,** after step 5, on fresh `main`: run the
+   **Then stop.** Tell the maintainer to start a new session (or `/compact`) for the next step,
+   with a one-line prompt for it, and do nothing more in this one. This holds after every
+   "merged": a day's PR, a `tooling/` or other area branch, a spec-change PR, and a close whose
+   next step is step 6. A hook enforces it (`scripts/step-guard.py`): after a short "merged" it
+   refuses subagents, edits inside the repository, branches, commits, pushes and PRs until a new
+   session, `/clear` or `/compact`. In bearing, the rule alone was read past twice in a row
+   (bearing D01.23, D01.24).
+6. **When a phase's last closing PR has merged,** in a new session after step 5, on fresh `main`: run the
    plan-auditor on the phase that just ended and on the next (at <!-- PROJECT: the end of the last
    phase -->, the three end-of-phase auditors too), report, and stop. They never run inside the
    closing PR: they read what merged.
@@ -77,7 +84,8 @@ Every reply re-reads the whole conversation, and that re-reading is most of what
 costs: in jobmatch-microservices, up to Day 17, 64% of the main sessions' context tokens were read after a session had
 passed 300k (the Tokens panel on the dashboard, "context per reply"). So a step starts in a fresh
 session: after reporting the next step in step 5, suggest the maintainer start a new session for
-it (or `/compact` if they keep this one). Nothing is lost: the spec, `spec-drift.json`, this file
+it (or `/compact` if they keep this one), and stop: `scripts/step-guard.py` refuses new work
+until they do. Nothing is lost: the spec, `spec-drift.json`, this file
 and memory carry what the next step needs. `python scripts/token-usage.py --simulate` prints what
 a fresh session past 100k, 200k or 300k, or each tool result capped at 2k or 5k tokens, would have
 saved on this machine's transcripts.
