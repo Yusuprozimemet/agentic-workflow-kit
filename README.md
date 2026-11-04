@@ -51,17 +51,21 @@ days on a small Python CLI. What that evidence does and does not show is in
    the kit's `.git`). There, delete `kit/` (`rm -r kit`) and start the history on `main`:
    `git init -b main`. The dashboard reads the branch `main` by name and stops without it.
 2. Fill every `<!-- PROJECT: … -->`: `git grep -n "PROJECT:"` lists them (`CLAUDE.md`, the
-   agents, `specs/README.md`, the PR template, `docs/workflow.md`, `scripts/spec-drift.py`, `evidence.yml`). Fill
+   agents, `specs/README.md`, the PR template, `docs/workflow.md`, `scripts/spec-drift.py`, `evidence.yml`, `scripts/test_evidence_workflow.py`). Fill
    `plan.md`'s `<name>` and `<NN>`, and `spec-drift.config.json`: every field is empty until the
-   project has what it names (services, moved paths, an infra workflow, PR areas, frozen files).
+   project has what it names (services, moved paths, an infra workflow, PR areas, frozen files,
+   code under `tests/`).
    `test_count` is absent: added as `{"files": "<path regex>", "test": "<line regex>"}`, "Frozen
    files stay unedited" also fails a PR whose count of matching lines falls (`scripts/invariants.py`).
 3. Add a workflow that runs the project's own tests: the kit's CI checks the workflow, not the
-   code. Require it with the others below. The Evidence replay re-runs the days' checks and
+   code. Require it with the others below. pytest exits 5 when it collects no test, so a pytest
+   workflow fails every PR until the first test lands, and the PRs before it need an admin
+   merge: land one test with the workflow. The Evidence replay re-runs the days' checks and
    breaks after each close, so it needs what they need: put the install command that workflow
    uses (`python -m pip install -r doc/requirements.txt`, say, for a docs build) in the
    `PROJECT:` step of `.github/workflows/evidence.yml`. By default it installs
-   `requirements.txt` when there is one.
+   `requirements.txt` when there is one; a changed step changes the install tests in
+   `scripts/test_evidence_workflow.py` too, which fail on `main` otherwise.
 4. Write each day's spec from [specs/_template.md](specs/_template.md), as
    `specs/day-NN-<slug>.md`. At a stop (**Stop and evaluate.** in `plan.md`'s list) the next
    step waits until `plan.md` has a `## Course correction after Phase N` section, N the stop
@@ -69,7 +73,7 @@ days on a small Python CLI. What that evidence does and does not show is in
 5. Optional: a tracker key, as a repository variable `JIRA_KEY` (Settings, Secrets and
    variables, Actions, Variables). "Compare the names" in `.github/workflows/pr-checks.yml`
    reads it; unset, no key is checked.
-6. Optional: set the repository variable `TRACK_RED_RUNNER` to `unittest`, `pytest`, `maven`, or `npm`. "Track tests seen red" runs each named test on the base and head. Unset, it reports "not configured" and passes; an unknown value fails. Use unittest test names, pytest node IDs, Maven class names, or npm test file paths, respectively. The replay copies changed files under `tests/` only; test files elsewhere must already exist on the base. Runner dependencies must be available in CI. Evidence replay still resolves Python classes under `tests/`.
+6. Optional: set the repository variable `TRACK_RED_RUNNER` to `unittest`, `pytest`, `maven`, or `npm`. "Track tests seen red" runs each named test on the base and head. Unset, it reports "not configured" and passes; an unknown value fails. Use unittest test names, pytest node IDs, Maven class names, or npm test file paths, respectively. The replay copies changed files under `tests/` only; test files elsewhere must already exist on the base. Code a test checks that lives under `tests/`, such as a fixture builder, is listed in `spec-drift.config.json` as `code_under_tests` (regular expressions over the path) and is not copied in, so the base keeps its own. Runner dependencies must be available in CI. Evidence replay still resolves Python classes under `tests/`.
 
 ### Style check setup
 

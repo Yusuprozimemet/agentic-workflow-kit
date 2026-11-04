@@ -36,8 +36,9 @@ On `change/<slug>` (lowercase letters, numbers and single hyphens), write
 `S-<slug>.N` IDs, `new` or `hold` tags and `Test:` fields, as in a day spec. Spec and code
 land together: no separate spec-change or closing PR. Put the `seen red:` line and the
 `broken:` lines in the PR. Run `python scripts/track-red.py --branch change/<slug> --runner
-unittest` to check each new criterion's test against base code and the head; CI runs it when
-`TRACK_RED_RUNNER` is `unittest`, and reports not configured when unset. Hold checks must also
+<runner>` (the project's: `unittest`, `pytest`, `maven` or `npm`) to check each new criterion's
+test against base code and the head; CI runs it when `TRACK_RED_RUNNER` names the runner, and
+reports not configured when unset. Hold checks must also
 be broken on purpose as in the day rules below, and the PR commits their break manifest as
 `specs/breaks/<slug>.json` ([Evidence at the close](#evidence-at-the-close)): after the merge,
 the Evidence replay replays the short spec at the merge of `change/<slug>`.
@@ -214,7 +215,8 @@ repository root), `find`, `replace` and `command` (an argument list run from tha
 Use the actual arguments from the earlier break, not this illustrative mutation: `break.py`
 prints them as `manifest: {...}` above its `broken:` line, and a track PR records that line
 beside the `broken:` line, so the close copies each entry instead of rebuilding it from the
-merged code. A break run with `--cwd`, or on a file outside the directory it ran from, prints
+merged code. Copy it from the raw body (`gh pr view <n> --json body`), not the rendered page,
+which drops a level of backslashes, and check that each entry parses. A break run with `--cwd`, or on a file outside the directory it ran from, prints
 `manifest: none` with the reason: run it from the repository root. Optional
 `at` names the historical commit when the close no longer contains the text to edit;
 `passes: true` marks a near miss that must pass with the mutation in; `expect_stdout` holds

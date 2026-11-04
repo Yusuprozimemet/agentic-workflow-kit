@@ -5,7 +5,9 @@
 A `new` check must fail on the code before the change (specs/README.md). This makes that run
 mechanical: it checks the base out into a scratch git worktree, copies in every file under tests/
 (or a tests.py at the root) that differs from the base in the working tree (committed or not,
-untracked included), and runs the command there, as an argument list with no shell. Nothing in the working tree is touched.
+untracked included), except the paths the project file's `code_under_tests` names (code a test
+checks that lives under tests/, such as a fixture builder), and runs the command there, as an
+argument list with no shell. Nothing in the working tree is touched.
 
 It exits 0 only when the command failed there, and prints the record for the PR:
 `seen red: <command> on <base> → <what it reported>`. A command that passes on the base exits 1:
@@ -17,7 +19,9 @@ tests were never seen red on the code before them.
 """
 import argparse
 import importlib.util
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -28,6 +32,7 @@ _spec = importlib.util.spec_from_file_location("break_", os.path.join(HERE, "bre
 break_ = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(break_)
 TESTS = ("tests", "tests.py")  # tests/, or one tests.py at the root as in python-json-pointer
+CONFIG = "spec-drift.config.json"  # the project file, read from the repository root
 
 
 def git(*args, cwd="."):
@@ -35,11 +40,23 @@ def git(*args, cwd="."):
                           check=True).stdout
 
 
+def code_under_tests(path=CONFIG):
+    """The project file's `code_under_tests` patterns: paths under tests/ that are the code a test
+    checks, such as a fixture builder, not the test. Empty with no file or no field."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return [re.compile(p) for p in json.load(f).get("code_under_tests", [])]
+    except FileNotFoundError:
+        return []
+
+
 def changed_tests(base):
-    """The test files that differ from base in the working tree, deletions left out."""
+    """The test files that differ from base in the working tree, deletions left out, and the
+    project's code under tests/ left out: copied in, the base would have the change too."""
     tracked = git("diff", "--name-only", "--diff-filter=d", base, "--", *TESTS).split()
     untracked = git("ls-files", "--others", "--exclude-standard", "--", *TESTS).split()
-    return sorted(set(tracked + untracked))
+    skip = code_under_tests()
+    return sorted(p for p in set(tracked + untracked) if not any(s.search(p) for s in skip))
 
 
 def on_base(base, commands, files):

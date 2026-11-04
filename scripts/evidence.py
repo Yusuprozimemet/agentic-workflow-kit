@@ -70,6 +70,8 @@ PR_SUFFIX = re.compile(r"\s+\(#\d+\)$")
 TEMP_NAME = re.compile(r"tmp[0-9a-z_]{8}")
 # break.py's own: it writes a temporary directory, the whole path up to it, as <tmp>.
 TEMP_PATH = re.compile(r"[^\s'\"()\[\]]*?[\\/]+tmp[a-z0-9_]{8}(?![a-z0-9_])")
+# pytest's run time in its summary ("1 failed in 0.14s", "in 61.20s (0:01:01)"): no two runs agree.
+DURATION = re.compile(r" in \d+(?:\.\d+)?s(?: \(\d+:\d{2}:\d{2}\))?")
 COMMENT = re.compile(r"^(.*?)\s{2,}#\s*(.*)$")
 # A criterion checked by a command it quotes, not by a named test, as a hold criterion often is.
 COMMAND = re.compile(r"`((?:git|python|diff|grep|bash) [^`]+)`")
@@ -247,7 +249,8 @@ def joined(lines):
 
 def normal(report):
     """A report as compared: temporary names aside, and a newline and a run of backslashes read as
-    the escapes they were pasted from."""
+    the escapes they were pasted from, and a run time as any other."""
+    report = DURATION.sub(" in <time>", report)
     report = TEMP_NAME.sub("tmp*", TEMP_PATH.sub("<tmp>", PR_SUFFIX.sub("", report.strip())))
     return re.sub(r"\\+", r"\\", report.replace("\n", "\\n"))
 

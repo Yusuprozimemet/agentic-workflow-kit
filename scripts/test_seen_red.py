@@ -84,6 +84,19 @@ class SeenRedTest(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertIn(" on main → AssertionError: 'ab' != 'abab'", run.stdout)
 
+    def test_code_under_tests_named_in_the_project_file_is_not_copied_in(self):
+        # A fixture builder under tests/ is the code under test: copied in, the base has it too.
+        self.write("tests/fixtures/build.py", "")
+        self.write("tests/test_build.py", "import subprocess, sys, unittest\n\n"
+                                          "class B(unittest.TestCase):\n    def test_it(self):\n"
+                                          "        run = subprocess.run([sys.executable, 'tests/fixtures/build.py'])\n"
+                                          "        self.assertEqual(run.returncode, 0)\n")
+        self.assertEqual(self.seen_red().returncode, 1)
+        self.write("spec-drift.config.json", '{"code_under_tests": ["^tests/fixtures/"]}\n')
+        run = self.seen_red()
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn(" on main → AssertionError: 2 != 0", run.stdout)
+
     def test_a_new_test_that_passes_on_the_base_is_refused(self):
         self.write("tests/test_app.py", TEST + "\n    def test_zero(self):\n        self.assertEqual(double(0), 0)\n")
         run = self.seen_red()

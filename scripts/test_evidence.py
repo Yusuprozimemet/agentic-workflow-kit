@@ -187,6 +187,17 @@ class EvidenceTest(unittest.TestCase):
         run = self.run_evidence(spec(report=report), breaks=(dict(BREAK, command=check),))
         self.assertEqual(run.returncode, 0, run.stdout)
 
+    def test_pytest_s_duration_does_not_count_as_a_difference_and_its_counts_do(self):
+        # pytest -q sums a failure up as "1 failed in 0.14s", and the seconds change every run.
+        check = [sys.executable, "-c",
+                 "import sys; sys.exit('1 failed in 0.37s') if 'broken' in open('app.txt').read() else None"]
+        for recorded in ("1 failed in 0.14s", "1 failed in 61.20s (0:01:01)"):
+            run = self.run_evidence(spec(report=recorded), breaks=(dict(BREAK, command=check),))
+            self.assertEqual(run.returncode, 0, run.stdout)
+        run = self.run_evidence(spec(report="2 failed in 0.37s"), breaks=(dict(BREAK, command=check),))
+        self.assertEqual(run.returncode, 1, run.stdout)
+        self.assertIn("reported '1 failed in 0.37s', the spec says '2 failed in 0.37s'", run.stdout)
+
     def test_an_arrow_inside_what_was_broken_cannot_run_again(self):
         # break.py refuses it, since spec-drift.py ends <what> at the first arrow: not run, not failed.
         what = "the ok (ok → broken)"
