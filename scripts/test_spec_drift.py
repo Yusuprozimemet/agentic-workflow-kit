@@ -1858,6 +1858,17 @@ Go on.
         self.assertEqual([stop(""), stop("- **Phase 0 stop:** go on.\n"), stop("- **Phase 10 stop:** go on.\n")],
                          [1, None, 1])  # the comment's "Phase 0" lifts nothing
 
+    def test_naming_the_phase_in_passing_lifts_no_stop(self):
+        # bearing, Day 4: a correction written before Day 2 mentioned Phase 1, and the stop read as lifted.
+        plan = ("# Plan\n\n## Course corrections\n\n{}\n"
+                "## Day-by-day specs\n\n1. Phase 0: Day 1.\n2. Phase 1: Days 2-4. **Stop and evaluate.**\n"
+                "3. Phase 2: Days 5-7.\n")
+        stop = lambda entry: sd.run_order(plan.format(entry), [])[1]
+        self.assertEqual([stop("### 2026-11-04: after the Phase 0/1 audit\n\nPhase 1 keeps its days.\n"),
+                          stop("### 2026-11-05: Course correction after Phase 1\n\nGo on.\n"),
+                          stop("### 2026-11-05: Course correction after Phase 10\n")],
+                         [4, None, 4])
+
     def test_the_plan_templates_list_marks_its_stop_once_filled(self):
         with open(os.path.join(HERE, "..", "plan.md"), encoding="utf-8") as f:
             plan = f.read()

@@ -728,11 +728,14 @@ def phases(plan):
 
 def lifted(plan, phase):
     """Whether plan.md lifts the stop of Phase `phase`: a "Course correction after Phase N" section,
-    or the template's "Course corrections" section naming the phase outside its comment. A pilot
-    of the kit put its stop's decisions there, and three days ran under the stop."""
+    or an entry for it under the template's "Course corrections", outside its comment: a heading
+    saying "after Phase N" or a bullet opening "**Phase N stop:**". A pilot of the kit put its
+    stop's decisions there, and three days ran under the stop. Naming the phase in passing lifts
+    nothing: bearing's entry before Day 2 mentioned Phase 1, and the dashboard offered Day 5."""
     corrections = re.sub(r"<!--.*?-->", "", section(plan, "Course corrections"), flags=re.S)
     return bool(section(plan, f"Course correction after Phase {phase}")
-                or re.search(rf"\bPhase {phase}\b", corrections))
+                or re.search(rf"^(?:#+ .*\bafter Phase {phase}\b|[-*] \*\*Phase {phase} stop\b)",
+                             corrections, re.M))
 
 
 def run_order(plan, spec_days):
