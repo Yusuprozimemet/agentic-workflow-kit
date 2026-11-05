@@ -1690,7 +1690,13 @@ class CriterionIndexTest(unittest.TestCase):
             "- [x] C1.3 **hold** — Run by hand: `python -m bearing ingest <kit>` prints 91.\n"
             "      Evidence: run by hand at the close, 91 (#3).\n      broken: x → y (#3)\n",
             "- [x] C1.4 **hold** — Outside the repository.\n      Evidence: `ExampleTest.test_ok` (#3).\n"
-            "      broken: none → the check needs a clone CI has not\n"]
+            "      broken: none → the check needs a clone CI has not\n",
+            "- [x] C1.5 **hold** — Set outside: `gh variable list` shows X.\n"
+            "      broken: none → the variables live outside the repository\n"
+            "      Not proven: a reader read gh variable list (#3): X.\n",
+            "- [x] C1.6 **hold** — Set outside: `gh variable list` shows Y.\n"
+            "      broken: none → the variables live outside the repository\n"
+            "      Not proven: a reader read gh variable list.\n"]
         path = "specs/day-01-x.md"
         files = {"plan.md": PLAN, "tests/test_example.py": "class ExampleTest:\n    def test_ok(self): pass\n",
                  path: "# Day 01 — Example\n\n**Phase:** 1\n\n## Acceptance criteria\n\n" + "\n".join(blocks) + "\n## Notes\n"}
@@ -1698,12 +1704,15 @@ class CriterionIndexTest(unittest.TestCase):
         days = [dict(day=1, phase=1, file=path, status="active", evidence=sd.criteria(sd.section(files[path], "Acceptance criteria")))]
         rows, attention = repo.inside(lambda blobs: sd.criterion_index(days, dict(state="loaded", days=[]), [], repo.snaps, blobs))
         by_id = {row["id"]: row for row in rows}
-        self.assertEqual([by_id[f"C1.{n}"]["cited"] for n in range(1, 5)], [True, True, False, True])
+        # A reader's Not proven: line is the replay's proof for a ticked box; with its PR it is cited.
+        self.assertEqual([by_id[f"C1.{n}"]["cited"] for n in range(1, 7)], [True, True, False, True, True, False])
         self.assertEqual(by_id["C1.4"]["seen_red"], dict(state=False, lines=[], none=["the check needs a clone CI has not"]))
         self.assertEqual(by_id["C1.1"]["seen_red"]["none"], [])
         self.assertEqual([(a["id"], a["reason"], a["detail"]) for a in attention if a["reason"] != "evidence_missing"],
-                         [("C1.4", "not_breakable", "the check needs a clone CI has not")])
-        self.assertEqual([a["id"] for a in attention if a["reason"] == "evidence_missing"], ["C1.3"])
+                         [("C1.4", "not_breakable", "the check needs a clone CI has not"),
+                          ("C1.5", "not_breakable", "the variables live outside the repository"),
+                          ("C1.6", "not_breakable", "the variables live outside the repository")])
+        self.assertEqual([a["id"] for a in attention if a["reason"] == "evidence_missing"], ["C1.3", "C1.6"])
 
 
 class EvidenceReportTest(unittest.TestCase):
