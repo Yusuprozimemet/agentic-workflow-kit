@@ -1,17 +1,27 @@
-"""Replay the day closed, or the short spec landed, by a push, or an explicitly requested day on main."""
+"""Replay the day closed, or the short spec landed, by a push, or an explicitly requested day on main;
+with --all, every closed day on main, into the report the dashboard reads."""
 import argparse
 import subprocess
 import sys
 from pathlib import Path
 
-from evidence import close_commit, closing_spec
+from evidence import close_commit, closed_specs, closing_spec
+
+EVIDENCE = str(Path(__file__).with_name("evidence.py"))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--commit", default="HEAD")
     parser.add_argument("--day", default="", help="optional day number to replay on main")
+    parser.add_argument("--all", metavar="PATH", help="replay every closed day on main into this report")
     args = parser.parse_args()
+    if args.all:
+        specs = closed_specs("main")
+        if not specs:
+            print("no closed day on main")
+            return 0
+        return subprocess.call([sys.executable, EVIDENCE, *specs, "--ref", "main", "--json", args.all])
     try:
         commit = args.commit
         if args.day:
@@ -28,8 +38,7 @@ def main():
     if spec is None:
         print("not a closing commit")
         return 0
-    return subprocess.call([sys.executable, str(Path(__file__).with_name("evidence.py")),
-                            spec, "--ref", "main", "--json", "evidence.json"])
+    return subprocess.call([sys.executable, EVIDENCE, spec, "--ref", "main", "--json", "evidence.json"])
 
 
 if __name__ == "__main__":

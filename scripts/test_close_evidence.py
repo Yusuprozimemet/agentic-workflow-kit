@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from evidence import change_commit, close_commit, closing_spec
+from evidence import change_commit, close_commit, closed_specs, closing_spec
 from test_evidence import GIT_ENV
 
 
@@ -140,6 +140,16 @@ class ClosingSpecTest(unittest.TestCase):
         self.assertIsNone(self.lookup())
         with patch("evidence.git", side_effect=self.git):
             self.assertIsNone(close_commit("01", "main"))
+
+    def test_closed_specs_lists_only_days_with_a_closing_commit(self):
+        # Day 07 closed by a merge, Day 08's spec merged but not closed, and a template beside them.
+        self.merge(("day-07-example.md", "_template.md"))
+        with open(os.path.join(self.repo, "specs", "day-08-next.md"), "w") as file:
+            file.write("# Day 08\n")
+        self.git("add", ".")
+        self.git("commit", "-q", "-m", "Day 08 spec")
+        with patch("evidence.git", side_effect=self.git):
+            self.assertEqual(closed_specs("main"), ["specs/day-07-example.md"])
 
 
 if __name__ == "__main__":

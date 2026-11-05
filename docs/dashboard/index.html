@@ -98,7 +98,7 @@
     <div id="work-bar"></div>
     <div class="panel-head" style="margin-top:14px">
       <h2 style="font-size:17px">Tests per line of code, so far</h2>
-      <p>Test lines changed so far divided by production lines changed so far, at each merge. The line starts once production passes 1,000 lines, so tests written before any code do not read as a spike; above the dashed line, more test than code has been written.</p>
+      <p>Test lines changed so far divided by production lines changed so far, at each merge. Fixtures (<code>tests/fixtures/</code>: golden files and sample data) count in the Tests box above but not here: they are data the tests read, not tests. The line starts once production passes 1,000 lines, so tests written before any code do not read as a spike; above the dashed line, more test than code has been written.</p>
     </div>
     <div id="test-ratio"></div>
     <div class="panel-head" style="margin-top:14px">
@@ -203,7 +203,7 @@
     <div class="finding" id="evidence-gaps" style="margin-top:14px"></div>
     <div class="panel-head" style="margin-top:14px">
       <h2 style="font-size:17px">Evidence replayed</h2>
-      <p>What the last run of <code>scripts/evidence.py --json</code>, committed as <code>docs/dashboard/evidence-checks.json</code>, found when it replayed each finished day's evidence at its closing merge: the named tests looked up, the Verify commands run, the recorded breaks applied. The page build reads that report and runs nothing. “Seen red” above counts the <code>broken:</code> lines a day recorded; here a break counts as passed only if it reported what its line says. A share is passed over passed, failed and errored, with the not-applicable beside it; a day checked at another close, or on a spec or breaks file <code>main</code> has since changed, is stale, not a pass.</p>
+      <p>What <code>scripts/close-evidence.py --all</code>, run by the dashboard workflow before each build and never committed, found when it replayed each finished day's evidence on <code>main</code>: the named tests looked up, the Verify commands run, the recorded breaks applied. The page build reads that report and runs nothing. “Seen red” above counts the <code>broken:</code> lines a day recorded; here a break counts as passed only if it reported what its line says. A share is passed over passed, failed and errored, with the not-applicable beside it; a day checked at another close, or on a spec or breaks file <code>main</code> has since changed, is stale, not a pass.</p>
       <p class="limit">Evidence: checks the recorded evidence against the revisions shown; does not establish complete behavioral coverage or current correctness.</p>
     </div>
     <div id="evidence-checks"></div>
@@ -243,7 +243,7 @@
           <li><b>Scripts, CI, dashboard</b> (drawn with the tests, as verification): the rest of <code>scripts/</code>, <code>.github/</code> and <code>docs/dashboard/</code>.</li>
           <li><b>Production code:</b> everything else: source, migrations, Dockerfiles, compose, <code>.env.example</code>, <code>observability/</code>, the frontend and <code>data/</code> pipelines.</li>
         </ol>
-        <p>The rules sort by path, and a path does not always say what a change was for. A spec-change PR that fixes a test counts as tests; a test helper under <code>src/test/</code> counts as tests even when it is plumbing; a Markdown file inside a service counts as context; the dashboard’s own code counts as verification. The ratio of tests to code uses the <b>Tests</b> box alone, without the scripts.</p>
+        <p>The rules sort by path, and a path does not always say what a change was for. A spec-change PR that fixes a test counts as tests; a test helper under <code>src/test/</code> counts as tests even when it is plumbing; a Markdown file inside a service counts as context; the dashboard’s own code counts as verification. The ratio of tests to code uses the <b>Tests</b> box alone, without the scripts and without <code>tests/fixtures/</code>.</p>
         <p><b>Refresh.</b> <code>python scripts/spec-drift.py --build</code> in the repository writes this page with its data. It is rerun after every merge, before the next step starts.</p>
         <p><b>Limits.</b> Names in a spec that should <em>disappear</em> (like a table leaving the module that owned it) still count as shared vocabulary. Comments are recognised by line (<code>//</code>, <code>/*</code>, <code>*</code>, <code>--</code>, <code>#</code>, <code>&lt;!--</code>), not parsed, so a marker inside a string can hide the code after it on that line. The gap measures shared language, not correctness; correctness lives in the acceptance criteria and the tests.</p>
       </div>

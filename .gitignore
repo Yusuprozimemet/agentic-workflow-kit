@@ -2,6 +2,8 @@
 .spec-drift-cache.json
 spec-drift.json
 __pycache__/
+# the replay report the dashboard workflow writes before each build (scripts/close-evidence.py --all)
+docs/dashboard/evidence-checks.json
 
 # --- Bash output the hook saved in full (scripts/cap-output.py) ---
 .claude/tool-output/

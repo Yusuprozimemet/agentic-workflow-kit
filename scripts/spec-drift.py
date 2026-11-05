@@ -66,6 +66,9 @@ EVIDENCE_TEST = re.compile(r"\b([A-Z][A-Za-z0-9]*(?:Test|IT|Tests))(?:\.([a-z][A
 # not measured. A day number would not do: Days 39-41 ran before Day 28. A project whose rules ask
 # for the line from its first PR leaves it at 0, and the page names no PR.
 BREAK_LINE = re.compile(r"^[ \t]*(?:[-*][ \t]+)?broken:[ \t]*(\S[^\n]*?)[ \t]*(?:→|->)[ \t]*\S", re.M)
+BREAK_NONE = re.compile(r"^[ \t]*(?:[-*][ \t]+)?broken:[ \t]*(\S[^\n]*?)[ \t]*(?:→|->)[ \t]*(\S[^\n]*)", re.M)
+# A command a criterion's evidence names, in backticks.
+COMMAND = re.compile(r"`(?:git|python|diff|grep|bash) [^`]+`")
 BREAK_LINE_FROM_PR = 0  # PROJECT: the first PR asked for the broken: line; 0 for all of them
 # A test CI can skip: switched off, or run only on a condition. A condition on a system property
 # is met when a workflow passes it as true (GatewayHarnessIT, -Dharness.gateway=true), so that
@@ -261,6 +264,7 @@ def code_like(tok):
 
 
 WORK_KINDS = ("spec", "context", "prod", "test", "tooling")
+FIXTURE_PATH = re.compile(r"(^|/)tests?/fixtures/")  # counted as test, left out of the tests-per-line ratio
 PLACES = ("prod", "test", "tooling", "other")  # where a code name was found: a work kind, or other for the rest
 NOT_WRITTEN = re.compile(r"(^|/)package-lock\.json$|^docs/dashboard/token-usage\.json$|^docs/dashboard/deployment\.json$|^screenshots/")
 TEST_PATH = re.compile(r"(^|/)tests?/|(^|/)(tests?|test_[^/]*|[^/]*_test|conftest)\.py$|(Test|Tests|IT)\.java$"
@@ -622,13 +626,15 @@ def trajectory(snaps, blobs, order=()):
         for line in at_commits("diff", "--numstat", snaps[0]["sha"], s["sha"], "--", "plan.md", "specs").splitlines():
             a, d, _ = line.split("\t")
             added, deleted = added + int(a), deleted + int(d)
-        spec_files, churn, work = {}, 0, dict.fromkeys(WORK_KINDS, 0)
+        spec_files, churn, work, fixtures = {}, 0, dict.fromkeys(WORK_KINDS, 0), 0
         if i:
             for line in at_commits("diff", "--numstat", snaps[i - 1]["sha"], s["sha"]).splitlines():
                 a, d, f = line.split("\t")
                 w = work_kind(renamed_to(f))
                 if a != "-" and w:
                     work[w] += int(a) + int(d)
+                    # Golden files and sample data under tests/fixtures/: in the Tests box, but not tests the ratio counts.
+                    fixtures += int(a) + int(d) if w == "test" and FIXTURE_PATH.search(renamed_to(f)) else 0
             for line in at_commits("diff", "--numstat", snaps[i - 1]["sha"], s["sha"], "--", "plan.md", "specs").splitlines():
                 a, d, f = line.split("\t")
                 spec_files[f] = int(a) + int(d)
@@ -663,7 +669,7 @@ def trajectory(snaps, blobs, order=()):
                          prod_name_coverage=prod_name_coverage, spec_names=int(named.sum()),
                          names_in_code=int((named & in_code).sum()), names_in_prod=int((named & (places["prod"] > 0)).sum()),
                          names_outside_prod=names_outside_prod, names_absent=names_absent,
-                         spec_files=spec_files, code_churn=churn, work=work))
+                         spec_files=spec_files, code_churn=churn, work=work, test_fixtures=fixtures))
     files = sorted({f for s in snaps for f in s["texts"] if f == "plan.md" or day_of(f)},
                    key=lambda f: (rank(day_of(f)), f))
     lines = sum(t.count("\n") for t in snaps[0]["texts"].values())
@@ -1289,7 +1295,8 @@ def input_drift(record, head, path):
 
 
 def evidence_checks(days, snaps):
-    """The committed report of scripts/evidence.py --json, read, never replayed: each finished day's
+    """The report of scripts/evidence.py --json (close-evidence.py --all, which the dashboard workflow
+    runs before the build), read, never replayed here: each finished day's
     checks counted by kind and status, current if checked at main's close and on main's spec and
     breaks file, stale if not. No report is "absent", one this cannot read "invalid": neither a pass."""
     path = os.path.join(PAGE, "evidence-checks.json")
@@ -1354,12 +1361,17 @@ def criterion_index(days, reports, handoffs, snaps, blobs):
             block = c["block"]
             evidence_text = criterion_evidence(block)
             tests = evidence_test_names(block)
-            command = re.search(r"`(?:git|python|diff|grep|bash) [^`]+`", evidence_text)
+            # An Evidence line that points at "the command above" cites the claim's own command.
+            claim_text = re.split(r"(?im)^\s*Evidence:", block, maxsplit=1)[0]
+            command = re.search(COMMAND, evidence_text) or (
+                re.search(r"\bcommands? above\b", evidence_text, re.I) and re.search(COMMAND, claim_text))
             measured = c["ticked"] and day.get("evidence_format", True)
             cited = bool(CITED_PR.search(evidence_text) and (tests or command)) if measured else None
             red_lines = [line.strip() for line in block.splitlines()
                          if broke(line) or re.search(r"\bseen[- ]red\b", line, re.I)]
             red = bool(red_lines) if measured else None
+            # `broken: none → <why>`: a check that cannot be broken from the repository, and why.
+            none = [why.strip() for what, why in BREAK_NONE.findall(block) if what.lower() == "none"]
             found = all(states[t] != "missing" for t in tests) if tests else None
             state = report.get("state", reports["state"] if reports["state"] != "loaded" else "not checked")
             checks = [x for x in report.get("checks", []) if x.get("criterion") == c["id"]]
@@ -1375,7 +1387,7 @@ def criterion_index(days, reports, handoffs, snaps, blobs):
             row = dict(id=c["id"], day=day["day"], phase=day.get("phase"), tag=c["kind"], claim=" ".join(claim.split()),
                        spec=day["file"] + "#acceptance-criteria", track=track,
                        prs=sorted({int(n) for n in CITED_PR.findall(evidence_text)}), tests=tests,
-                       cited=cited, test_found=found, seen_red=dict(state=red, lines=red_lines), replay=replay,
+                       cited=cited, test_found=found, seen_red=dict(state=red, lines=red_lines, none=none), replay=replay,
                        replaces=[i for _, ids in replacement_lines(block) for i in ids], replaced_by=[])
             rows.append(row)
             for check in checks:
@@ -1387,7 +1399,9 @@ def criterion_index(days, reports, handoffs, snaps, blobs):
                 flag(row, "evidence_missing", "No evidence and PR cited together")
             if day["status"] in FINISHED and state in ("absent", "invalid", "not checked"):
                 flag(row, "evidence_missing", "Replay report: " + state)
-            if red is False:
+            if red is False and none:
+                flag(row, "not_breakable", "; ".join(none))
+            elif red is False:
                 flag(row, "not_seen_red", "No seen-red or broken line")
             if found is False:
                 flag(row, "test_not_found", ", ".join(t for t in tests if states[t] == "missing"))
@@ -1400,7 +1414,7 @@ def criterion_index(days, reports, handoffs, snaps, blobs):
             if target in by_id:
                 by_id[target]["replaced_by"].append(row["id"])
     severity = ("replay_failed", "replay_error", "replay_stale", "evidence_missing",
-                "not_seen_red", "test_not_found", "handoff_unclaimed")
+                "not_seen_red", "test_not_found", "handoff_unclaimed", "not_breakable")
     attention.sort(key=lambda a: (severity.index(a["reason"]), a["day"], a["id"]))
     for item in attention:
         del item["day"]

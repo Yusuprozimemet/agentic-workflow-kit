@@ -236,6 +236,13 @@ class SpecDriftTest(unittest.TestCase):
         rows = self.repo.merge({"src/test/BigTest.java": "f\ng\nh\ni\nj\n"}).rows()
         self.assertEqual(rows[2]["work"], dict(spec=0, context=0, prod=0, test=1, tooling=0))
 
+    def test_fixture_lines_stay_in_the_tests_box_and_are_counted_apart_for_the_ratio(self):
+        rows = self.repo.merge({"tests/fixtures/expected/out.txt": "a\nb\nc\n", "tests/fixtures/make_repo.py": "d\n",
+                                "tests/test_x.py": "e\nf\n", "bearing/x.py": "g\n"}).rows()
+        self.assertEqual(rows[1]["work"], dict(spec=0, context=0, prod=1, test=6, tooling=0))
+        self.assertEqual(rows[1]["test_fixtures"], 4)
+        self.assertEqual(rows[0]["test_fixtures"], 0)
+
     def test_a_file_goes_in_the_first_box_its_path_matches(self):
         for path, box in [("plan.md", "spec"), ("specs/README.md", "spec"), ("specs/day-01-test-harness.md", "spec"),
                           ("CLAUDE.md", "context"), ("backend/app/README.md", "context"), (".claude/agents/x.md", "context"),
@@ -1200,6 +1207,23 @@ class CriterionPanelsTest(unittest.TestCase):
         self.assertNotIn("<b>x</b>", inspector)
         self.assertIn("diagnostic", inspector)
 
+    def test_a_break_that_cannot_run_is_listed_apart_and_marked_in_the_matrix(self):
+        row = dict(id="C1", day=1, tag="hold", claim="x", spec="s.md", track="A", prs=[3], tests=[], cited=True,
+                   test_found=None, seen_red=dict(state=False, lines=[], none=["needs a clone"]),
+                   replay=dict(state="current", status=None, why=[], checks=[]), replaces=[], replaced_by=[])
+        noted = dict(id="C1", reason="not_breakable", detail="needs a clone")
+        error, panels, _ = drawn([self.ROW], criteria_index=[row], attention=[noted])
+        self.assertIsNone(error)
+        box = panels["attention-list"]
+        self.assertIn("Nothing needs attention", box)
+        self.assertLess(box.index("Nothing needs attention"), box.index("Can’t be broken here"))
+        self.assertLess(box.index("Can’t be broken here"), box.index("needs a clone"))
+        self.assertIn('<td><span title="needs a clone">can’t</span></td>', panels["criteria-matrix"])
+        _, panels, _ = drawn([self.ROW], criteria_index=[row], attention=[dict(noted, reason="evidence_missing"), noted])
+        box = panels["attention-list"]
+        self.assertNotIn("Nothing needs attention", box)
+        self.assertLess(box.index("Evidence missing"), box.index("Can’t be broken here"))
+
     def test_old_and_empty_data(self):
         error, panels, logged = drawn([self.ROW])
         self.assertIsNone(error)
@@ -1323,6 +1347,16 @@ class PageTest(unittest.TestCase):
         for box, why in (("moved", "No service code yet"), ("test-ratio", "No ratio yet"),
                          ("perday", "No day has a merged pull request yet")):
             self.assertIn(f'<p class="load-error">{why}', panels[box], box)
+
+    def test_the_tests_ratio_leaves_the_fixtures_out(self):
+        # 4,000 test lines, 3,000 of them fixtures, over 1,000 production lines: 1×, so the axis stops at 2×, not 4×.
+        rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), code_churn=27,
+                     work=dict(prod=500 * i, test=2000 * i), test_fixtures=1500 * i)
+                for i, pr in enumerate([None, 1, 2])]
+        error, panels, _ = drawn(rows)
+        self.assertIsNone(error)
+        self.assertIn(">2×<", panels["test-ratio"])
+        self.assertNotIn(">4×<", panels["test-ratio"])
 
     def test_a_panel_that_throws_says_so_and_the_panels_after_it_still_draw(self):
         # Verification that is not a list: its panel, fourth of boot()'s twelve, throws.
@@ -1627,7 +1661,7 @@ class CriterionIndexTest(unittest.TestCase):
         self.assertEqual(by_id["C1.3"]["replay"]["checks"], reports["days"][0]["checks"][2:4])
         self.assertEqual(by_id["C1.3"]["prs"], [1])
         self.assertEqual(by_id["C1.3"]["tests"], ["ExampleTest.test_ok"])
-        self.assertEqual(by_id["C1.3"]["seen_red"], dict(state=True, lines=["broken: guard removed → FAILED (#1)"]))
+        self.assertEqual(by_id["C1.3"]["seen_red"], dict(state=True, lines=["broken: guard removed → FAILED (#1)"], none=[]))
         self.assertIsNone(by_id["C1.4"]["test_found"])
         self.assertFalse(by_id["C2.2"]["test_found"])
         self.assertEqual([(a["id"], a["reason"]) for a in attention], [
@@ -1644,6 +1678,32 @@ class CriterionIndexTest(unittest.TestCase):
         self.assertIsNone(unknown[0]["cited"])
         self.assertIsNone(unknown[0]["seen_red"]["state"])
         self.assertEqual(unknown[0]["replay"], dict(state="absent", status=None, why=[], checks=[]))
+
+    def test_a_command_above_counts_and_a_break_that_cannot_run_is_noted_apart(self):
+        repo = Repo()
+        self.addCleanup(repo.close)
+        blocks = [
+            "- [x] C1.1 **hold** — Frozen: `git diff --exit-code abc -- tests/` prints nothing.\n"
+            "      Evidence: the command above, exit 0 in #3.\n      broken: a frozen file edited → 1 (#3)\n",
+            "- [x] C1.2 **hold** — Both hold: `git diff a -- x` and `git diff b -- y`.\n"
+            "      Evidence: both commands above, nothing printed in #3.\n      broken: x edited → 1 (#3)\n",
+            "- [x] C1.3 **hold** — Run by hand: `python -m bearing ingest <kit>` prints 91.\n"
+            "      Evidence: run by hand at the close, 91 (#3).\n      broken: x → y (#3)\n",
+            "- [x] C1.4 **hold** — Outside the repository.\n      Evidence: `ExampleTest.test_ok` (#3).\n"
+            "      broken: none → the check needs a clone CI has not\n"]
+        path = "specs/day-01-x.md"
+        files = {"plan.md": PLAN, "tests/test_example.py": "class ExampleTest:\n    def test_ok(self): pass\n",
+                 path: "# Day 01 — Example\n\n**Phase:** 1\n\n## Acceptance criteria\n\n" + "\n".join(blocks) + "\n## Notes\n"}
+        repo.merge(files)
+        days = [dict(day=1, phase=1, file=path, status="active", evidence=sd.criteria(sd.section(files[path], "Acceptance criteria")))]
+        rows, attention = repo.inside(lambda blobs: sd.criterion_index(days, dict(state="loaded", days=[]), [], repo.snaps, blobs))
+        by_id = {row["id"]: row for row in rows}
+        self.assertEqual([by_id[f"C1.{n}"]["cited"] for n in range(1, 5)], [True, True, False, True])
+        self.assertEqual(by_id["C1.4"]["seen_red"], dict(state=False, lines=[], none=["the check needs a clone CI has not"]))
+        self.assertEqual(by_id["C1.1"]["seen_red"]["none"], [])
+        self.assertEqual([(a["id"], a["reason"], a["detail"]) for a in attention if a["reason"] != "evidence_missing"],
+                         [("C1.4", "not_breakable", "the check needs a clone CI has not")])
+        self.assertEqual([a["id"] for a in attention if a["reason"] == "evidence_missing"], ["C1.3"])
 
 
 class EvidenceReportTest(unittest.TestCase):
