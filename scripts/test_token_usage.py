@@ -482,6 +482,60 @@ class CompareTest(unittest.TestCase):
         self.assertIn("after 2026-11-03: 1 replies on 1 days,", out.getvalue())
         self.assertIn("; no pull request merged on main from 2026-11-03 to 2026-11-03", out.getvalue())
 
+    def test_each_side_counts_sessions_that_peaked_past_150k_and_the_cost_above_it(self):
+        # Two sessions: one peaks at 200k, one at 120k. Only the 200k reply costs above 150k: Opus 5.5 at 200k is
+        # 1 input at $4, 9 writes at $8, 199,990 reads at $0.20 and 5 output at $20 per million.
+        opus, before = "claude-opus-5-5", "2026-11-01T12:00:00Z"
+        s = self.compare([reply("1", 100_000, model=opus, when=before), reply("2", 200_000, model=opus, when=before)],
+                         [reply("3", 120_000, model=opus, when=before)])["before"]
+        self.assertEqual(sorted(s["peaks"].values()), [120_000, 200_000])
+        self.assertAlmostEqual(s["above"], (4 + 9 * 8 + 199_990 * 0.20 + 5 * 20) / 1e6, places=9)
+
+    def test_each_session_start_is_its_first_reply_and_every_reply_rereads_it_at_the_cache_read_price(self):
+        # One session of three Opus 5.5 replies starting at 40k: re-reading only the start costs 3 x 40k at $0.20 per million.
+        opus, before = "claude-opus-5-5", "2026-11-01T12:00:00Z"
+        s = self.compare([reply("1", 40_000, model=opus, when=before), reply("2", 60_000, model=opus, when=before),
+                          reply("3", 80_000, model=opus, when=before)], [reply("4", 30_000, model=opus, when=before)])["before"]
+        self.assertEqual(sorted(s["starts"]), [30_000, 40_000])
+        self.assertAlmostEqual(s["start_cost"], (3 * 40_000 + 30_000) * 0.20 / 1e6, places=9)
+
+    def test_the_report_prints_the_peaks_the_cost_above_150k_and_the_session_start(self):
+        s = {"before": tu.side(), "after": tu.side()}
+        s["before"].update(contexts=[100_000, 200_000, 120_000], days={datetime.date(2026, 11, 1)}, read=420_000, cost=2.0,
+                           peaks={"a": 200_000, "b": 120_000, "c": 90_000, "d": 151_000}, above=0.5,
+                           starts=[40_000, 50_000, 60_000], start_cost=0.25)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            tu.report_compare(s)
+        self.assertIn("  50.0% of 4 sessions peaked past 150k; 25.0% of its cost in replies above 150k\n", out.getvalue())
+        self.assertIn("  median first reply (the session start) 50,000 context tokens; re-read by every reply, the start"
+                      " alone costs $0.25 (12.5% of its cost) at the cache-read price\n", out.getvalue())
+
+
+class RepoTest(unittest.TestCase):
+    """--repo reads another repository's transcript folder, and only with --compare or --tools."""
+
+    def test_the_repo_given_names_the_folder_read(self):
+        root = tempfile.mkdtemp()
+        other = os.path.join(root, "elsewhere", "bearing")
+        name = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(other))
+        this = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(os.path.join(HERE, os.pardir)))
+        for folder in (name, name + "--claude-worktrees-a", name + "-pilot", this):
+            os.mkdir(os.path.join(root, folder))
+            with open(os.path.join(root, folder, "s.jsonl"), "w", encoding="utf-8") as f:
+                f.write(line())
+        read = sorted(os.path.basename(os.path.dirname(p)) for p in tu.transcripts(root, other))
+        self.assertEqual(read, [name, name + "--claude-worktrees-a"])
+
+    def test_repo_without_compare_or_tools_is_refused_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as root:
+            out = os.path.join(root, "token-usage.json")
+            run = subprocess.run([sys.executable, os.path.join(HERE, "token-usage.py"), "--transcripts", root,
+                                  "--out", out, "--repo", root], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 2, run.stderr)
+            self.assertIn("--repo needs --compare or --tools", run.stderr)
+            self.assertFalse(os.path.exists(out))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -12,6 +12,7 @@ committed; the closing PR of each day refreshes it.
     python scripts/token-usage.py --tools --since 2026-11-01   # only the sessions that started since then
     python scripts/token-usage.py --compare    # main sessions' context per reply before and after the hooks landed
     python scripts/token-usage.py --compare --split 2026-11-03   # a second split; each side's replies per merged PR
+    python scripts/token-usage.py --compare --repo ../bearing   # another repository's transcripts and merged PRs
 
 A reply is counted once, from its last line: a transcript repeats a reply's usage on every content
 block it streamed, and the usage is complete only on the last of those lines, so replies are keyed
@@ -38,6 +39,7 @@ TOOL_FIELDS = ("bash", "cut", "reads", "whole")
 DAY_BRANCH = re.compile(r"^day-(\d+)/")
 DATED = re.compile(r"-\d{8}$")
 CUTS = (100_000, 200_000, 300_000)
+PEAK = 150_000  # --compare: the share of sessions whose peak passed it, and of cost in replies above it
 CAPS = (2_000, 5_000)
 HOOKS_DAY = datetime.date(2026, 11, 2)  # read-guard.py and cap-output.py landed this day: --compare splits the replies at it
 TOOL_LIMIT = 8_000  # read-guard.py's LIMIT: a whole Read of a file over it is refused
@@ -76,11 +78,12 @@ def long_path(path):
     return "\\\\?\\" + os.path.abspath(path)
 
 
-def transcripts(root):
+def transcripts(root, repo=None):
     # Claude Code names a project's folder after its path, every character but letters and digits
-    # turned into "-"; a worktree of this repository, under its .claude/worktrees/, gets the same name
+    # turned into "-"; a worktree of the repository, under its .claude/worktrees/, gets the same name
     # and "--". A sibling folder whose name only starts with this one's is another project.
-    name = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(os.path.join(HERE, os.pardir))).lower()
+    # repo is the repository's path (--repo); without it, this one.
+    name = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(repo or os.path.join(HERE, os.pardir))).lower()
     for folder in glob.glob(os.path.join(long_path(root), "*")):
         base = os.path.basename(folder).lower()
         if base == name or base.startswith(name + "--"):
@@ -216,8 +219,15 @@ def contexts(path):
 
 
 def side():
-    # prs stays None until per_pr() counts the side's merged pull requests.
-    return dict(contexts=[], days=set(), read=0, past=0, cost=0.0, prs=None)
+    # prs stays None until per_pr() counts the side's merged pull requests. peaks: each session's largest
+    # context on the side; above: the cost of its replies over PEAK; starts: each session's first context,
+    # on the side of its first reply; start_cost: what re-reading only that start would cost every reply.
+    return dict(contexts=[], days=set(), read=0, past=0, cost=0.0, prs=None, peaks={}, above=0.0, starts=[], start_cost=0.0)
+
+
+def cache_read(model):
+    # A model's cache-read list price per token; a model not in PRICES costs 0.
+    return PRICES.get(DATED.sub("", model or ""), (0,) * 5)[3] / 1e6
 
 
 def compare(files, splits=(HOOKS_DAY,)):
@@ -227,13 +237,21 @@ def compare(files, splits=(HOOKS_DAY,)):
     # CUTS size: a reply whose session had an earlier reply over it. A reply's cost is cost(), as in count().
     names = ("before", "between", "after") if len(splits) == 2 else ("before", "after")
     sides = {name: side() for name in names}
+    # Per side also: each session's peak, the cost of replies over PEAK, each session's first context
+    # (its start), and the start's cost if every reply had re-read only it, at the cache-read price.
     for path in files:
-        passed = False
+        passed, start = False, None
         for context, _, model, usage, when in contexts(path):
             if not when:
                 continue
             day = datetime.datetime.fromisoformat(when.replace("Z", "+00:00")).astimezone().date()
             s = sides[names[sum(day >= d for d in splits)]]
+            if start is None:
+                start = context
+                s["starts"].append(start)
+            s["peaks"][path] = max(s["peaks"].get(path, 0), context)
+            s["above"] += cost(model, usage) if context > PEAK else 0
+            s["start_cost"] += start * cache_read(model)
             s["contexts"].append(context)
             s["days"].add(day)
             s["read"] += context
@@ -260,10 +278,10 @@ def merges(log, merged):
     return out
 
 
-def merged_prs():
-    # merges() on this repository: main's history from git, with each commit's local date as the replies
-    # have theirs, and the merged numbers from gh. Without gh, squashes are not counted, and it says so.
-    root = os.path.join(HERE, os.pardir)
+def merged_prs(repo=None):
+    # merges() on the repository (--repo; without it, this one): main's history from git, with each commit's
+    # local date as the replies have theirs, and the merged numbers from gh. Without gh, squashes are not counted, and it says so.
+    root = repo or os.path.join(HERE, os.pardir)
     log = subprocess.run(["git", "-C", root, "log", "--first-parent", "main", "--format=%ad|%P|%s",
                           "--date=format-local:%Y-%m-%d"], capture_output=True, text=True, encoding="utf-8",
                          check=True).stdout.splitlines()
@@ -515,6 +533,13 @@ def report_compare(sides, splits=(HOOKS_DAY,)):
               f" and mean {statistics.mean(s['contexts']):,.0f} context tokens per reply;"
               f" {s['past'] / max(s['read'], 1):.1%} of its context read after a session passed {CUTS[-1] // 1000}k;"
               f" ${s['cost']:,.2f} at the list prices checked {PRICES_CHECKED} (${s['cost'] / n:,.4f} per reply){prs}")
+        peaks = list(s["peaks"].values())
+        print(f"  {sum(p > PEAK for p in peaks) / max(len(peaks), 1):.1%} of {len(peaks)} sessions peaked past {PEAK // 1000}k;"
+              f" {s['above'] / max(s['cost'], 1e-9):.1%} of its cost in replies above {PEAK // 1000}k")
+        if s["starts"]:
+            print(f"  median first reply (the session start) {statistics.median(s['starts']):,.0f} context tokens;"
+                  f" re-read by every reply, the start alone costs ${s['start_cost']:,.2f}"
+                  f" ({s['start_cost'] / max(s['cost'], 1e-9):.1%} of its cost) at the cache-read price")
 
 
 def report_route(s):
@@ -543,6 +568,8 @@ def main():
                          " and replies per merged pull request; write nothing")
     ap.add_argument("--split", type=datetime.date.fromisoformat, metavar="DATE",
                     help="with --compare: a second date to split the replies at, such as the day a change landed")
+    ap.add_argument("--repo", metavar="PATH",
+                    help="with --compare or --tools: read that repository's transcripts and merged pull requests, not this one's")
     ap.add_argument("--since", type=moment, metavar="DATE",
                     help="with --simulate or --tools: count only the sessions started at or after this date or time")
     args = ap.parse_args()
@@ -550,14 +577,16 @@ def main():
         ap.error("--since needs --simulate or --tools: token-usage.json is never written for part of the transcripts")
     if args.split and not args.compare:
         ap.error("--split needs --compare")
+    if args.repo and not (args.compare or args.tools):
+        ap.error("--repo needs --compare or --tools: token-usage.json counts this repository only")
     if args.compare:
         splits = tuple(sorted({HOOKS_DAY, args.split or HOOKS_DAY}))
-        sides = compare([p for p in transcripts(args.transcripts) if agent(p) == "main"], splits)
-        per_pr(sides, merged_prs())
+        sides = compare([p for p in transcripts(args.transcripts, args.repo) if agent(p) == "main"], splits)
+        per_pr(sides, merged_prs(args.repo))
         report_compare(sides, splits)
         return
     if args.tools:
-        report_tools(tools(transcripts(args.transcripts), args.since))
+        report_tools(tools(transcripts(args.transcripts, args.repo), args.since))
         return
     if args.simulate:
         paths = [p for p in transcripts(args.transcripts) if agent(p) == "main" and after(p, args.since)]
