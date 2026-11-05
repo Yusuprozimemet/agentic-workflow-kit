@@ -1366,7 +1366,10 @@ def criterion_index(days, reports, handoffs, snaps, blobs):
             command = re.search(COMMAND, evidence_text) or (
                 re.search(r"\bcommands? above\b", evidence_text, re.I) and re.search(COMMAND, claim_text))
             measured = c["ticked"] and day.get("evidence_format", True)
-            cited = bool(CITED_PR.search(evidence_text) and (tests or command)) if measured else None
+            # A ticked box a reader judged has its Not proven: line as proof (specs/README.md), and cites its PR there.
+            reader = re.search(r"(?m)^\s+Not proven:\s*(.*(?:\n(?!\s*(?:broken:|Replaces:|Evidence:))\s+[^\n]+)*)", block)
+            cited = bool(CITED_PR.search(evidence_text) and (tests or command)
+                         or reader and CITED_PR.search(reader.group(1))) if measured else None
             red_lines = [line.strip() for line in block.splitlines()
                          if broke(line) or re.search(r"\bseen[- ]red\b", line, re.I)]
             red = bool(red_lines) if measured else None
