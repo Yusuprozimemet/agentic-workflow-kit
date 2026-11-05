@@ -8,7 +8,9 @@ main, and each day's status, tracks and criteria. Needs git, the gh CLI and nump
 
 Gap: angle between spec and code over the code-like names the specs put in backticks, counted in
 the specs and in the code (Markdown, data/, screenshots, this dashboard and comment lines left
-out: a comment naming a thing is not the thing). Each merge's gap uses only the names the specs had used by then, so a later spec does
+out: a comment naming a thing is not the thing). A code file or folder whose name is a spec name
+counts once, at its path: a spec cites a test by its file. Python's own names (ImportError) are not
+spec names. Each merge's gap uses only the names the specs had used by then, so a later spec does
 not move an earlier point.
 
 The angle needs a reference to be read. Two vectors of counts are never negative, so they sit
@@ -32,6 +34,7 @@ the packages each service takes under `package_root` (`services`), and the infra
 (`infra_workflow`; none, and gh is not asked for its runs).
 """
 import argparse
+import builtins
 import collections
 import datetime
 import fnmatch
@@ -153,6 +156,8 @@ CAVEATS = [
     "and still describe it wrongly.",
     "A name a spec says should disappear still counts as shared vocabulary while the code has it.",
     "Name coverage counts test and tooling files as code.",
+    "A code file or folder named after a spec name counts as that name in the code; Python's own "
+    "names, such as ImportError, are not spec names.",
     "Production name coverage counts only files the path rules call production: a path, not proof "
     "that the file runs in the product. Test and tool names may legitimately be absent from it.",
 ]
@@ -257,8 +262,9 @@ def day_branch(pr):
 
 
 def code_like(tok):
-    """Whether a backticked token is a code name. One ending in "_" is a pattern's prefix (`aws_ecs_*`), not a name."""
-    if tok.endswith("_"):
+    """Whether a backticked token is a code name. One ending in "_" is a pattern's prefix (`aws_ecs_*`), not a name.
+    Nor is one of Python's own (ImportError): a spec cites it for a failure, not for the code to hold."""
+    if tok.endswith("_") or tok in PYTHON_NAMES:
         return False
     return bool(re.search(r"[a-z][A-Z]", tok)) or ("_" in tok.strip("_") and tok.lower() == tok)
 
@@ -517,6 +523,22 @@ def name_overlap(spec, code, known):
             int((in_code & ~named).sum()))
 
 
+NOT_CODE_DIRS = ("data", "screenshots", "docs/dashboard", "kit", "specs")
+PYTHON_NAMES = frozenset(dir(builtins))
+
+
+def is_code_path(path):
+    """Whether a path is one the code counts read: the same files git grep reads, set by NOT_CODE_DIRS."""
+    return not (path.endswith(".md") or posixpath.basename(path) == "package-lock.json"
+                or any(path == d or path.startswith(d + "/") for d in NOT_CODE_DIRS))
+
+
+def path_names(path):
+    """The names a path gives: each folder's, and the file's without its extension."""
+    *folders, file = path.split("/")
+    return {p.lstrip(".") for p in (*folders, posixpath.splitext(file)[0])}
+
+
 def code_names(line, index):
     """The vocabulary names on one line of code, or none if the line is a comment."""
     if COMMENT_LINE.match(line):
@@ -594,8 +616,8 @@ def trajectory(snaps, blobs, order=()):
         cached = CACHE.setdefault("code", {}).get(sha)
         if cached is None:
             out = subprocess.run(["git", "grep", "-z", "-I", "-w", "-F", "-f", "-", sha, "--", ".",
-                                  ":(exclude)*.md", ":(exclude)data", ":(exclude)screenshots", ":(exclude)docs/dashboard",
-                                  ":(exclude)**/package-lock.json", ":(exclude)kit", ":(exclude)specs"], input=patterns,
+                                  ":(exclude)*.md", ":(exclude)**/package-lock.json",
+                                  *(f":(exclude){d}" for d in NOT_CODE_DIRS)], input=patterns,
                                  capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
             cached = {}
             for match in out.split("\n"):
@@ -603,6 +625,15 @@ def trajectory(snaps, blobs, order=()):
                 path = where.split(":", 1)[-1]
                 for line in text.splitlines():  # as the lines were read before the path was kept
                     for tok in code_names(line, index):
+                        cached.setdefault(tok, {}).setdefault(path, 0)
+                        cached[tok][path] += 1
+            # A spec cites a file by its path (`tests/test_config.py`): the file is the thing, though
+            # no line holds its name. Each file or folder named so counts once, at its path.
+            for path in at_commits("ls-tree", "-r", "--name-only", sha).splitlines():
+                if not is_code_path(path):
+                    continue
+                for tok in path_names(path):
+                    if tok in index:
                         cached.setdefault(tok, {}).setdefault(path, 0)
                         cached[tok][path] += 1
             CACHE["code"][sha] = cached
