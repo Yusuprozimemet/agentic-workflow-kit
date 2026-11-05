@@ -249,6 +249,13 @@ Breaks on purpose:
   `--expect-stdout <regex>`, its output without the break; break.py refuses if it does not match.
 - On a CRLF tree, a `git diff --exit-code` check prints git's CRLF warning, and `break.py`
   reports that warning as the check's line: run `git -c core.safecrlf=false diff ...`.
+- Replaying each manifest entry through `break.py` does not check the spec's `broken:` lines
+  against the manifest. In bearing, the Day 10 close did only that, and the replay after its
+  merge failed four lines (bearing D10.20): two breaks shared a name, two lines had no entry,
+  one ended in "(close, D10.19)". The rules are in
+  [Evidence at the close](specs/README.md#evidence-at-the-close). Before opening the closing
+  PR, run `evidence.py` on a scratch clone where the branch is merged with
+  `--no-ff -m "Merge pull request #0 from me/day-NN/close-the-day"`.
 
 The dashboard script and the PR checks:
 
