@@ -81,8 +81,9 @@ the PR.
 ## One session per step
 
 Every reply re-reads the whole conversation, and that re-reading is most of what the project
-costs: in jobmatch-microservices, up to Day 17, 64% of the main sessions' context tokens were read after a session had
-passed 300k (the Tokens panel on the dashboard, "context per reply"). So a step starts in a fresh
+costs: in jobmatch-microservices, up to Day 17, 61% of the main sessions' context tokens were
+read after a session had passed 300k, and 29% over the whole project
+(`python scripts/token-usage.py --compare --repo <its path> --split 2026-09-28`). So a step starts in a fresh
 session: after reporting the next step in step 5, suggest the maintainer start a new session for
 it (or `/compact` if they keep this one), and stop: `scripts/step-guard.py` refuses new work
 until they do. Nothing is lost: the spec, `spec-drift.json`, this file
