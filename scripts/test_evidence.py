@@ -153,6 +153,14 @@ class EvidenceTest(unittest.TestCase):
     def test_main_in_a_verify_line_means_the_close_s_first_parent(self):
         run = self.run_evidence(spec(verify=f"git rev-parse main    # {self.base}"))
         self.assertEqual(run.returncode, 0, run.stdout)
+        run = self.run_evidence(spec(verify=f"true && git rev-parse main | cat    # {self.base}"))
+        self.assertEqual(run.returncode, 0, run.stdout)
+
+    def test_main_given_to_another_command_or_repository_is_left_as_written(self):
+        # Day 05's Verify ran `bearing snapshot <fixture repo> main`: the fixture's own branch.
+        for verify in ("echo main    # main", "git -C . rev-parse --abbrev-ref main    # main"):
+            run = self.run_evidence(spec(verify=verify))
+            self.assertEqual(run.returncode, 0, run.stdout)
 
     def test_a_break_with_no_recorded_arguments_fails(self):
         run = self.run_evidence(spec(), breaks=())

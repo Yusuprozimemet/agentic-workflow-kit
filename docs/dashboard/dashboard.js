@@ -372,10 +372,12 @@ const WORK = new Map();
 R.reduce((acc, r) => {
   const next = { ...acc };
   Object.entries(r.work || {}).forEach(([k, v]) => { next[k] = (next[k] || 0) + v; });
+  next.fixtures = (acc.fixtures || 0) + (r.test_fixtures || 0);
   WORK.set(r, next); return next;
 }, {});
 const RATIO_FROM = 1000;
-const testRatio = r => { const w = WORK.get(r); return w.prod >= RATIO_FROM ? +(w.test / w.prod).toFixed(2) : null; };
+// Fixture lines (golden files, sample data) stay in the Tests box but are not tests the ratio counts.
+const testRatio = r => { const w = WORK.get(r); return w.prod >= RATIO_FROM ? +(((w.test || 0) - w.fixtures) / w.prod).toFixed(2) : null; };
 const ratioMax = Math.max(2, Math.ceil(Math.max(0, ...R.map(testRatio).filter(v => v != null))));
 // One bar, split into boxes in order; a box's share is printed inside it when there is room.
 function shareBar(box, parts, label) {
@@ -773,7 +775,7 @@ const CHECK_KINDS = [["named_test", "Named tests"], ["verify", "Verify"], ["brea
 function drawEvidenceChecks() {
   const ec = DATA.evidence_checks || { state: "absent" }, box = document.getElementById("evidence-checks");
   if (ec.state === "absent") {
-    box.innerHTML = `<p class="off">Not checked: no report. <code>python scripts/evidence.py specs/day-*.md --json docs/dashboard/evidence-checks.json</code> writes one.</p>`;
+    box.innerHTML = `<p class="off">Not checked: no report. <code>python scripts/close-evidence.py --all docs/dashboard/evidence-checks.json</code> writes one; the dashboard workflow runs it before each build.</p>`;
     return;
   }
   if (ec.state !== "loaded") {
@@ -1044,7 +1046,11 @@ function drawDeployment() {
 
 // Display the evidence as supplied by the data build.
 const reasonLabels = { replay_failed: "Replay failed", replay_error: "Replay error", replay_stale: "Replay stale",
-  evidence_missing: "Evidence missing", not_seen_red: "Not seen red", test_not_found: "Test not found", handoff_unclaimed: "Hand-off unclaimed" };
+  evidence_missing: "Evidence missing", not_seen_red: "Not seen red", test_not_found: "Test not found", handoff_unclaimed: "Hand-off unclaimed",
+  not_breakable: "No break possible" };
+// Listed apart, after the rest: a check whose `broken: none → <why>` says no break can run from the repository.
+const NOTED = new Set(["not_breakable"]);
+const seenRed = s => s.state === false && s.none && s.none.length ? `<span title="${esc(s.none.join("; "))}">can’t</span>` : measured(s.state);
 const attention = DATA.attention || [], criteria = DATA.criteria_index || [];
 const unknown = '<span title="not measured">–</span>';
 const measured = value => value == null ? unknown : value ? "yes" : "no";
@@ -1065,11 +1071,14 @@ function inspect(id) {
 }
 function drawCriteria() {
   const list = document.getElementById("attention-list"), matrix = document.getElementById("criteria-matrix");
-  list.innerHTML = DATA.attention == null ? "Not in this data" : attention.length ? attention.map((a, i) =>
-    `<button type="button" data-attention="${i}">${itemText(a)}</button>`).join("") : "Nothing needs attention";
+  const button = (a, i) => `<button type="button" data-attention="${i}">${itemText(a)}</button>`;
+  const flagged = attention.map(button).filter((_, i) => !NOTED.has(attention[i].reason));
+  const noted = attention.map(button).filter((_, i) => NOTED.has(attention[i].reason));
+  list.innerHTML = DATA.attention == null ? "Not in this data" : (flagged.length ? flagged.join("") : "Nothing needs attention") +
+    (noted.length ? `<h3>Can’t be broken here</h3><p>Checked by hand: the reason no break can run from the repository.</p>${noted.join("")}` : "");
   matrix.innerHTML = DATA.criteria_index == null ? "<caption>Not in this data</caption>" : !criteria.length ? "<caption>No criteria yet</caption>" :
     `<thead><tr><th>Criterion</th><th>Day</th><th>Tag</th><th>Cites a PR</th><th>Test found</th><th>Seen red</th><th>Replay</th></tr></thead><tbody>${criteria.map((c, i) =>
-      `<tr tabindex="0" role="button" data-criterion="${i}"><td>${esc(c.id)}</td><td>${esc(c.day)}</td><td>${esc(c.tag)}</td><td>${measured(c.cited)}</td><td>${measured(c.test_found)}</td><td>${measured(c.seen_red.state)}</td><td>${c.replay.status == null ? unknown : values(c.replay.status)}</td></tr>`).join("")}</tbody>`;
+      `<tr tabindex="0" role="button" data-criterion="${i}"><td>${esc(c.id)}</td><td>${esc(c.day)}</td><td>${esc(c.tag)}</td><td>${measured(c.cited)}</td><td>${measured(c.test_found)}</td><td>${seenRed(c.seen_red)}</td><td>${c.replay.status == null ? unknown : values(c.replay.status)}</td></tr>`).join("")}</tbody>`;
   list.addEventListener("click", e => { const b = e.target.closest("button[data-attention]"); if (b) inspect(attention[+b.dataset.attention].id); });
   const selectRow = e => { const r = e.target.closest("tr[data-criterion]"); if (r) inspect(criteria[+r.dataset.criterion].id); };
   matrix.addEventListener("click", selectRow);

@@ -59,6 +59,26 @@ def changed_tests(base):
     return sorted(p for p in set(tracked + untracked) if not any(s.search(p) for s in skip))
 
 
+# An editable install (pip install -e) puts a finder on sys.meta_path that serves the package from
+# the working tree. The worktree's copy wins for the package itself, but a module or subpackage the
+# change adds is missing there, so the finder served the working tree's: on bearing's Day 8 track A
+# five tests passed "on main" that fail on its code. This runs at startup, before the command.
+DROP_EDITABLE = """import sys
+sys.meta_path[:] = [f for f in sys.meta_path
+                    if not (f if isinstance(f, type) else type(f)).__module__.startswith("__editable__")]
+"""
+
+
+def base_path(scratch, tree):
+    """PYTHONPATH for a run on the base: a sitecustomize that drops editable finders, then the
+    worktree, so a subprocess started from another directory imports the base's code too."""
+    boot = os.path.join(scratch, "boot")
+    os.makedirs(boot, exist_ok=True)
+    with open(os.path.join(boot, "sitecustomize.py"), "w", encoding="utf-8") as f:
+        f.write(DROP_EDITABLE)
+    return os.pathsep.join([boot, tree] + [p for p in [os.environ.get("PYTHONPATH")] if p])
+
+
 def on_base(base, commands, files):
     """Run each command, in order, in one scratch worktree of base with files copied in from the
     working tree; their results. Run from the repository root. scripts/track-red.py calls it too."""
@@ -69,7 +89,7 @@ def on_base(base, commands, files):
         for path in files:
             os.makedirs(os.path.dirname(os.path.join(tree, path)), exist_ok=True)
             shutil.copyfile(path, os.path.join(tree, path))
-        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONPATH=base_path(scratch, tree))
         return [subprocess.run(break_.argv_for(command, tree), cwd=tree, env=env, capture_output=True,
                                text=True, encoding="utf-8", errors="replace") for command in commands]
     finally:

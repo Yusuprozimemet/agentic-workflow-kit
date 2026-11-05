@@ -49,6 +49,20 @@ jobs:
 
       - run: pip install numpy
 
+      # The replay report the page's evidence panel and "Needs attention" read: every closed day's
+      # checks, replayed on main as evidence.yml replays one close. A closing PR cannot commit it
+      # (it needs the merged closing commit), and evidence.yml's artifacts hold one day each and expire;
+      # so it is written here, into the workspace only, and never committed. A failed check is shown
+      # on the page, not a reason to leave the page unbuilt.
+      # PROJECT: install what the replayed checks need, as evidence.yml does.
+      - name: Install what the replayed checks need
+        run: if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+      - name: Replay every closed day
+        continue-on-error: true
+        env:
+          JIRA_KEY: ${{ vars.JIRA_KEY }}
+        run: python scripts/close-evidence.py --all docs/dashboard/evidence-checks.json
+
       # What earlier runs read from git, by commit SHA (scripts/spec-drift.py, CACHE_FILE): only the
       # new merge is read again. A save needs a key no run has used, so each run saves its own and
       # restores the latest; a change to the script starts the cache over by itself.
