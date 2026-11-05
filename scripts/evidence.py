@@ -459,6 +459,41 @@ def runner():
             "python": platform.python_version(), "platform": platform.platform()}
 
 
+def replay_key(path, ref):
+    """A hash of everything a spec's replay reads: the commit it replays at, its spec and breaks files,
+    this checker's scripts, the project's dependency files and the Python running them; None when it
+    has no close on ref. Two replays with the same key run the same checks on the same code."""
+    name = os.path.basename(path)
+    day = re.match(r"day-(\d{2})-", name)
+    slug = re.fullmatch(r"([a-z0-9]+(?:-[a-z0-9]+)*)\.md", name)
+    if day:
+        commit = close_commit(day.group(1), ref)
+        breaks = os.path.join(os.path.dirname(path), "breaks", f"day-{day.group(1)}.json")
+    elif slug and os.path.basename(os.path.dirname(os.path.abspath(path))) == "changes":
+        commit = change_commit(slug.group(1), ref)
+        breaks = os.path.join(os.path.dirname(os.path.dirname(path)), "breaks", f"{slug.group(1)}.json")
+    else:
+        return None
+    if not commit:
+        return None
+    h = hashlib.sha256(f"{commit}\n{platform.python_version()}\n".encode())
+    # The repository root, as the spec path is relative to. PROJECT: add any other file the replayed
+    # checks install from.
+    for f in (path, breaks, os.path.abspath(__file__), BREAK, "pyproject.toml", "requirements.txt"):
+        h.update(b"\0" + (open(f, "rb").read() if os.path.isfile(f) else b"missing"))
+    return h.hexdigest()
+
+
+def load_cache(path):
+    """The replays a --cache file kept, by spec path; none when it is missing, unreadable or of another schema."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            kept = json.load(f)
+        return kept["specs"] if kept.get("schema") == SCHEMA else {}
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return {}
+
+
 def report_text(report):
     """The report as JSON with one check per line, so a committed one diffs by check, as token-usage.json by row."""
     one = lambda v: json.dumps(v, ensure_ascii=False, separators=(",", ":"))
@@ -475,19 +510,36 @@ def main(argv=None):
     p.add_argument("specs", nargs="+")
     p.add_argument("--ref", default="main")
     p.add_argument("--json", metavar="PATH", help="also write the checks as a report")
+    p.add_argument("--cache", metavar="PATH", help="reuse a spec's replay kept here when its replay_key is "
+                   "unchanged and every check held; keep this run's held replays here")
     a = p.parse_args(argv)
     sys.stdout.reconfigure(encoding="utf-8")
     report = {"schema": SCHEMA, "runner": runner(),
               "generated": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
               "ref": a.ref, "ref_sha": git("rev-parse", "--verify", "-q", a.ref, check=False).strip() or None,
               "days": []}
+    cache = load_cache(a.cache) if a.cache else {}
+    kept = {}
     for spec in a.specs:
+        path, key, hit = spec.replace(os.sep, "/"), None, None
         try:
-            day = check_spec(spec, a.ref)
+            key = a.cache and replay_key(spec, a.ref)
+            hit = key and cache.get(path)
+            if hit and hit.get("key") == key:
+                day = dict(hit["record"], reused_from=hit["replayed"])
+                print(f"reused  {path}: replayed {hit['replayed']}, nothing it reads has changed since")
+            else:
+                hit = None
+                day = check_spec(spec, a.ref)
         except Exception as e:  # what the checker did not foresee still leaves a report
-            day = {"spec": {"path": spec.replace(os.sep, "/")}, "checks": [
+            key = None
+            day = {"spec": {"path": path}, "checks": [
                 {"id": f"{os.path.basename(spec)}/runner", "kind": "runner", "criterion": None, "sha": None,
                  "status": "error", "label": os.path.basename(spec), "diagnostic": f"{type(e).__name__}: {e}"}]}
+        # Only a replay that held is kept: a failed or unrun check runs again next time.
+        if key and all(c["status"] in ("passed", "not_applicable") for c in day["checks"]):
+            kept[path] = {"key": key, "replayed": hit["replayed"] if hit else report["generated"],
+                          "record": {k: v for k, v in day.items() if k != "reused_from"}}
         report["days"].append(day)
         for c in day["checks"]:
             print(f"{MARK[c['status']]}  {c['label']}" + (f" → {c['diagnostic']}" if c["diagnostic"] else ""))
@@ -497,6 +549,9 @@ def main(argv=None):
     if a.json:
         with open(a.json, "w", encoding="utf-8", newline="\n") as f:
             f.write(report_text(report))
+    if a.cache:
+        with open(a.cache, "w", encoding="utf-8", newline="\n") as f:
+            json.dump({"schema": SCHEMA, "specs": kept}, f, ensure_ascii=False)
     failed = sum(c["status"] == "failed" for c in checks)
     errors = sum(c["status"] == "error" for c in checks)
     print(", ".join(f"{n} {w}" for n, w in ((failed, "failed"), (errors, "could not run")) if n)

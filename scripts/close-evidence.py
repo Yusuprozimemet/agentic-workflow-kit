@@ -15,13 +15,16 @@ def main():
     parser.add_argument("--commit", default="HEAD")
     parser.add_argument("--day", default="", help="optional day number to replay on main")
     parser.add_argument("--all", metavar="PATH", help="replay every closed day on main into this report")
+    parser.add_argument("--cache", metavar="PATH", help="with --all: evidence.py's --cache, so a day replays "
+                        "again only when something it reads has changed")
     args = parser.parse_args()
     if args.all:
         specs = closed_specs("main")
         if not specs:
             print("no closed day on main")
             return 0
-        return subprocess.call([sys.executable, EVIDENCE, *specs, "--ref", "main", "--json", args.all])
+        cache = ["--cache", args.cache] if args.cache else []
+        return subprocess.call([sys.executable, EVIDENCE, *specs, "--ref", "main", "--json", args.all, *cache])
     try:
         commit = args.commit
         if args.day:

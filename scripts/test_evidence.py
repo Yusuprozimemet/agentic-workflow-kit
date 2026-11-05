@@ -376,6 +376,50 @@ class EvidenceTest(unittest.TestCase):
             self.assertEqual(json.load(f)["days"][0]["checks"][0]["status"], "failed")
 
 
+class CacheTest(unittest.TestCase):
+    """--cache reuses a replay that held until something it reads changes. Each replay's Verify line
+    appends to runs.txt, outside the worktree: the number of lines is the number of real replays."""
+    git, write, run_evidence = EvidenceTest.git, EvidenceTest.write, EvidenceTest.run_evidence
+
+    def setUp(self):
+        EvidenceTest.setUp(self)
+        self.runs = os.path.join(self.repo, "runs.txt").replace(os.sep, "/")
+
+    def cached(self, verify="", breaks=(BREAK,)):
+        run = self.run_evidence(spec(verify=f'echo run >> "{self.runs}"{verify}'), breaks,
+                                "--json", "report.json", "--cache", "cache.json")
+        with open(os.path.join(self.repo, "report.json"), encoding="utf-8") as f:
+            report = json.load(f)
+        with open(self.runs, encoding="utf-8") as f:
+            return run, report, len(f.read().splitlines())
+
+    def test_a_replay_that_held_is_reused_until_what_it_reads_changes(self):
+        run, first, n = self.cached()
+        self.assertEqual((run.returncode, n), (0, 1), run.stdout + run.stderr)
+        self.assertNotIn("reused", run.stdout)
+        run, second, n = self.cached()
+        self.assertEqual((run.returncode, n), (0, 1), run.stdout + run.stderr)
+        self.assertIn("reused  specs/day-01-x.md: replayed " + first["generated"], run.stdout)
+        self.assertIn("all evidence holds", run.stdout)
+        self.assertEqual(second["days"][0]["reused_from"], first["generated"])
+        self.assertEqual(second["days"][0]["checks"], first["days"][0]["checks"])
+        # a changed breaks file is a changed input: the day replays again
+        run, _, n = self.cached(breaks=(dict(BREAK, replace="broken "),))
+        self.assertEqual(n, 2, run.stdout + run.stderr)
+        self.assertNotIn("reused", run.stdout)
+        # and so is a changed dependency file
+        self.write("requirements.txt", "numpy\n")
+        run, _, n = self.cached(breaks=(dict(BREAK, replace="broken "),))
+        self.assertEqual(n, 3, run.stdout + run.stderr)
+        self.assertNotIn("reused", run.stdout)
+
+    def test_a_replay_that_failed_is_never_reused(self):
+        for n in (1, 2):
+            run, _, runs = self.cached(verify="; exit 3")
+            self.assertEqual((run.returncode, runs), (1, n), run.stdout + run.stderr)
+            self.assertNotIn("reused", run.stdout)
+
+
 SHORT = ("# Keep the ok\n\n## Acceptance criteria\n"
          "- [x] S-keep-ok.1 **hold** — Test: `CliTest.test_a`.\n"
          "      broken: the ok removed → AssertionError: broken (#3)\n"
