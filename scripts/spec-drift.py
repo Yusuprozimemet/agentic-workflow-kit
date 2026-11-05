@@ -1483,8 +1483,10 @@ def infra(workflow):
 
 
 def fill(page, data, name):
-    # A PR title is written by whoever opens the PR; "</script>" in one must not end the data line.
-    data = data.replace("</", "<\\/")
+    # PR titles and spec text are written by anyone: no "<" may reach the HTML parser from the data
+    # line. "</script>" would end it early; "<!--" then "<script" (a spec quoting HTML, Day 12) keeps
+    # the real end tag from closing it, and the page never ran. JSON reads "<" back as "<".
+    data = data.replace("<", "\\u003c")
     page, n = re.subn(r"^window\.SPEC_DRIFT = .*;$", lambda _: f"window.SPEC_DRIFT = {data};", page, flags=re.M)
     if n != 1:
         raise SystemExit(f"{name}: expected one window.SPEC_DRIFT line, found {n}")

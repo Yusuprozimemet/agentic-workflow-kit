@@ -1123,8 +1123,8 @@ def drawn(rows=(), days=(), order=(), page=None, **more):
         if page:
             with open(page, encoding="utf-8") as f:
                 html = f.read()
-            # build() inlines dashboard.js as the script that defines boot(); fill() escapes "</" as "<\/",
-            # which JSON reads back as "/".
+            # build() inlines dashboard.js as the script that defines boot(); fill() writes "<" as
+            # "<", which JSON reads back as "<".
             script = os.path.join(tmp, "dashboard.js")
             with open(script, "w", encoding="utf-8") as f:
                 f.write(next(s for s in re.findall(r"<script>\n(.*?)</script>", html, re.S) if "function boot(" in s))
@@ -1497,7 +1497,7 @@ class PageTest(unittest.TestCase):
         self.assertEqual(stopped, ["2"])
 
     def test_a_built_page_draws_the_data_inlined_in_it(self):
-        # What --build writes: dashboard.js and the data in one file. fill() writes a title's "</" as "<\/".
+        # What --build writes: dashboard.js and the data in one file. fill() writes a title's "<" as "<".
         rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
                 for i, pr in enumerate([None, None, 1, 2])]
         now = dict(generated="2026-01-01T00:00", head="abc", last_pr=2, current_day=None, next_step="x",
@@ -1513,6 +1513,16 @@ class PageTest(unittest.TestCase):
         self.assertEqual((error, logged), (None, []))
         self.assertTrue(panels["eyebrow"].startswith("toy-repo · "), panels["eyebrow"])
         self.assertEqual([k for k, v in panels.items() if "Stop at &lt;/script&gt; here" in v], ["today"])
+
+    def test_no_text_in_the_data_can_keep_its_script_open(self):
+        # Day 12's spec quoted "<!--" and "<script>": in a browser the data script then ran to the end
+        # of the page, and the live dashboard showed nothing. With no "<" on the line, no tag or comment
+        # can start there, whatever the text.
+        text = "<!-- PROJECT: x --> <!-- a second `<script>` </script> <SCRIPT src=x>"
+        data = dict(now=dict(next_step=text), specs=[dict(title=text)])
+        line = re.search(r"^window\.SPEC_DRIFT = (.*);$", sd.build(json.dumps(data)), re.M).group(1)
+        self.assertNotIn("<", line)
+        self.assertEqual(json.loads(line), data)
 
     def test_the_break_panel_names_the_first_pr_only_when_there_is_one(self):
         # Two code PRs, one recorded and one silent; the source project also had one before its #310.

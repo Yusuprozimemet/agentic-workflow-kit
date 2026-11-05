@@ -57,11 +57,23 @@ jobs:
       # PROJECT: install what the replayed checks need, as evidence.yml does.
       - name: Install what the replayed checks need
         run: if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+      # Replays that held, kept by what they read (evidence.py, replay_key): a merge replays only a day
+      # whose close, spec, breaks file, checker or dependencies changed. The cache starts over each
+      # ISO week, so every closed day is still replayed from nothing at least once a week, in case
+      # something unpinned (a new pytest, the runner image) changed what a check does.
+      - name: Week of the replay cache
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: .evidence-cache.json
+          key: evidence-replay-${{ steps.week.outputs.week }}-${{ github.run_id }}
+          restore-keys: evidence-replay-${{ steps.week.outputs.week }}-
       - name: Replay every closed day
         continue-on-error: true
         env:
           JIRA_KEY: ${{ vars.JIRA_KEY }}
-        run: python scripts/close-evidence.py --all docs/dashboard/evidence-checks.json
+        run: python scripts/close-evidence.py --all docs/dashboard/evidence-checks.json --cache .evidence-cache.json
 
       # What earlier runs read from git, by commit SHA (scripts/spec-drift.py, CACHE_FILE): only the
       # new merge is read again. A save needs a key no run has used, so each run saves its own and
