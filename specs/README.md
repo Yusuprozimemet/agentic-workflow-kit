@@ -238,6 +238,19 @@ not count. For each ticked criterion it names what proved it: a test, a command,
 reader. One with none of the first three fails unless its `Not proven:` line says why a reader
 judged it instead (`Not proven: a reader compared the page with the design`).
 
+The dashboard counts a ticked criterion's Evidence only when it cites a PR (`#n`) **and** names
+a test, a backticked `git`, `python`, `diff`, `grep` or `bash` command, or "the command above"
+(or "the commands above") when the criterion's own text holds such a command. "The command
+exited 0" names none, and a project's own CLI is not read: write "the commands above" and keep
+the command in the claim. It reads a red only from a line holding "seen red" or a `broken:`
+line: "Red:" is not read. Anything else is flagged "No evidence and PR cited together" or "No
+seen-red or broken line" (bearing D12.11 to D12.13, three criteria worded so in one close).
+
+Verify is replayed by CI after the close, in a scratch worktree of this repository. A command
+that needs something CI cannot reach (another repository, a local checkout, a browser) fails
+there: put it in a Note and run it by hand, and leave Verify to commands that run from the
+repository alone (bearing D12.10: four such lines failed the replay).
+
 After the closing PR's "merged", CI runs the Evidence replay workflow automatically. Check the
 run for that merge commit with `gh run list --workflow evidence.yml --commit <sha>`, then
 `gh run view <run-id> --exit-status`. Require a completed successful run before the next step;
