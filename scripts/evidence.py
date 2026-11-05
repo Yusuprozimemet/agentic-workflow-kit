@@ -26,8 +26,9 @@ the spec), its breaks in specs/breaks/<slug>.json:
   commit: a line added to the spec since does not count.
 
 The breaks file is a list of {"what", "file", "find", "replace", "command"}, "what" being the text
-of the `broken:` line before its last arrow, "file" a path from the repository root, and "command"
-an argument list run from that root, `bash` meaning Git's bash on Windows. Three keys are optional:
+of the `broken:` line before its last arrow and unique in the file (a name recorded twice fails),
+"file" a path from the repository root, and "command" an argument list run from that root, `bash`
+meaning Git's bash on Windows. Three keys are optional:
 "passes": true for a near miss that passes by design, which break.py does not record (it exits 1);
 "at": a commit to run the break at instead of the close, when the close no longer has what the
 break edits; and "expect_stdout": the regex break.py's --expect-stdout took, for a check judged by
@@ -398,10 +399,12 @@ def check_spec(path, ref):
                 else f"{cid} proved by nothing", reason or "no test, command or break, and no Not proven: line "
                 f"under it at {commit[:7]}", cid, commit)
 
-    recorded = {}
+    recorded, times = {}, {}
     if os.path.exists(breaks_file):
         with open(breaks_file, encoding="utf-8") as f:
-            recorded = {e["what"]: e for e in json.load(f)}
+            for e in json.load(f):
+                recorded[e["what"]] = e
+                times[e["what"]] = times.get(e["what"], 0) + 1
 
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     worktree = tempfile.mkdtemp(prefix="evidence-")
@@ -430,6 +433,10 @@ def check_spec(path, ref):
                     continue
                 if what not in recorded:
                     add(key, "break", "failed", label, f"no arguments in {breaks_file}", cid)
+                    continue
+                if times[what] > 1:
+                    add(key, "break", "failed", label, f"recorded {times[what]} times in {breaks_file}: "
+                        "give each break a name of its own", cid)
                     continue
                 at = recorded[what].get("at")
                 sha = git("rev-parse", "--verify", "-q", f"{at}^{{commit}}", check=False).strip() if at else commit

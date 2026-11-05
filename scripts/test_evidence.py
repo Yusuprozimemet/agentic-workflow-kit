@@ -173,6 +173,12 @@ class EvidenceTest(unittest.TestCase):
         self.assertIn("reported 'AssertionError: broken', the spec says 'AssertionError: something else'",
                       run.stdout)
 
+    def test_a_name_recorded_twice_fails_rather_than_replay_the_last(self):
+        # bearing #66: two breaks named alike, and the second entry replaced the first.
+        run = self.run_evidence(spec(), breaks=(dict(BREAK, command=[sys.executable, "-c", "pass"]), BREAK))
+        self.assertEqual(run.returncode, 1)
+        self.assertIn("C1.1 broken: the ok removed → recorded 2 times in", run.stdout)
+
     def test_a_break_the_check_cannot_see_fails(self):
         run = self.run_evidence(spec(), breaks=(dict(BREAK, command=[sys.executable, "-c", "pass"]),))
         self.assertEqual(run.returncode, 1)

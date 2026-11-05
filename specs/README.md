@@ -225,6 +225,11 @@ the regex the break gave `break.py --expect-stdout`, for a check judged by what 
 break in. On Windows, `bash` in
 the command means Git's Bash. See [`scripts/evidence.py`](../scripts/evidence.py) for the format.
 Write `[]` when there are no mutations to replay, and retain the reasons for inapplicable checks.
+Give each break a `what` of its own: the replay finds an entry by it, and fails a name recorded
+twice. The `broken:` line's report may end in a PR number in brackets, "(#12)", and nothing
+else: the replay strips only that, so "(close, D10.19)" makes the line differ. A break that
+cannot replay (on another repository, or replaced by a later one) is written as a sentence
+that says why, not as a `broken:` line.
 
 A box the close leaves unticked needs its reason under it, indented like the criterion's other
 lines: `Not proven: <why>`. The replay reports each unticked criterion as "not proven" and passes
