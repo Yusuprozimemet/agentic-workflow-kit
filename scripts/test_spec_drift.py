@@ -131,6 +131,25 @@ class SpecDriftTest(unittest.TestCase):
             self.assertEqual(rows[2][field], rows[1][field], field)
         self.assertEqual(rows[2]["name_coverage"], 0.5)  # bar_table is only under specs/
 
+    def test_a_spec_name_that_is_a_file_or_folder_in_the_code_is_in_the_code(self):
+        # On Bearing 36 of the 41 names missing at Day 12 were test files the specs cite by path.
+        rows = self.repo.merge({"plan.md": PLAN + "Tested in `tests/test_widget.py`, under `src/foo_parts/`.\n",
+                                "tests/test_widget.py": "def test_it():\n    pass\n",
+                                "src/foo_parts/a.txt": "x\n"}).rows()
+        self.assertEqual(rows[1]["name_coverage"], 0.5)  # test_widget and foo_parts; not FooService or bar_table
+        self.assertLess(rows[1]["gap_full"], 90.0)
+
+    def test_a_file_name_outside_the_code_does_not_count(self):
+        rows = self.repo.merge({"plan.md": PLAN + "Tested in `tests/test_widget.py`.\n",
+                                "docs/test_widget.md": "notes\n", "specs/breaks/test_widget.json": "{}\n",
+                                "data/test_widget.csv": "x\n"}).rows()
+        self.assertEqual(rows[1]["name_coverage"], 0.0)
+
+    def test_a_python_builtin_name_is_not_a_spec_name(self):
+        # The specs cite Python's errors to describe a failure; Bearing's code was never meant to hold them.
+        rows = self.repo.merge({"plan.md": PLAN + "It fails with an `ImportError` or a `SyntaxWarning`.\n"}).rows()
+        self.assertEqual(rows[1]["spec_names"], rows[0]["spec_names"])
+
     def test_a_name_in_a_test_or_a_script_still_counts_as_code(self):
         rows = self.repo.merge({"tests/test_foo.py": "FooService = None\n", "scripts/bar.py": "bar_table = 1\n"}).rows()
         self.assertEqual(rows[1]["name_coverage"], 1.0)
