@@ -31,7 +31,7 @@ Tick each box in the closing PR once its evidence is in it; under a box left unt
 
 ## Verify
 ```bash
-<command anyone can run; a diff names a fixed SHA, never main>
+<command anyone can run from this repository alone: CI replays it; a diff names a fixed SHA, never main>
 ```
 
 ## Notes

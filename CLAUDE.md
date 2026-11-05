@@ -255,7 +255,10 @@ Breaks on purpose:
   one ended in "(close, D10.19)". The rules are in
   [Evidence at the close](specs/README.md#evidence-at-the-close). Before opening the closing
   PR, run `evidence.py` on a scratch clone where the branch is merged with
-  `--no-ff -m "Merge pull request #0 from me/day-NN/close-the-day"`.
+  `--no-ff -m "Merge pull request #0 from me/day-NN/close-the-day"`, and `spec-drift.py --out`
+  there: a "No evidence and PR cited together" flag on the day's criteria means the Evidence is
+  worded so the dashboard does not count it (bearing D12.11 to D12.13, fixed by a spec change
+  after the close).
 
 The dashboard script and the PR checks:
 
