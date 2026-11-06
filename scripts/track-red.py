@@ -5,8 +5,11 @@ print one line per test.
 
 A `new` criterion must fail on the code before the day (specs/README.md); a pilot of the kit merged
 two tracks without the `seen red:` record. CI runs this on every PR ("Track tests seen red") with `--runner` set to the
-repository variable TRACK_RED_RUNNER: `unittest`, `pytest`, `maven`, and `npm` select a runner; anything else
-cannot run. Empty, the variable unset, fails a track that owns a `new` criterion (it used to pass as "not
+repository variable TRACK_RED_RUNNER: `unittest`, `pytest`, `maven`, and `npm` select a runner. A value holding
+`{test}` is a command of the project's own (`./gradlew test --tests {test}`): split as a POSIX shell would, with no
+shell run, and `{test}` replaced by the test's name. It has no summary line to read, so its exit code is the
+result: non-zero on the base is red, zero on the head is green, and a base that fails to build or load the test
+counts as red too: read its line. Anything else cannot run. Empty, the variable unset, fails a track that owns a `new` criterion (it used to pass as "not
 configured", and a green check was read as proof) and passes everything else as before. It runs the tests again;
 it cannot show the track's author did. What it checks comes from the spec, never the diff (a PR that adds
 tests pinning what holds is not a track):
@@ -31,6 +34,8 @@ import argparse
 import importlib.util
 import os
 import re
+import shlex
+import shutil
 import subprocess
 import sys
 
@@ -61,7 +66,17 @@ RUNNERS = {
 }
 
 
+TEMPLATE = "{test}"  # in TRACK_RED_RUNNER, a command of the project's own
+SUPPORTED = f"{', '.join(RUNNERS)}, or a command holding {TEMPLATE}"
+
+
+def is_command(runner):
+    return TEMPLATE in runner
+
+
 def runner_command(runner, name):
+    if is_command(runner):
+        return [part.replace(TEMPLATE, name) for part in shlex.split(runner)]
     return RUNNERS[runner](name)
 
 
@@ -69,6 +84,9 @@ def runner_result(runner, run):
     if runner == "unittest":
         return result(run)
     output = run.stdout + run.stderr
+    if is_command(runner):  # no summary to read: the exit code is the result, the last line the report
+        last = [line.strip() for line in output.splitlines() if line.strip()][-1:] or ["no output"]
+        return 1, f"{last[0]} (exit {run.returncode})", int(run.returncode != 0), 0
     if runner == "maven":
         matches = re.findall(r"Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)[^\n]*", output)
         if not matches:
@@ -172,8 +190,8 @@ def main(args=None):
     p.add_argument("--runner", default="unittest")
     a = p.parse_args(args)
     sys.stdout.reconfigure(encoding="utf-8")  # the arrow; a Windows console's default is cp1252
-    if a.runner and a.runner not in RUNNERS:
-        print(f"track-red.py: TRACK_RED_RUNNER `{a.runner}` is not supported; supported runners: {', '.join(RUNNERS)}",
+    if a.runner and a.runner not in RUNNERS and not is_command(a.runner):
+        print(f"track-red.py: TRACK_RED_RUNNER `{a.runner}` is not supported; supported runners: {SUPPORTED}",
               file=sys.stderr)
         return 2
     os.chdir(git("rev-parse", "--show-toplevel").strip())
@@ -228,7 +246,7 @@ def main(args=None):
         if new:
             print(f"FAIL: TRACK_RED_RUNNER is not set, so the {sum(map(len, new.values()))} tests {label}'s "
                   f"new criteria ({', '.join(new)}) name cannot be seen red; "
-                  f"set it to the project's runner: {', '.join(RUNNERS)}")
+                  f"set it to the project's runner: {SUPPORTED}")
         for problem in problems:
             print(f"FAIL: {problem}")
         return 1
@@ -241,6 +259,16 @@ def main(args=None):
                 problems.append(f"{c}: `{name}` matches {len(hits)} tests on the head, not one")
             else:
                 runs.append((c, hits[0]))
+    if is_command(a.runner) and runs:
+        try:
+            program = shlex.split(a.runner)[0]
+        except ValueError as e:
+            print(f"track-red.py: TRACK_RED_RUNNER `{a.runner}` cannot be split: {e}", file=sys.stderr)
+            return 2
+        if not (os.path.isfile(program) if "/" in program or os.sep in program else shutil.which(program)):
+            print(f"track-red.py: TRACK_RED_RUNNER `{a.runner}` runs `{program}`, which is not found here",
+                  file=sys.stderr)
+            return 2
     commands = [runner_command(a.runner, t) for _, t in runs]
     if os.name == "nt" and a.runner == "npm":
         commands = [["npm.cmd", *command[1:]] for command in commands]
@@ -253,7 +281,7 @@ def main(args=None):
         if ran < 1:
             problems.append(f"{c}: {t} ran no test on {base}: {line}")
         elif before.returncode == 0 or errors or not failures:
-            why = ("it does not see the change" if line.startswith("OK") else
+            why = ("it does not see the change" if line.startswith("OK") or is_command(a.runner) else
                    "a test module did not load" if a.runner == "unittest" else "an error, not an assertion")
             problems.append(f"{c}: {t} reports {line} on {base}: {why}")
         elif ran_here < 1 or here.returncode != 0 or failures_here or errors_here:

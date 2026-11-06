@@ -101,7 +101,7 @@ class RunnerAndPagesTest(unittest.TestCase):
 
     def test_runner_unset_fails(self):
         lines = setup_check.runner_line(REPO, fake(variable=(404, ["(HTTP 404)"])))
-        self.assertEqual(failed(lines), ["TRACK_RED_RUNNER: not set; set it to one of unittest, pytest, maven, npm"])
+        self.assertEqual(failed(lines), ["TRACK_RED_RUNNER: not set; set it to one of unittest, pytest, maven, npm, or a command holding {test}"])
 
     def test_an_organization_variable_counts(self):
         shared = (200, {"variables": [{"name": "TRACK_RED_RUNNER", "value": "maven"}]})
@@ -110,7 +110,11 @@ class RunnerAndPagesTest(unittest.TestCase):
 
     def test_an_unknown_runner_fails(self):
         lines = setup_check.runner_line(REPO, fake(variable=(200, {"value": "gradle"})))
-        self.assertEqual(failed(lines), ["TRACK_RED_RUNNER: `gradle` is not one of unittest, pytest, maven, npm"])
+        self.assertEqual(failed(lines), ["TRACK_RED_RUNNER: `gradle` is not one of unittest, pytest, maven, npm, or a command holding {test}"])
+
+    def test_a_command_holding_test_passes(self):
+        lines = setup_check.runner_line(REPO, fake(variable=(200, {"value": "./gradlew test --tests {test}"})))
+        self.assertEqual(lines, [("ok", "TRACK_RED_RUNNER: `./gradlew test --tests {test}`")])
 
     def test_pages_off_or_from_a_branch_fails(self):
         self.assertEqual(len(failed(setup_check.pages_line(REPO, fake(pages=(404, ["(HTTP 404)"]))))), 1)
@@ -130,6 +134,24 @@ class PlaceholderTest(unittest.TestCase):
             self.assertEqual(lines, [("FAIL", "<!-- PROJECT left in CLAUDE.md, lines 2, 3")])
             self.assertEqual(setup_check.placeholder_lines(root, ["done.md", "README.md"]),
                              [("ok", "no <!-- PROJECT placeholder left in the Markdown files")])
+
+    def test_kit_keeps_its_placeholders_in_one_ok_line(self):
+        with tempfile.TemporaryDirectory() as root:
+            for name in ("CLAUDE.md", "plan.md", "done.md"):
+                with open(os.path.join(root, name), "w", encoding="utf-8", newline="") as f:
+                    f.write("filled\n" if name == "done.md" else "<!-- PROJECT: goal -->\n")
+            lines = setup_check.placeholder_lines(root, ["CLAUDE.md", "done.md", "plan.md"], kit=True)
+            self.assertEqual(lines, [("ok", "--kit: 2 Markdown files keep their <!-- PROJECT placeholders, as the kit's should")])
+            self.assertEqual(len(failed(setup_check.placeholder_lines(root, ["CLAUDE.md", "plan.md"]))), 2)
+
+    def test_kit_flag_reaches_the_placeholder_item(self):
+        seen = []
+        with mock.patch.object(setup_check, "gh_api", fake()), \
+                mock.patch.object(setup_check, "placeholder_lines", lambda *a: seen.append(a[-1]) or [("ok", "x")]), \
+                mock.patch("sys.stdout"):
+            setup_check.main(["--repo", REPO, "--kit"])
+            setup_check.main(["--repo", REPO])
+        self.assertEqual(seen, [True, False])
 
     def test_kit_folder_is_not_read(self):
         self.assertFalse([p for p in setup_check.tracked_markdown() if p.startswith("kit/")])
@@ -165,6 +187,7 @@ class CopiedListsTest(unittest.TestCase):
     def test_the_runners_are_track_reds(self):
         track_red = load("track_red", "track-red.py")
         self.assertEqual(setup_check.RUNNERS, tuple(track_red.RUNNERS))
+        self.assertEqual((setup_check.TEMPLATE, setup_check.SUPPORTED), (track_red.TEMPLATE, track_red.SUPPORTED))
 
 
 if __name__ == "__main__":
