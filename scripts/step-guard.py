@@ -34,6 +34,12 @@ import os
 import re
 import sys
 
+try:
+    from refusal_log import record
+except ImportError:  # a copy of this script without refusal_log.py still refuses, unlogged
+    def record(*args, **kwargs):
+        pass
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.environ.get("CLAUDE_PROJECT_DIR") or os.path.dirname(HERE)
 MARKER = os.path.join(ROOT, ".claude", "state", "step-guard.json")
@@ -144,6 +150,7 @@ def main(argv):
     if mode == "pre":
         reason = refusal(data)
         if reason:
+            record("step-guard", data, reason, ROOT)
             print(reason, file=sys.stderr)
             return 2
     return 0

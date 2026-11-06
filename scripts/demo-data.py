@@ -205,6 +205,8 @@ def demo():
                    output=5200 * n + 300 if agent == "main" else 2100 * n, replies=40 * n + 7, **hooks(n))
               for n in range(1, 7)
               for agent, model in (("main", "claude-sonnet-5-5"), ("implementer", "claude-haiku-5-5"))]
+    refusals = [dict(date=f"2026-10-{n + 2:02d}", guard=g, refused=k) for n, g, k in
+                ((3, "read-guard", 2), (4, "step-guard", 1), (5, "read-guard", 1), (5, "auditor-guard", 1))]
     items = [dict(name="web task", count=2, per_hour=0.0412), dict(name="database", count=1, per_hour=0.095)]
     summary = dict(criteria={"C1": "pass", "C2": "pass"}, steps={"build": "pass", "deploy": "pass", "smoke": "pass"},
                    resources={"web": 2, "worker": 1, "database": 1},
@@ -229,7 +231,7 @@ def demo():
         criteria_index=index, attention=attention,
         defect_recurrence=dict(defects=2, with_id=2, recurrences=[dict(id="D2.1", same_as="D1.1")], problems=[]),
         other_groups=[dict(name="tooling", count=4), dict(name="docs", count=3), dict(name="dashboard", count=2)],
-        vocab_size=136, tokens=tokens, verification=verification,
+        vocab_size=136, tokens=tokens, refusals=refusals, verification=verification,
         infra=dict(runs=runs, latest=dict(runs[0], summary=summary)), deployment=dict(
             domain="shop.example.com", checkedAt="2026-10-30T08:00+00:00",
             checks=[dict(criterion="C1", name="Product list loads", ok=True, detail="200 in 180 ms",

@@ -272,7 +272,7 @@ def code_like(tok):
 WORK_KINDS = ("spec", "context", "prod", "test", "tooling")
 FIXTURE_PATH = re.compile(r"(^|/)tests?/fixtures/")  # counted as test, left out of the tests-per-line ratio
 PLACES = ("prod", "test", "tooling", "other")  # where a code name was found: a work kind, or other for the rest
-NOT_WRITTEN = re.compile(r"(^|/)package-lock\.json$|^docs/dashboard/token-usage\.json$|^docs/dashboard/deployment\.json$|^screenshots/")
+NOT_WRITTEN = re.compile(r"(^|/)package-lock\.json$|^docs/dashboard/(token-usage|refusals)\.json$|^docs/dashboard/deployment\.json$|^screenshots/")
 TEST_PATH = re.compile(r"(^|/)tests?/|(^|/)(tests?|test_[^/]*|[^/]*_test|conftest)\.py$|(Test|Tests|IT)\.java$"
                        r"|\.(test|spec)\.[jt]sx?$")
 
@@ -1295,6 +1295,15 @@ def token_usage():
         return json.load(f)
 
 
+def refusals():
+    """The guards' refusals per date and guard, as scripts/token-usage.py last wrote them."""
+    path = os.path.join(PAGE, "refusals.json")
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def deployment():
     """The live checks of the one deployment (the project's own), or None if nothing was deployed."""
     path = os.path.join(PAGE, "deployment.json")
@@ -1678,7 +1687,7 @@ def main():
                     hand_offs=handoffs, criteria_index=index, attention=attention,
                     defect_recurrence=recurrence(days),
                     other_groups=other_groups(rows),
-                    vocab_size=vocab, tokens=token_usage(),
+                    vocab_size=vocab, tokens=token_usage(), refusals=refusals(),
                     verification=verification(prs, runs),
                     infra=infra(INFRA_WORKFLOW),
                     deployment=deployment(),

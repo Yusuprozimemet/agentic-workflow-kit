@@ -937,23 +937,30 @@ function drawTokens() {
     }).join("") + "</tbody>";
 }
 
-// Per date, how the two hooks fared: cut Bash results, and whole Reads of a file over 8,000 bytes.
-// Rows counted before the hooks were have no bash field, so they are left out.
+// Per date, how the hooks fared: cut Bash results, whole Reads of a file over 8,000 bytes, and each
+// guard's refusals (scripts/refusal_log.py). Token rows counted before the hooks were have no bash
+// field, so they are left out; a date with refusals and no such row shows "–" for the counts it lacks.
 function drawHooks(T) {
   const box = document.getElementById("token-hooks");
-  const H = T.filter(r => "bash" in r);
-  if (!H.length) {
+  const H = T.filter(r => "bash" in r), R = DATA.refusals || [];
+  if (!H.length && !R.length) {
     box.innerHTML = '<caption><p class="load-error">No hook counts yet: run <code>python scripts/token-usage.py</code>.</p></caption>';
     return;
   }
+  const guards = ["step-guard", "read-guard", "auditor-guard"];
   const sum = (rows, k) => rows.reduce((a, r) => a + r[k], 0);
   const share = (a, b) => `${a} (${b ? pct(a, b) : "–"})`;
-  const dates = [...new Set(H.map(r => r.date))].sort();
-  box.innerHTML = `<thead><tr><th>Date</th><th>Bash results</th><th>Cut</th><th>Large Reads</th><th>Whole</th></tr></thead><tbody>` +
+  const dates = [...new Set(H.map(r => r.date).concat(R.map(r => r.date)))].sort();
+  const refused = (d, g) => sum(R.filter(r => r.date === d && r.guard === g), "refused");
+  const logged = R.length ? R.map(r => r.date).sort()[0] : null;  // before the log began, no count is not zero
+  box.innerHTML = `<thead><tr><th>Date</th><th>Bash results</th><th>Cut</th><th>Large Reads</th><th>Whole</th>` +
+    guards.map(g => `<th>Refused: ${g.replace("-guard", "")}</th>`).join("") + `</tr></thead><tbody>` +
     dates.map(d => {
       const rs = H.filter(r => r.date === d);
-      return `<tr><td>${esc(d)}</td><td class="num">${sum(rs, "bash")}</td><td class="num">${share(sum(rs, "cut"), sum(rs, "bash"))}</td>` +
-        `<td class="num">${sum(rs, "reads")}</td><td class="num">${share(sum(rs, "whole"), sum(rs, "reads"))}</td></tr>`;
+      const tok = rs.length ? `<td class="num">${sum(rs, "bash")}</td><td class="num">${share(sum(rs, "cut"), sum(rs, "bash"))}</td>` +
+        `<td class="num">${sum(rs, "reads")}</td><td class="num">${share(sum(rs, "whole"), sum(rs, "reads"))}</td>` : `<td class="num">–</td>`.repeat(4);
+      return `<tr><td>${esc(d)}</td>${tok}` +
+        guards.map(g => `<td class="num">${logged && d >= logged ? refused(d, g) : "–"}</td>`).join("") + `</tr>`;
     }).join("") + "</tbody>";
 }
 

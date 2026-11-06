@@ -148,7 +148,8 @@ class SettingsTest(unittest.TestCase):
         scratch = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, scratch, True)
         env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
-        env.update(TMP=scratch, TEMP=scratch, TMPDIR=scratch)
+        env.update(TMP=scratch, TEMP=scratch, TMPDIR=scratch,  # nor the refusal in the real log
+                   GUARD_REFUSAL_LOG=os.path.join(scratch, "refusals.jsonl"))
         if project_dir is not None:
             env["CLAUDE_PROJECT_DIR"] = project_dir
         command = command.replace("python ", f'"{sys.executable}" ', 1)
