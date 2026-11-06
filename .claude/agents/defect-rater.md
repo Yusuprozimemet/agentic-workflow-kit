@@ -22,9 +22,9 @@ For each entry:
 
 - `stage`, where it was found:
   - `before_code`: by an auditor, or in the spec-change PR, before any code;
-  - `before_merge`: in review, a break on purpose, the session itself or a track, before the
-    track that holds it merged;
-  - `escape`: after that track merged: at the close, on the dashboard, in a later day's review,
+  - `before_merge`: in review, a test seen red, a break on purpose, the session itself or a
+    track, before the track that holds it merged;
+  - `escape`: after that track merged: at the close, in the evidence replay, on the dashboard, in a later day's review,
     or on a later day than the one that made it;
   - `unclear`: the text does not say.
 - `cause`, exactly one of:

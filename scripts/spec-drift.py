@@ -272,7 +272,7 @@ def code_like(tok):
 WORK_KINDS = ("spec", "context", "prod", "test", "tooling")
 FIXTURE_PATH = re.compile(r"(^|/)tests?/fixtures/")  # counted as test, left out of the tests-per-line ratio
 PLACES = ("prod", "test", "tooling", "other")  # where a code name was found: a work kind, or other for the rest
-NOT_WRITTEN = re.compile(r"(^|/)package-lock\.json$|^docs/dashboard/(token-usage|refusals)\.json$|^docs/dashboard/deployment\.json$|^screenshots/")
+NOT_WRITTEN = re.compile(r"(^|/)package-lock\.json$|^docs/dashboard/(token-usage|refusals|gates)\.json$|^docs/dashboard/deployment\.json$|^screenshots/")
 TEST_PATH = re.compile(r"(^|/)tests?/|(^|/)(tests?|test_[^/]*|[^/]*_test|conftest)\.py$|(Test|Tests|IT)\.java$"
                        r"|\.(test|spec)\.[jt]sx?$")
 
@@ -370,7 +370,7 @@ def defect_lines(text, day):
                 break
             fields[f.group(1)] = f.group(2)
         ok = DEFECT_ID.fullmatch(m.group(1) or "")
-        out.append(dict(id=m.group(1), same_as=fields.get("same-as"),
+        out.append(dict(id=m.group(1), same_as=fields.get("same-as"), found=fields.get("found"), cause=fields.get("cause"),
                         problem=None if m.group(1) is None or ok and int(ok.group(1)) == day
                         else f"Day {day}: Defect ID {m.group(1)} is not D{day}.<n>"))
     return out
@@ -1295,13 +1295,43 @@ def token_usage():
         return json.load(f)
 
 
-def refusals():
-    """The guards' refusals per date and guard, as scripts/token-usage.py last wrote them."""
-    path = os.path.join(PAGE, "refusals.json")
+def refusals(name="refusals.json"):
+    """The guards' refusals per date and guard, or with gates.json each gate's runs and tokens, as
+    scripts/token-usage.py last wrote them."""
+    path = os.path.join(PAGE, name)
     if not os.path.exists(path):
         return []
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+# Each gate and the found: value its Defect lines carry (specs/README.md); the hooks find no Defect
+# line: what they catch is each refusal, from refusals.json.
+GATES = (("auditors", "auditor"), ("seen red", "seen red"), ("break on purpose", "break on purpose"),
+         ("evidence replay", "evidence replay"), ("hooks", None))
+CAUSES = ("spec", "implementation", "process", "environment")
+
+
+def gate_report(days, gates, refused):
+    """Per gate: the Defect lines whose found: names it, by cause (other: a cause not in CAUSES), the
+    hooks' refusals, and its runs, replies, context, output and cost from gates.json; and how many
+    Defect lines no gate found."""
+    # As relabel.py reads them: older Notes qualify the value, "auditor (spec-auditor)".
+    tag = lambda v: re.sub(r" \(.*\)$", "", re.sub(r"^the ", "", (v or "").strip().lower()))
+    lines = [x for d in days for x in d.get("defects", [])]
+    rows = []
+    for gate, found in GATES:
+        mine = [x for x in lines if found and tag(x.get("found")) == found]
+        causes = {c: sum(tag(x.get("cause")) == c for x in mine) for c in CAUSES}
+        causes["other"] = len(mine) - sum(causes.values())
+        spent = {k: sum(r.get(k, 0) for r in gates if r["gate"] == gate) for k in ("runs", "replies", "context", "output", "cost")}
+        rows.append(dict(gate=gate, found=found, defects=len(mine), causes=causes,
+                         # with no refusals.json yet, no count is not zero
+                         refused=sum(r["refused"] for r in refused) if found is None and refused else None,
+                         **dict(spent, cost=round(spent["cost"], 2))))
+    named = {f for _, f in GATES if f}
+    return dict(gates=rows, defects=len(lines),
+                elsewhere=sum(tag(x.get("found")) not in named for x in lines))
 
 
 def deployment():
@@ -1686,6 +1716,7 @@ def main():
                     removals=removal_history(days, snaps, blobs),
                     hand_offs=handoffs, criteria_index=index, attention=attention,
                     defect_recurrence=recurrence(days),
+                    gate_report=gate_report(days, refusals("gates.json"), refusals()),
                     other_groups=other_groups(rows),
                     vocab_size=vocab, tokens=token_usage(), refusals=refusals(),
                     verification=verification(prs, runs),
@@ -1711,6 +1742,9 @@ def main():
     print(f"defects: {len(rec['recurrences'])} of {rec['with_id']} with an ID repeat an earlier one")
     for p in rec["problems"]:
         print(f"defect ID not counted: {p}")
+    for g in real["gate_report"]["gates"]:
+        caught = f"{g['refused'] if g['refused'] is not None else 'no refusal log,'} refused" if g["found"] is None else f"{g['defects']} defects"
+        print(f"gate {g['gate']}: {caught}, {g['runs']} runs, ${g['cost']:,.2f}")
 
 
 if __name__ == "__main__":

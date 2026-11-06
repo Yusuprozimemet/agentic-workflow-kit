@@ -134,8 +134,11 @@ Ticked short-spec criteria join the behaviour index; a later day replaces one wi
   - the ID, after `**Defect**`: `D<NN>.<n>`, the day's defects numbered from 1 in the order they
     are written (`- **Defect** D28.1 — found: …`). A short spec's Defect lines take none.
   - `found:` where, exactly one of `auditor`, `spec-change PR` (before any code); `review`,
-    `break on purpose`, `self`, `Track <X>` (before merge); `close`, `dashboard`,
-    `Day <NN> review` (after the track merged: an escape).
+    `seen red` (a new test that passed on `main`'s code), `break on purpose`, `self`, `Track <X>`
+    (before merge); `close`, `evidence replay` (the close's rehearsal or the replay after its
+    merge failed), `dashboard`, `Day <NN> review` (after the track merged: an escape). The
+    dashboard sets the defects each gate found (`auditor`, `seen red`, `break on purpose`,
+    `evidence replay`, and the hooks' refusals) beside the tokens it cost (`gates.json`).
   - `cause:` exactly one of `spec` (wrong, missing a case, or not meetable as written),
     `implementation` (the spec was right, the code did not do it), `process` (the workflow and
     the record around the code: branch names, Jira keys, a break run wrong, a track announced

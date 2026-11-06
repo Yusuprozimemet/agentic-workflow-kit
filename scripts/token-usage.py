@@ -4,7 +4,8 @@ Reads the session transcripts Claude Code keeps on this machine (~/.claude/proje
 repository's path>, subagents included) and writes totals only, no prompt or reply text, to
 docs/dashboard/token-usage.json (tokens, their cost at list prices and the --tools counts per row), which scripts/spec-drift.py puts on the dashboard. The
 transcripts live on the maintainer's machine, not in CI, so this runs locally and its output is
-committed; the closing PR of each day refreshes it.
+committed; the closing PR of each day refreshes it. Beside it, gates.json holds each gate's runs and the
+tokens of the replies that ran it or read its result (gates()), and refusals.json the guards' refusals.
 
     python scripts/token-usage.py
     python scripts/token-usage.py --simulate   # what shorter sessions, capped tool output or a Haiku operator would save
@@ -191,6 +192,69 @@ def count(files):
         t["replies"] += 1
         t["cost"] += cost(entry["message"].get("model"), usage)
     return totals
+
+
+# The gates (docs/dashboard/gates.json): an auditor's whole run, and in any session the scripts that run
+# seen red, a break on purpose and the evidence replay, and a call a guard refused. A refusal's result
+# starts with the hook's command, which names the guard's script.
+GATE_SCRIPT = (("seen red", re.compile(r"\bseen-red\.py\b")), ("break on purpose", re.compile(r"\bbreak\.py\b")),
+               ("evidence replay", re.compile(r"\b(?:close-)?evidence\.py\b")))
+REFUSED = re.compile(r"PreToolUse:\w+ hook error: \[[^\n]*?\b(step-guard|read-guard|auditor-guard)\.py")
+GATE_FIELDS = ("runs", "replies", "context", "output", "cost")
+
+
+def gate_of_call(name, args):
+    if name not in ("Bash", "PowerShell"):
+        return None
+    command = str(args.get("command") or "")
+    return next((g for g, rx in GATE_SCRIPT if rx.search(command)), None)
+
+
+def gates(files):
+    """Per (date, day, gate): its runs, and the replies that made its call or read what the call
+    returned, with their context, output and cost. Every reply of an auditor's run is the auditors'.
+    A reply counts toward one gate: the first its own calls name, else the one whose result it reads."""
+    rows = collections.defaultdict(lambda: dict.fromkeys(GATE_FIELDS, 0))
+    for path in files:
+        auditor = agent(path).endswith("-auditor")
+        last, own, of_call, calls = {}, {}, {}, {}
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                content = (entry.get("message") or {}).get("content")
+                blocks = [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
+                msg = reply(entry)
+                if msg is not None:
+                    key = (msg.get("id"), entry.get("requestId"))
+                    last[key] = entry  # a key keeps the place of its first line, and its last line's usage
+                    for b in (b for b in blocks if b.get("type") == "tool_use"):
+                        of_call[b.get("id")] = key
+                        g = gate_of_call(b.get("name"), b.get("input") or {})
+                        if g:
+                            calls[b.get("id")] = g
+                            own.setdefault(key, g)
+                elif entry.get("type") == "user":
+                    for b in (b for b in blocks if b.get("type") == "tool_result" and b.get("tool_use_id") in of_call):
+                        if REFUSED.match(tool_text(b.get("content"))):
+                            calls[b["tool_use_id"]] = own[of_call[b["tool_use_id"]]] = "hooks"
+        order = list(last)
+        where = lambda key, g: row_key(last[key], None)[:2] + (g,)
+        for i, key in enumerate(order):
+            g = "auditors" if auditor else own.get(key) or (own.get(order[i - 1]) if i else None)
+            if g:
+                usage, t = last[key]["message"]["usage"], rows[where(key, g)]
+                t["replies"] += 1
+                t["context"] += sum(usage.get(k, 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
+                t["output"] += usage.get("output_tokens", 0)
+                t["cost"] += cost(last[key]["message"].get("model"), usage)
+        for tid, g in ([] if auditor else calls.items()):
+            rows[where(of_call[tid], g)]["runs"] += 1
+        if auditor and order:
+            rows[where(order[0], "auditors")]["runs"] += 1
+    return rows
 
 
 def contexts(path):
@@ -593,7 +657,8 @@ def main():
         report(simulate(paths))
         report_route(route(paths))
         return
-    totals = count(transcripts(args.transcripts))
+    files = list(transcripts(args.transcripts))
+    totals = count(files)
     if os.path.exists(args.out):
         with open(args.out, encoding="utf-8") as f:
             kept = json.load(f)
@@ -618,6 +683,25 @@ def main():
     print(f"{args.out}: {len(rows)} rows, {rows[0]['date']} to {rows[-1]['date']}, {out:,} output tokens, "
           f"${sum(r['cost'] for r in rows):,.2f} at the list prices checked {PRICES_CHECKED}")
     write_refusals(os.path.join(os.path.dirname(args.out), "refusals.json"))
+    write_gates(os.path.join(os.path.dirname(args.out), "gates.json"), gates(files))
+
+
+def write_gates(out, rows):
+    """Each gate's runs and tokens per date and day, beside those already in out: the larger of each
+    count is kept, as in token-usage.json, since Claude Code deletes old transcripts."""
+    if os.path.exists(out):
+        with open(out, encoding="utf-8") as f:
+            for r in json.load(f):
+                t = rows[(r["date"], r["day"], r["gate"])]
+                for k in GATE_FIELDS:
+                    t[k] = max(t[k], r.get(k, 0))
+    if not rows:
+        return
+    out_rows = sorted((dict(date=d, day=n, gate=g, **dict(t, cost=round(t["cost"], 4))) for (d, n, g), t in rows.items()),
+                      key=lambda r: (r["date"], r["day"] or 0, r["gate"]))
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        f.write("[\n" + ",\n".join(json.dumps(r, separators=(",", ":")) for r in out_rows) + "\n]\n")
+    print(f"{out}: {sum(r['runs'] for r in out_rows)} gate runs, ${sum(r['cost'] for r in out_rows):,.2f}")
 
 
 def write_refusals(out, log=None):

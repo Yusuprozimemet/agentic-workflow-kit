@@ -36,8 +36,8 @@ Tick each box in the closing PR once its evidence is in it; under a box left unt
 
 ## Notes
 - <risks, gotchas, decisions deferred>
-- **Defect** DNN.1 — found: <auditor | spec-change PR | review | break on purpose | self | Track X |
-  close | dashboard | Day NN review> · cause: <spec | implementation | process | environment> ·
+- **Defect** DNN.1 — found: <auditor | spec-change PR | review | seen red | break on purpose | self |
+  Track X | close | evidence replay | dashboard | Day NN review> · cause: <spec | implementation | process | environment> ·
   made: <Day NN | none> · [same-as: <the earlier Defect's ID, e.g. D21.2> ·] <one problem: what
   was wrong, and the PR that fixed it>.
 - **Rewrite** — Track <X>: <what the main session rewrote in the implementer's code beyond
