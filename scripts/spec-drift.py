@@ -1743,8 +1743,15 @@ def main():
     for p in rec["problems"]:
         print(f"defect ID not counted: {p}")
     for g in real["gate_report"]["gates"]:
-        caught = f"{g['refused'] if g['refused'] is not None else 'no refusal log,'} refused" if g["found"] is None else f"{g['defects']} defects"
-        print(f"gate {g['gate']}: {caught}, {g['runs']} runs, ${g['cost']:,.2f}")
+        print(gate_line(g))
+
+
+def gate_line(g):
+    """One gate's line on the console: what it caught, its runs and cost. A hooks gate with no
+    refusal log yet has caught nothing that can be counted, not refused anything."""
+    caught = (f"{g['defects']} defects" if g["found"] is not None else
+              "no refusal log yet" if g["refused"] is None else f"{g['refused']} refused")
+    return f"gate {g['gate']}: {caught}, {g['runs']} runs, ${g['cost']:,.2f}"
 
 
 if __name__ == "__main__":

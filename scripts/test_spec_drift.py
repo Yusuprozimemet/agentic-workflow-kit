@@ -806,6 +806,11 @@ class GateReportTest(unittest.TestCase):
             ("hooks", 0, 3, [0, 0, 0, 0, 0], 1, 2, 0.01)])
         # Before refusals.json exists, the hooks' count is not known, not zero.
         self.assertIsNone(sd.gate_report(days, spent, [])["gates"][-1]["refused"])
+        # The console line says so, and reports no refusal it did not count.
+        self.assertEqual(sd.gate_line(sd.gate_report(days, spent, [])["gates"][-1]),
+                         "gate hooks: no refusal log yet, 1 runs, $0.01")
+        self.assertEqual(sd.gate_line(r["gates"][-1]), "gate hooks: 3 refused, 1 runs, $0.01")
+        self.assertEqual(sd.gate_line(r["gates"][0]), "gate auditors: 2 defects, 0 runs, $0.00")
 
 
 class DefectTest(unittest.TestCase):

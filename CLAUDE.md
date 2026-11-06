@@ -158,9 +158,9 @@ Every track PR shows its new tests failing first (`specs/README.md`). When the t
 the PR; exit 1 means they pass there. Otherwise, without a Track 0 or an extra commit, stash the
 code change (`git stash push -- <the code's directory>`), run the new tests on `main`'s code,
 compare with what the spec says fails today, `git stash pop`, and put what they reported in the
-PR. CI's "Track tests seen red" re-runs each `new` criterion's test this way only when the
-repository variable `TRACK_RED_RUNNER` names the project's runner (README, setup); unset, it reports "not
-configured" and passes.
+PR. CI's "Track tests seen red" re-runs each `new` criterion's test this way when the
+repository variable `TRACK_RED_RUNNER` names the project's runner (README, setup); unset, it fails
+a track that owns a `new` criterion and passes the rest.
 
 Re-count any number the implementer reports (lines, tests, entries in a file) before it goes in
 a PR: in wordtally, Day 4's report said a list held 40 words; it held 45.

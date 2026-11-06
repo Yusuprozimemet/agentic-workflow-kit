@@ -206,12 +206,23 @@ class TrackRedTest(unittest.TestCase):
         self.assertEqual(code, 0, out)
         self.assertIn("→ FAILED (failures=1); on the head → OK", out)
 
-    def test_an_empty_runner_is_not_configured_and_runs_nothing(self):
+    def test_an_empty_runner_fails_a_track_that_owns_a_new_criterion(self):
         # CI passes vars.TRACK_RED_RUNNER, empty when the repository has not set it.
+        # A green "not configured" was read as proof the track's tests were seen red: it fails.
         code, out = self.track_red(fix="return x", runner="")
+        self.assertEqual(code, 1, out)
+        self.assertIn("FAIL: TRACK_RED_RUNNER is not set, so the 1 tests Day 01 track A's new criteria (C1.1) "
+                      "name cannot be seen red; set it to the project's runner: unittest, pytest, maven, npm", out)
+        self.assertNotIn("seen red:", out)
+
+    def test_an_empty_runner_passes_a_track_that_owns_only_holds(self):
+        code, out = self.track_red(spec(TWO_TRACKS), branch="day-01/track-0-pin", runner="")
         self.assertEqual(code, 0, out)
-        self.assertEqual(out.split(":")[0], "not configured", out)
-        self.assertNotIn("seen red", out)
+        self.assertIn("not applicable: track 0 of Day 01 owns no new criterion (hold: C1.2)", out)
+
+    def test_an_empty_runner_passes_a_branch_that_is_not_a_track(self):
+        code, out = self.track_red(branch="tooling/word-rule-edge-cases", runner="")
+        self.assertEqual((code, out.split(":")[0]), (0, "not applicable"), out)
 
     def test_a_runner_it_does_not_support_is_a_configuration_error(self):
         code, out = self.track_red(runner="unknown")
