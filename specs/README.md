@@ -260,7 +260,13 @@ the evidence artifact. For a local run on fresh `main`, use
 Retain the report and inspect each result: named tests are checked for existence under `tests/`,
 Verify commands are executed, and recorded breaks are replayed at historical commits.
 Replay finds a **merged closing commit**; the post-merge gate cannot block its own closing PR's
-merge and is not a required status check. The workflow's manual dispatch accepts an optional
+merge. What can is the rehearsal: on a pull request the same check, "A closed day's evidence
+replays", replays a closing branch (`day-NN/close-the-day`, `change/<slug>`) as its merge would
+be, and passes any other branch with "not a closing branch"; required in branch protection, it
+blocks a close whose evidence does not replay. Run it before opening the PR, on the committed
+branch: `python scripts/close-evidence.py --rehearse day-NN/close-the-day`. A rehearsal does not
+replace the replay after the merge: `main` can move in between, and a squash merge is found by its
+title, which a rehearsal never sees. The workflow's manual dispatch accepts an optional
 day number to replay a previously closed day on `main`. A short spec replays the same way at its
 `change/<slug>` merge (or the squash that added it), its breaks in `specs/breaks/<slug>.json`:
 `python scripts/evidence.py specs/changes/<slug>.md --ref main`.

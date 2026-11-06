@@ -58,7 +58,8 @@ that qualifies (area branch, short spec, day spec) and say which in the PR.
    `gh run list --workflow evidence.yml --commit <sha>` for its merge commit, then
    `gh run view <run-id> --exit-status`. Require a completed successful run; a failed, missing,
    pending or cancelled run blocks the next step. Inspect its checks and retain its evidence
-   artifact. This post-merge gate cannot block its own merge and is not a required status check.
+   artifact. This post-merge gate cannot block its own merge. The same check rehearses the replay
+   on the closing PR, before the merge, and that one can be required ("Breaks on purpose", below).
    **After every "merged", refresh the dashboard before the next step:** the merge rebuilds the
    [public one](<!-- PROJECT: GitHub Pages URL -->) by itself (`.github/workflows/dashboard.yml`). On fresh
    `main`, run `python scripts/spec-drift.py` and report the next step it prints. The page on
@@ -255,9 +256,14 @@ Breaks on purpose:
   merge failed four lines (bearing D10.20): two breaks shared a name, two lines had no entry,
   one ended in "(close, D10.19)". The rules are in
   [Evidence at the close](specs/README.md#evidence-at-the-close). Before opening the closing
-  PR, run `evidence.py` on a scratch clone where the branch is merged with
-  `--no-ff -m "Merge pull request #0 from me/day-NN/close-the-day"`, and `spec-drift.py --out`
-  there: a "No evidence and PR cited together" flag on the day's criteria means the Evidence is
+  PR, commit the close and run `python scripts/close-evidence.py --rehearse day-NN/close-the-day`:
+  it replays the branch as its merge into `main` would, moves no ref, and writes
+  `evidence-rehearsal.json`. CI runs the same on the PR ("A closed day's evidence replays"). On
+  bearing's Day 10 branch as it stood before its merge, it fails those lines. It is not the replay
+  after the merge, which step 5 still checks: `main` can move in between. It does not run the
+  dashboard either: on a scratch clone where the branch is merged with
+  `--no-ff -m "Merge pull request #0 from me/day-NN/close-the-day"`, run `spec-drift.py --out`: a
+  "No evidence and PR cited together" flag on the day's criteria means the Evidence is
   worded so the dashboard does not count it (bearing D12.11 to D12.13, fixed by a spec change
   after the close).
 
