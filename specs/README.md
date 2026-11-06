@@ -38,7 +38,7 @@ land together: no separate spec-change or closing PR. Put the `seen red:` line a
 `broken:` lines in the PR. Run `python scripts/track-red.py --branch change/<slug> --runner
 <runner>` (the project's: `unittest`, `pytest`, `maven` or `npm`) to check each new criterion's
 test against base code and the head; CI runs it when `TRACK_RED_RUNNER` names the runner, and
-reports not configured when unset. Hold checks must also
+fails a `new` criterion when unset. Hold checks must also
 be broken on purpose as in the day rules below, and the PR commits their break manifest as
 `specs/breaks/<slug>.json` ([Evidence at the close](#evidence-at-the-close)): after the merge,
 the Evidence replay replays the short spec at the merge of `change/<slug>`.

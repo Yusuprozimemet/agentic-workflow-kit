@@ -2426,3 +2426,19 @@ if a reliable, small rule can be defined; use the explicit review step now.
   `7aef810`) → 5 failed: the four problems D10.20 found after the merge, the shared break name
   reported once per line that names it.
 - `broken: the rehearsal commit given a subject that is not a closing merge's → AssertionError: 'all evidence holds' not found in 'not a closing branch: nothing to rehearse\n'`
+
+### 139. Fail an unseen `new` criterion when `TRACK_RED_RUNNER` is unset; say "no refusal log yet"
+
+- The second fix from the 2026-11-06 review of the kit's assessment (`kit/ASSESSMENT.md`: a green
+  "not configured" is not proof). "Track tests seen red" passed every PR as "not configured" while
+  the repository variable was unset, so a copied kit's first tracks merged green with no test seen
+  red. `track-red.py` now reads the spec whatever the runner, and with no runner fails a track or
+  short spec that owns a `new` criterion, naming them; branches that own none pass as "not
+  applicable", as with a runner.
+- `spec-drift.py`'s console line for the hooks gate said "no refusal log, refused" before
+  `refusals.json` exists; it now says "no refusal log yet" (`gate_line`).
+- **Seen red, on `main`'s code:** the three empty-runner `TrackRedTest` tests → "FAILED
+  (failures=3)": "0 != 1 : not configured: ..." and "not configured" where "not applicable" was
+  wanted; `GateReportTest` → "module 'spec_drift' has no attribute 'gate_line'".
+- `broken: track-red.py passes an empty runner with new criteria → AssertionError: 0 != 1 : FAIL: TRACK_RED_RUNNER is not set, so the 1 tests Day 01 track A's new criteria (C1.1) name cannot be seen red; set it to the project's runner: unittest, pytest, maven, npm`
+- `broken: spec-drift.py prints the old hooks gate wording → AssertionError: 'gate hooks: no refusal log, refused, 1 runs, $0.01' != 'gate hooks: no refusal log yet, 1 runs, $0.01'`

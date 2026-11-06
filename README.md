@@ -73,7 +73,7 @@ days on a small Python CLI. What that evidence does and does not show is in
 5. Optional: a tracker key, as a repository variable `JIRA_KEY` (Settings, Secrets and
    variables, Actions, Variables). "Compare the names" in `.github/workflows/pr-checks.yml`
    reads it; unset, no key is checked.
-6. Optional: set the repository variable `TRACK_RED_RUNNER` to `unittest`, `pytest`, `maven`, or `npm`. "Track tests seen red" runs each named test on the base and head. Unset, it reports "not configured" and passes; an unknown value fails. Use unittest test names, pytest node IDs, Maven class names, or npm test file paths, respectively. The replay copies changed files under `tests/` only; test files elsewhere must already exist on the base. Code a test checks that lives under `tests/`, such as a fixture builder, is listed in `spec-drift.config.json` as `code_under_tests` (regular expressions over the path) and is not copied in, so the base keeps its own. Runner dependencies must be available in CI. Evidence replay still resolves Python classes under `tests/`.
+6. Set the repository variable `TRACK_RED_RUNNER` to `unittest`, `pytest`, `maven`, or `npm` before the first track. "Track tests seen red" runs each named test on the base and head. Unset, it fails any track or short spec that owns a `new` criterion, and passes branches that own none; an unknown value fails. Use unittest test names, pytest node IDs, Maven class names, or npm test file paths, respectively. The replay copies changed files under `tests/` only; test files elsewhere must already exist on the base. Code a test checks that lives under `tests/`, such as a fixture builder, is listed in `spec-drift.config.json` as `code_under_tests` (regular expressions over the path) and is not copied in, so the base keeps its own. Runner dependencies must be available in CI. Evidence replay still resolves Python classes under `tests/`.
 
 ### Style check setup
 
@@ -91,8 +91,8 @@ Put the first formatting of existing code in its own PR with an `Oversized:` lin
 
 Control activation in a copied kit (CI checks must also be required in branch protection below):
 
-- **Track tests seen red:** active only once the repository variable `TRACK_RED_RUNNER`
-  is configured; applies to track PRs with owned `new` criteria and named tests under `tests/`.
+- **Track tests seen red:** applies to track and short-spec PRs that own `new` criteria; it
+  fails them until the repository variable `TRACK_RED_RUNNER` is configured.
 - **Frozen files:** active only once `spec-drift.config.json` has `frozen` patterns (empty by
   default); optional `test_count` configures the additional count check.
 - **Evidence replay:** active by default after the closing merge, in `evidence.yml`, using
@@ -143,8 +143,8 @@ On GitHub, in this order:
 - The kit has no workflow for the project's own tests: each project adds one (for example
   `.github/workflows/tests.yml`) before Day 1 and requires its check by name, as above. The
   kit's workflows test only its own tools.
-- "Track tests seen red" reports on every pull request; with `TRACK_RED_RUNNER` set (item 6
-  above), require it by name too.
+- "Track tests seen red" reports on every pull request; set `TRACK_RED_RUNNER` (item 6
+  above) and require it by name too.
 
 Locally: Python with `numpy` (and `pyyaml` for `scripts/test_service_wiring.py`), `node` for the
 page tests, and `gh`, logged in.

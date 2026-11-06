@@ -5,8 +5,9 @@ print one line per test.
 
 A `new` criterion must fail on the code before the day (specs/README.md); a pilot of the kit merged
 two tracks without the `seen red:` record. CI runs this on every PR ("Track tests seen red") with `--runner` set to the
-repository variable TRACK_RED_RUNNER: empty, the variable unset, is "not configured" and checks
-nothing; `unittest`, `pytest`, `maven`, and `npm` select a runner; anything else cannot run. It runs the tests again;
+repository variable TRACK_RED_RUNNER: `unittest`, `pytest`, `maven`, and `npm` select a runner; anything else
+cannot run. Empty, the variable unset, fails a track that owns a `new` criterion (it used to pass as "not
+configured", and a green check was read as proof) and passes everything else as before. It runs the tests again;
 it cannot show the track's author did. What it checks comes from the spec, never the diff (a PR that adds
 tests pinning what holds is not a track):
 
@@ -171,11 +172,7 @@ def main(args=None):
     p.add_argument("--runner", default="unittest")
     a = p.parse_args(args)
     sys.stdout.reconfigure(encoding="utf-8")  # the arrow; a Windows console's default is cp1252
-    if not a.runner:
-        print("not configured: TRACK_RED_RUNNER is not set, so no track's tests are run; "
-              "a Python project with unittest tests sets it to unittest")
-        return 0
-    if a.runner not in RUNNERS:
+    if a.runner and a.runner not in RUNNERS:
         print(f"track-red.py: TRACK_RED_RUNNER `{a.runner}` is not supported; supported runners: {', '.join(RUNNERS)}",
               file=sys.stderr)
         return 2
@@ -227,6 +224,14 @@ def main(args=None):
         print(f"not applicable: {subject} owns no new criterion "
               f"(hold: {', '.join(ours) or 'none'})")
         return 0
+    if not a.runner:
+        if new:
+            print(f"FAIL: TRACK_RED_RUNNER is not set, so the {sum(map(len, new.values()))} tests {label}'s "
+                  f"new criteria ({', '.join(new)}) name cannot be seen red; "
+                  f"set it to the project's runner: {', '.join(RUNNERS)}")
+        for problem in problems:
+            print(f"FAIL: {problem}")
+        return 1
 
     ids, runs = test_ids() if a.runner == "unittest" else [], []
     for c, names in new.items():
