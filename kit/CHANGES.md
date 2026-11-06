@@ -2442,3 +2442,25 @@ if a reliable, small rule can be defined; use the explicit review step now.
   wanted; `GateReportTest` → "module 'spec_drift' has no attribute 'gate_line'".
 - `broken: track-red.py passes an empty runner with new criteria → AssertionError: 0 != 1 : FAIL: TRACK_RED_RUNNER is not set, so the 1 tests Day 01 track A's new criteria (C1.1) name cannot be seen red; set it to the project's runner: unittest, pytest, maven, npm`
 - `broken: spec-drift.py prints the old hooks gate wording → AssertionError: 'gate hooks: no refusal log, refused, 1 runs, $0.01' != 'gate hooks: no refusal log yet, 1 runs, $0.01'`
+
+### 140. Check a copied kit's setup in one command: `scripts/setup-check.py`
+
+- The third fix from the 2026-11-06 review of the kit's assessment: a copy's setup lives in
+  GitHub's settings, where nothing the kit runs looks. This repository's own `main` has no branch
+  protection and no `TRACK_RED_RUNNER`, and no check said so. `setup-check.py` prints one line per
+  item, `ok` or `FAIL`: a pull request before merging on `main` and each kit check required by
+  name, "A closed day's evidence replays" and "Track tests seen red" among them (classic
+  protection or a ruleset), one more required check for the project's tests, `TRACK_RED_RUNNER`
+  set to a runner `track-red.py` knows (a repository or a shared organization variable), Pages
+  built by GitHub Actions, and each Markdown file outside `kit/` with a `<!-- PROJECT`
+  placeholder left, with its lines (one in backticks is named, not left). A setting `gh` cannot
+  read is a FAIL that says why. It exits 1 until every item passes, and only reads.
+- The README's protection rule left out "Track tests seen red", which the text below it says to
+  require: added to the JSON and the list. `test_setup_check.py` ties the script's check names to
+  the workflows' job names, the README's rule and `track-red.py`'s runners.
+- **On this repository:** 21 of 22 items need setup: no protection on `main` (10 lines),
+  `TRACK_RED_RUNNER` unset, and 10 files with placeholders, as a kit should have; Pages ok.
+- **Seen red, on `main`'s code:** the new tests → "FileNotFoundError: ... setup-check.py"; with
+  the script copied in, `test_the_readme_rule_requires_the_same_checks` → "FAILED (failures=1)".
+- `broken: setup-check.py ignores a ruleset's required checks → AssertionError: Lists differ: ['main requires "Description uses the temp[522 chars]t's"] != []`
+- `broken: setup-check.py passes a setting it cannot read → AssertionError: Lists differ: [] != [('FAIL', 'branch protection on main: cann[34 chars]n)')]`

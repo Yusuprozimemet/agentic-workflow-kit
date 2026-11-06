@@ -124,7 +124,8 @@ On GitHub, in this order:
 - Before Day 1, branch protection on `main`: a pull request before merging, and these checks
   required by name: "Description uses the template", "Diff stays reviewable", "Branch, title,
   commits and Jira keys agree", "Frozen files stay unedited", "Dashboard metric tests gate",
-  "Criteria keep their wording", "A closed day's evidence replays", and the project's tests. The settings page offers only checks
+  "Criteria keep their wording", "A closed day's evidence replays", "Track tests seen red", and
+  the project's tests. The settings page offers only checks
   that have already run; the API takes any name. Write the rule to a file (a bash heredoc fails
   in PowerShell):
 
@@ -132,7 +133,7 @@ On GitHub, in this order:
   {"required_status_checks": {"strict": false, "contexts": ["Description uses the template",
     "Diff stays reviewable", "Branch, title, commits and Jira keys agree",
     "Frozen files stay unedited", "Dashboard metric tests gate", "Criteria keep their wording",
-    "A closed day's evidence replays", "<the project's tests>"]},
+    "A closed day's evidence replays", "Track tests seen red", "<the project's tests>"]},
    "enforce_admins": false, "required_pull_request_reviews": null, "restrictions": null}
   ```
 
@@ -145,6 +146,11 @@ On GitHub, in this order:
   kit's workflows test only its own tools.
 - "Track tests seen red" reports on every pull request; set `TRACK_RED_RUNNER` (item 6
   above) and require it by name too.
+- Then run `python scripts/setup-check.py`: one line per item, `ok` or `FAIL`, for a pull request
+  before merging and each required check above on `main` (classic protection or a ruleset), the
+  project's tests among them, `TRACK_RED_RUNNER`, Pages built by GitHub Actions, and each Markdown
+  file with a `<!-- PROJECT` placeholder left. It reads only, needs `gh` logged in as an admin of
+  the repository, and exits 1 until every item is set up.
 
 Locally: Python with `numpy` (and `pyyaml` for `scripts/test_service_wiring.py`), `node` for the
 page tests, and `gh`, logged in.
