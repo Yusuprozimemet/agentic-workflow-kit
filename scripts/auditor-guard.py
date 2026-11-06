@@ -33,6 +33,12 @@ import subprocess
 import sys
 import tempfile
 
+try:
+    from refusal_log import record
+except ImportError:  # a copy of this script without refusal_log.py still refuses, unlogged
+    def record(*args, **kwargs):
+        pass
+
 GIT_WRITES = {
     "add", "am", "apply", "branch", "checkout", "cherry-pick", "clean", "commit", "config",
     "fetch", "filter-branch", "gc", "init", "merge", "mv", "notes", "prune", "pull", "push",
@@ -213,6 +219,8 @@ def main():
     data = json.load(sys.stdin)
     repo = os.environ.get("CLAUDE_PROJECT_DIR") or data.get("cwd") or os.getcwd()
     code, message = run(sys.argv[1], data, repo, os.path.join(tempfile.gettempdir(), "auditor-guard"))
+    if code:
+        record("auditor-guard", data, message, repo)
     if message:
         print(message, file=sys.stderr if code else sys.stdout)
     sys.exit(code)

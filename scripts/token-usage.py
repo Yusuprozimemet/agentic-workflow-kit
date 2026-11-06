@@ -617,6 +617,22 @@ def main():
     out = sum(r["output"] for r in rows)
     print(f"{args.out}: {len(rows)} rows, {rows[0]['date']} to {rows[-1]['date']}, {out:,} output tokens, "
           f"${sum(r['cost'] for r in rows):,.2f} at the list prices checked {PRICES_CHECKED}")
+    write_refusals(os.path.join(os.path.dirname(args.out), "refusals.json"))
+
+
+def write_refusals(out, log=None):
+    """The guards' refusals per date, from this machine's log, beside those already in out."""
+    import refusal_log
+    kept = []
+    if os.path.exists(out):
+        with open(out, encoding="utf-8") as f:
+            kept = json.load(f)
+    rows = refusal_log.merge(kept, refusal_log.counts(log))
+    if not rows:
+        return
+    with open(out, "w", encoding="utf-8", newline="\n") as f:
+        f.write("[\n" + ",\n".join(json.dumps(r, separators=(",", ":")) for r in rows) + "\n]\n")
+    print(f"{out}: {sum(r['refused'] for r in rows)} refusals over {len({r['date'] for r in rows})} dates")
 
 
 if __name__ == "__main__":

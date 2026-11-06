@@ -11,7 +11,8 @@ So a Read with no offset, no limit and no pages, of a file over 8,000 bytes, is 
 reason names the file's size and line count: find the part with grep -n and read it with
 offset/limit, or give a limit to read it all on purpose. Edit works after a ranged Read, even on
 lines outside the range (tried in the session that wrote this). Images, PDFs and notebooks pass:
-they are not read as lines. A path that is not a file passes, so Read reports it.
+they are not read as lines. A path that is not a file passes, so Read reports it. Each refusal is
+logged (refusal_log.py) for the dashboard to count.
 
 The settings' command finds this script through CLAUDE_PROJECT_DIR, read in Python, and exits 0
 without it: VS Code Copilot reads the same settings, runs the hook for every tool and sets no such
@@ -20,6 +21,12 @@ variable (see auditor-guard.py).
 import json
 import os
 import sys
+
+try:
+    from refusal_log import record
+except ImportError:  # a copy of this script without refusal_log.py still refuses, unlogged
+    def record(*args, **kwargs):
+        pass
 
 LIMIT = 8000
 WHOLE = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".pdf", ".ipynb")
@@ -52,6 +59,7 @@ def main():
         return 0
     reason = refusal(data)
     if reason:
+        record("read-guard", data, reason)
         print(reason, file=sys.stderr)
         return 2
     return 0

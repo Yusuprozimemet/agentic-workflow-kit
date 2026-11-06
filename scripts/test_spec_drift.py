@@ -1458,8 +1458,24 @@ class PageTest(unittest.TestCase):
         self.assertIsNone(error)
         rows = re.findall(r"<tr><td>.*?</tr>", panels["token-hooks"])
         cells = [[re.sub("<[^>]+>", "", c) for c in re.findall(r"<td[^>]*>(.*?)</td>", r)] for r in rows]
-        self.assertEqual(cells, [["2026-10-12", "10", "0 (0.0%)", "3", "2 (66.7%)"],
-                                 ["2026-10-13", "8", "1 (12.5%)", "2", "0 (0.0%)"]])
+        self.assertEqual(cells, [["2026-10-12", "10", "0 (0.0%)", "3", "2 (66.7%)", "–", "–", "–"],
+                                 ["2026-10-13", "8", "1 (12.5%)", "2", "0 (0.0%)", "–", "–", "–"]])
+
+    def test_the_hooks_table_counts_each_guards_refusals_from_the_day_the_log_began(self):
+        def hooks(date):
+            return dict(date=date, day=1, model="claude-opus-5-5", agent="main", input=100, cache_write=0,
+                        cache_read=0, output=10, replies=1, bash=1, cut=0, reads=0, whole=0)
+        refusals = [dict(date="2026-10-13", guard="read-guard", refused=2),
+                    dict(date="2026-10-14", guard="step-guard", refused=1),
+                    dict(date="2026-10-14", guard="auditor-guard", refused=3)]
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], tokens=[hooks("2026-10-12"), hooks("2026-10-13")],
+                                 refusals=refusals)
+        self.assertIsNone(error)
+        self.assertIn("<th>Refused: step</th><th>Refused: read</th><th>Refused: auditor</th>", panels["token-hooks"])
+        rows = re.findall(r"<tr><td>.*?</tr>", panels["token-hooks"])
+        self.assertEqual([[re.sub("<[^>]+>", "", c) for c in re.findall(r"<td[^>]*>(.*?)</td>", r)][-3:] for r in rows],
+                         [["–", "–", "–"], ["0", "2", "0"], ["1", "0", "3"]])
+        self.assertEqual(len(re.findall(r"<td[^>]*>", rows[2])), 8)  # a date with refusals only
 
     def test_the_hooks_table_sums_a_date_over_its_agents(self):
         def hooks(agent, bash, cut, reads, whole):
@@ -1470,7 +1486,7 @@ class PageTest(unittest.TestCase):
         self.assertIsNone(error)
         rows = re.findall(r"<tr><td>.*?</tr>", panels["token-hooks"])
         self.assertEqual([[re.sub("<[^>]+>", "", c) for c in re.findall(r"<td[^>]*>(.*?)</td>", r)] for r in rows],
-                         [["2026-10-12", "10", "1 (10.0%)", "3", "1 (33.3%)"]])
+                         [["2026-10-12", "10", "1 (10.0%)", "3", "1 (33.3%)", "–", "–", "–"]])
 
     def test_with_no_hook_counts_the_hooks_table_says_what_is_missing(self):
         old = dict(date="2026-10-12", day=1, model="claude-opus-5-5", agent="main", input=100, cache_write=0,

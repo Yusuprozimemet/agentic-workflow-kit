@@ -38,7 +38,8 @@ that qualifies (area branch, short spec, day spec) and say which in the PR.
 3. **A closing PR:** `day-NN/close-the-day`. Tick each criterion with its evidence (test or
    command, and the PR it landed in), add Notes to the spec, and update the Day entry and measurement
    table in [`docs/lab-notebook.md`](docs/lab-notebook.md) (the README keeps only its Findings). Run `python scripts/token-usage.py` and commit the refreshed
-   `docs/dashboard/token-usage.json`: CI cannot read the transcripts it counts. Then relabel the
+   `docs/dashboard/token-usage.json` and `docs/dashboard/refusals.json`: CI cannot read the
+   transcripts or the guards' refusal log they count. Then relabel the
    day's defects blind: `python scripts/relabel.py blind specs/day-NN-*.md --out <dir>`, give
    `<dir>/blind.md` to the **defect-rater** agent, save its JSON as `<dir>/labels.json`, run
    `python scripts/relabel.py compare <dir>`, and put its lines in the PR with a decision on each
@@ -208,6 +209,7 @@ and who creates them, the setup scripts -->
   dashboard's data from git and GitHub; `--build` writes the page (`docs/dashboard/`) with it, and until the first day spec exists it shows example data under a banner; `--out` never does.
   Every merge to `main` republishes it to [GitHub Pages](<!-- PROJECT: GitHub Pages URL -->).
 - **Whole-file Reads:** a PreToolUse hook (`scripts/read-guard.py`) refuses a Read with no `offset`, `limit` or `pages` of a file over 8,000 bytes, and names its size and line count. Find the part with `grep -n` and read that range; to read all of it on purpose, give the `limit` it names. Edit works after a ranged Read. Images, PDFs and notebooks pass.
+- **Refusals:** step-guard, read-guard and auditor-guard each append every refusal to `.claude/state/refusals.jsonl` (gitignored; `scripts/refusal_log.py`). `token-usage.py` counts it into `docs/dashboard/refusals.json`, shown in the dashboard's "Hooks at work" table. Many of one kind mean a rule is read past or in the way: say so in the day's Notes.
 - **Long Bash output:** a PostToolUse hook (`scripts/cap-output.py`) cuts stdout over 8,000 characters to its head and tail; the full output is in `.claude/tool-output/` (gitignored). Claude Code merges stderr into stdout, so a failing command's error comes back at the end of stdout with stderr `''`: it is cut, and the tail (last 3,000 characters) keeps it; the stderr guard only catches a separate stderr. An interrupted command is left whole, as is output of 30,000 characters or more, which Claude Code saves itself.
 
 ## Pitfalls this repository has already hit
