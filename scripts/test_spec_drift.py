@@ -1235,6 +1235,39 @@ class OtherGroupsTest(unittest.TestCase):
         self.assertIn("Other · 4", panels["pr-total-legend"])
 
 
+class MergeTimeTest(unittest.TestCase):
+    PRS = {n: dict(number=n, title=t, headRefName=b, state=s, body="", createdAt=o, mergedAt=m)
+           for n, t, b, s, o, m in (
+               (1, "Day 01 spec change: x", "day-01/spec-x", "MERGED", "2026-11-01T08:00:00Z", "2026-11-01T14:30:00Z"),
+               (2, "Day 01 track A: y", "day-01/track-a-y", "MERGED", "2026-11-01T15:00:00Z", "2026-11-01T15:45:00Z"),
+               (3, "Day 01 close the day", "day-01/close-the-day", "MERGED", "2026-11-01T16:00:00Z", "2026-11-03T16:00:00Z"),
+               (4, "Add a check", "tooling/check", "MERGED", "2026-11-04T09:00:00Z", "2026-11-04T10:00:00Z"),
+               (5, "Fix a link", "docs/link", "MERGED", None, None),
+               (6, "Still open", "tooling/open", "OPEN", "2026-11-05T09:00:00Z", None))}
+
+    def test_each_merged_pr_has_its_step_and_hours_open(self):
+        got = [(v["number"], v["kind"], v["step"], v["hours"]) for v in sd.verification(self.PRS, [])]
+        self.assertEqual(got, [(1, "spec", "spec", 6.5), (2, "code", "code", 0.75), (3, "close", "close", 48.0),
+                               (4, "other", "tooling", 1.0), (5, "other", "other", None)])
+
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_the_table_gives_each_step_its_count_median_and_longest(self):
+        v = sd.verification(self.PRS, []) + [dict(number=7, kind="spec", step="spec", hours=2.5)]
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], verification=v)
+        self.assertIsNone(error)
+        rows = re.findall(r"<tr><td>(.*?)</td><td[^>]*>(\d+)</td><td[^>]*>(.*?)</td><td[^>]*>(.*?)</td></tr>",
+                          panels["merge-time"])
+        self.assertEqual(rows, [("Spec change", "2", "4.5 h", "6.5 h (#1)"), ("Code track", "1", "45 min", "45 min (#2)"),
+                                ("Close the day", "1", "2.0 d", "2.0 d (#3)"), ("Tooling", "1", "1.0 h", "1.0 h (#4)")])
+
+    @unittest.skipUnless(shutil.which("node"), "needs node")
+    def test_data_without_times_says_so(self):
+        error, panels, _ = drawn([page_row(0, None, "origin", 50)], verification=[dict(number=1, kind="code", breaks="recorded", pushes=1, failed=0,
+                                                    failed_in=[])])
+        self.assertIsNone(error)
+        self.assertIn("No merged pull request with its times yet", panels["merge-time"])
+
+
 @unittest.skipUnless(shutil.which("node"), "needs node")
 class CriterionPanelsTest(unittest.TestCase):
     ROW = dict(page_row(0, None, "origin", 40), code_churn=0)
@@ -1411,14 +1444,16 @@ class PageTest(unittest.TestCase):
         self.assertNotIn(">4×<", panels["test-ratio"])
 
     def test_a_panel_that_throws_says_so_and_the_panels_after_it_still_draw(self):
-        # Verification that is not a list: its panel, fourth of boot()'s twelve, throws.
+        # Verification that is not a list: both panels that read it throw, and the rest still draw.
         rows = [dict(page_row(i, pr, "other" if pr else "origin", 70.8), work=dict(test=27 * i), code_churn=27)
                 for i, pr in enumerate([None, None, 1, 2])]
         days = [dict(a_day(n), status="ready", phase=1, title="t", prs=[]) for n in (12, 36)]
         error, panels, logged = drawn(rows, days, [12, 36], verification={"kind": "code"})
         self.assertIsNone(error)
         self.assertEqual(panels["breaks"], '<p class="load-error">This panel failed: V.filter is not a function</p>')
-        self.assertEqual(logged, ["V.filter is not a function"])
+        self.assertEqual(panels["merge-time"], '<p class="load-error">This panel failed: '
+                                               '(DATA.verification || []).filter is not a function</p>')
+        self.assertEqual(logged, ["V.filter is not a function", "(DATA.verification || []).filter is not a function"])
         for box in ("infra-head", "token-bars", "findings", "tbl", "deltas", "heat"):  # after it in boot(), then setSel()
             self.assertTrue(panels[box], box)
             self.assertNotIn("This panel failed", panels[box], box)
