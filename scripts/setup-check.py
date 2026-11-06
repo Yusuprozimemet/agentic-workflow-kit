@@ -1,13 +1,17 @@
 """Is a copied kit set up? One line per item, from GitHub's settings and the files.
 
     python scripts/setup-check.py [--repo owner/name]    # default: the repository gh sees here
+    python scripts/setup-check.py --kit                  # the kit itself: its placeholders stay
 
 The items are the README's "Starting a project from it": on `main`, a pull request before merging
 and each check in REQUIRED required by name (classic branch protection or a ruleset, either
 counts), and one more required check, the project's own tests; the repository variable
-TRACK_RED_RUNNER set to a runner track-red.py knows; GitHub Pages built by GitHub Actions; and no
+TRACK_RED_RUNNER set to a runner track-red.py knows, or a command holding `{test}`; GitHub Pages built by GitHub Actions; and no
 `<!-- PROJECT` placeholder left in a tracked Markdown file outside kit/ (in backticks, a placeholder
 is named, not left). The `PROJECT:` comments in code are notes that stay, and are not counted.
+The kit's own repository keeps every placeholder on purpose, for the copy to fill: `--kit` reads
+the other items as for a copy and reports the placeholders as kept, one `ok` line, so that the
+kit's exit code says what its settings lack, not that it is a kit.
 
 Each line starts `ok` or `FAIL`. A setting gh cannot read (not logged in, no admin rights: the
 branch protection and variable reads need them) is a FAIL that says so: a check that could not
@@ -36,6 +40,8 @@ REQUIRED = (
 # Kit checks that are not required, so not the project's tests either.
 OPTIONAL = ("Every service is wired into compose and Prometheus",)
 RUNNERS = ("unittest", "pytest", "maven", "npm")  # track-red.py's RUNNERS
+TEMPLATE = "{test}"  # track-red.py's TEMPLATE: a value holding it is the project's own command
+SUPPORTED = f"{', '.join(RUNNERS)}, or a command holding {TEMPLATE}"
 PLACEHOLDER = "<!-- PROJECT"
 CODE_SPAN = re.compile(r"`[^`]*`")
 HTTP_STATUS = re.compile(r"\(HTTP (\d{3})\)")
@@ -97,13 +103,13 @@ def runner_line(repo, gh):
         status, shared = gh(f"repos/{repo}/actions/organization-variables")
         found = [v for v in (shared or {}).get("variables", []) if v["name"] == what] if status == 200 else []
         if not found:
-            return [("FAIL", f"{what}: not set; set it to one of {', '.join(RUNNERS)}")]
+            return [("FAIL", f"{what}: not set; set it to one of {SUPPORTED}")]
         body, status = found[0], 200
     if status != 200:
         return unreadable(what, status, body)
     value = body.get("value", "")
-    if value not in RUNNERS:
-        return [("FAIL", f"{what}: `{value}` is not one of {', '.join(RUNNERS)}")]
+    if value not in RUNNERS and TEMPLATE not in value:
+        return [("FAIL", f"{what}: `{value}` is not one of {SUPPORTED}")]
     return [("ok", f"{what}: `{value}`")]
 
 
@@ -123,8 +129,9 @@ def tracked_markdown(root=ROOT):
     return [p for p in out.decode("utf-8").split("\0") if p and not p.startswith("kit/")]
 
 
-def placeholder_lines(root=ROOT, files=None):
-    """One FAIL per file with a placeholder left, naming its lines; one ok when none is."""
+def placeholder_lines(root=ROOT, files=None, kit=False):
+    """One FAIL per file with a placeholder left, naming its lines; one ok when none is. With kit,
+    one ok that counts the files keeping theirs."""
     lines = []
     for name in files if files is not None else tracked_markdown(root):
         text = (Path(root) / name).read_text(encoding="utf-8", errors="replace")
@@ -132,12 +139,14 @@ def placeholder_lines(root=ROOT, files=None):
         if hits:
             lines.append(("FAIL", f"{PLACEHOLDER} left in {name}, line{'s' if len(hits) > 1 else ''} "
                           + ", ".join(map(str, hits))))
+    if kit:
+        return [("ok", f"--kit: {len(lines)} Markdown files keep their {PLACEHOLDER} placeholders, as the kit's should")]
     return lines or [("ok", f"no {PLACEHOLDER} placeholder left in the Markdown files")]
 
 
-def report(repo, gh=gh_api, root=ROOT, files=None):
+def report(repo, gh=gh_api, root=ROOT, files=None, kit=False):
     return (protection_lines(repo, gh) + runner_line(repo, gh) + pages_line(repo, gh)
-            + placeholder_lines(root, files))
+            + placeholder_lines(root, files, kit))
 
 
 def current_repo():
@@ -149,12 +158,13 @@ def current_repo():
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", help="owner/name; default: the repository gh sees here")
+    parser.add_argument("--kit", action="store_true", help="the kit itself: its placeholders stay")
     args = parser.parse_args(argv)
     repo = args.repo or current_repo()
     if not repo:
         print("setup-check.py: no repository: pass --repo owner/name, or log gh in", file=sys.stderr)
         return 2
-    lines = report(repo, gh_api)
+    lines = report(repo, gh_api, kit=args.kit)
     for state, text in lines:
         print(f"{state:<4} {text}")
     failed = sum(state == "FAIL" for state, _ in lines)

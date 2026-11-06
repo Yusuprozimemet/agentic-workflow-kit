@@ -30,7 +30,8 @@ name: PR checks
 #
 # 6. A track's new tests are seen red (scripts/track-red.py): each test its spec's `new` criteria
 #    name fails, its module loaded, where the branch started and passes on it. A pilot of the kit merged two tracks without the record.
-#    Set TRACK_RED_RUNNER to `unittest`, `pytest`, `maven`, or `npm`.
+#    Set TRACK_RED_RUNNER to `unittest`, `pytest`, `maven`, or `npm`, or to a command holding
+#    `{test}` (`./gradlew test --tests {test}`), judged by its exit code.
 #    Unset, it fails a track that owns a `new` criterion and passes the rest; any other value
 #    fails as a configuration error. Its self-tests run in spec-drift-tests.yml whatever the setting.
 #

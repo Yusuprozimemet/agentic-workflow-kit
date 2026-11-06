@@ -73,7 +73,7 @@ days on a small Python CLI. What that evidence does and does not show is in
 5. Optional: a tracker key, as a repository variable `JIRA_KEY` (Settings, Secrets and
    variables, Actions, Variables). "Compare the names" in `.github/workflows/pr-checks.yml`
    reads it; unset, no key is checked.
-6. Set the repository variable `TRACK_RED_RUNNER` to `unittest`, `pytest`, `maven`, or `npm` before the first track. "Track tests seen red" runs each named test on the base and head. Unset, it fails any track or short spec that owns a `new` criterion, and passes branches that own none; an unknown value fails. Use unittest test names, pytest node IDs, Maven class names, or npm test file paths, respectively. The replay copies changed files under `tests/` only; test files elsewhere must already exist on the base. Code a test checks that lives under `tests/`, such as a fixture builder, is listed in `spec-drift.config.json` as `code_under_tests` (regular expressions over the path) and is not copied in, so the base keeps its own. Runner dependencies must be available in CI. Evidence replay still resolves Python classes under `tests/`.
+6. Set the repository variable `TRACK_RED_RUNNER` to `unittest`, `pytest`, `maven`, or `npm` before the first track. "Track tests seen red" runs each named test on the base and head. Unset, it fails any track or short spec that owns a `new` criterion, and passes branches that own none; an unknown value fails. Use unittest test names, pytest node IDs, Maven class names, or npm test file paths, respectively. For any other runner, set it to the command that runs one test, with `{test}` where the name goes (`./gradlew test --tests {test}`, `go test -run {test} ./...`): split as a POSIX shell would, run without a shell, and judged by its exit code alone, since there is no summary line to read. Non-zero on the base counts as red even when the base failed to build or load the test, so read the line each `seen red:` reports. The replay copies changed files under `tests/` only; test files elsewhere must already exist on the base. Code a test checks that lives under `tests/`, such as a fixture builder, is listed in `spec-drift.config.json` as `code_under_tests` (regular expressions over the path) and is not copied in, so the base keeps its own. Runner dependencies must be available in CI. Evidence replay still resolves Python classes under `tests/`.
 
 ### Style check setup
 
@@ -115,6 +115,24 @@ Control activation in a copied kit (CI checks must also be required in branch pr
 A green "not configured" check is not proof that project behavior was checked.
 The post-merge evidence gate, the auditor guard's limits, the `Oversized:` override and the wait for "merged" are procedural and hold only while the maintainer and sessions follow `CLAUDE.md`.
 
+### Which controls each agent gets
+
+The hooks sit in `.claude/settings.json` and run for every session and inside every subagent;
+each guard decides whom it acts on. Only the main session commits and opens pull requests, so
+the CI checks gate its PRs, and every agent's work reaches `main` only through one.
+
+| Agent | Tools | Hooks that act on it | What checks its work |
+|---|---|---|---|
+| main session | all | `step-guard.py` (after "merged": no subagent, repository edit, branch, commit, push or PR until a new session); `read-guard.py`; `cap-output.py` | every CI check on its PRs; the maintainer's merge; the evidence replay after a close |
+| implementer | Read, Edit, Write, Grep, Glob, Bash | `read-guard.py`; `cap-output.py` | the main session's diff review, full checks and breaks (`break.py`); then the PR's CI, "Track tests seen red" and the project's tests among them |
+| plan-auditor, spec-auditor | Read, Grep, Glob, Bash | `auditor-guard.py` (writing git and `gh` commands refused; repository compared at its stop); `read-guard.py`; `cap-output.py` | the maintainer, who decides what becomes a PR |
+| security-ops-, agentic-engineering-, architecture-auditor | Read, Grep, Glob, Bash | as the plan-auditor | the maintainer; the three reports are read side by side |
+| defect-rater | Read | `read-guard.py` | `relabel.py compare` against the day's tags, in the closing PR |
+
+`step-guard.py` is listed for the main session alone because it refuses starting a subagent
+while its marker is set, so no new subagent works under it. `auditor-guard.py` reads the command, not what a program does
+("The auditors", `CLAUDE.md`). The tools column is each agent's frontmatter in `.claude/agents/`.
+
 On GitHub, in this order:
 
 - Before the first push, Pages with source "GitHub Actions": every merge to `main` republishes
@@ -150,7 +168,8 @@ On GitHub, in this order:
   before merging and each required check above on `main` (classic protection or a ruleset), the
   project's tests among them, `TRACK_RED_RUNNER`, Pages built by GitHub Actions, and each Markdown
   file with a `<!-- PROJECT` placeholder left. It reads only, needs `gh` logged in as an admin of
-  the repository, and exits 1 until every item is set up.
+  the repository, and exits 1 until every item is set up. In the kit itself, run it with
+  `--kit`: the kit keeps its placeholders on purpose, and they become one `ok` line.
 
 Locally: Python with `numpy` (and `pyyaml` for `scripts/test_service_wiring.py`), `node` for the
 page tests, and `gh`, logged in.

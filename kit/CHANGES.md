@@ -2464,3 +2464,29 @@ if a reliable, small rule can be defined; use the explicit review step now.
   the script copied in, `test_the_readme_rule_requires_the_same_checks` → "FAILED (failures=1)".
 - `broken: setup-check.py ignores a ruleset's required checks → AssertionError: Lists differ: ['main requires "Description uses the temp[522 chars]t's"] != []`
 - `broken: setup-check.py passes a setting it cannot read → AssertionError: Lists differ: [] != [('FAIL', 'branch protection on main: cann[34 chars]n)')]`
+
+### 141. A runner command of the project's own; which controls each agent gets; `setup-check.py --kit`
+
+- **`TRACK_RED_RUNNER` as a command.** A project on Gradle, Go or anything but the four runners
+  could only leave the variable unset, which fails every track that owns a `new` criterion. A
+  value holding `{test}` (`./gradlew test --tests {test}`) is now the project's command: split
+  as a POSIX shell would, run without a shell, `{test}` replaced by each test's name. With no
+  summary line to read, the exit code is the result, so a base that fails to build counts as
+  red: the `seen red:` line shows the output's last line and the exit code to read. The program
+  is looked up only when a track has tests to run, and a missing one is a configuration error
+  (exit 2), as an unknown runner is. `setup-check.py` accepts the same values.
+- **Which controls each agent gets.** A README table: each agent's tools, the hooks that act on
+  it (`step-guard.py` on the main session, `auditor-guard.py` on the five auditors with Bash,
+  `read-guard.py` on all, `cap-output.py` on all with Bash), and what checks its work before it
+  reaches `main`.
+- **`setup-check.py --kit`.** On the kit, the 10 Markdown files' placeholders were 10 FAIL lines
+  of an exit 1 that says nothing: they stay on purpose. `--kit` reports them as one `ok` line, so
+  the exit code names what the kit's settings lack. **On this repository:** 2 of 13 items need
+  setup: "a pull request before merging" is not required on `main`, and `TRACK_RED_RUNNER` is
+  unset.
+- **Seen red, on `main`'s code:** the two command tests → "FAILED (failures=2)", `main` refusing
+  the command as an unsupported runner; `test_setup_check` → "FAILED (failures=3, errors=3)",
+  no `TEMPLATE` and no `kit` argument.
+- `broken: track-red.py reads a command's exit 1 on the base as no failure → AssertionError: 1 != 0 : FAIL: C1.1: tests.test_app.T.test_double_a_string reports FAILED (failures=1) (exit 1) on b1b962a: it does not see the change`
+- `broken: setup-check.py --kit still fails each kept placeholder → AssertionError: Lists differ: [('FAIL', '<!-- PROJECT left in CLAUDE.md, l[53 chars] 1')] != [('ok', "--kit: 2 Markdown files keep their [44 chars]ld")]`
+- `broken: track-red.py runs a command whose program is missing → AssertionError: 1 != 2 : Traceback (most recent call last):`

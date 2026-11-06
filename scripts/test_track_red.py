@@ -6,6 +6,7 @@ test and a day spec to a scratch main, change them in the working tree, and run 
 """
 import importlib.util
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -212,7 +213,7 @@ class TrackRedTest(unittest.TestCase):
         code, out = self.track_red(fix="return x", runner="")
         self.assertEqual(code, 1, out)
         self.assertIn("FAIL: TRACK_RED_RUNNER is not set, so the 1 tests Day 01 track A's new criteria (C1.1) "
-                      "name cannot be seen red; set it to the project's runner: unittest, pytest, maven, npm", out)
+                      "name cannot be seen red; set it to the project's runner: unittest, pytest, maven, npm, or a command holding {test}", out)
         self.assertNotIn("seen red:", out)
 
     def test_an_empty_runner_passes_a_track_that_owns_only_holds(self):
@@ -227,7 +228,31 @@ class TrackRedTest(unittest.TestCase):
     def test_a_runner_it_does_not_support_is_a_configuration_error(self):
         code, out = self.track_red(runner="unknown")
         self.assertEqual(code, 2, out)
-        self.assertIn("TRACK_RED_RUNNER `unknown` is not supported; supported runners: unittest, pytest, maven, npm", out)
+        self.assertIn("TRACK_RED_RUNNER `unknown` is not supported; supported runners: unittest, pytest, maven, npm, or a command holding {test}", out)
+
+    def command(self):
+        """The project's own command, as TRACK_RED_RUNNER would hold it: no runner track-red.py knows."""
+        return f"{shlex.quote(sys.executable.replace(os.sep, '/'))} -m unittest {{test}}"
+
+    def test_a_command_holding_test_is_run_and_judged_by_its_exit_code(self):
+        code, out = self.track_red(spec(test="`tests.test_app.T.test_double_a_string`"), runner=self.command())
+        self.assertEqual(code, 0, out)
+        self.assertIn("seen red: tests.test_app.T.test_double_a_string (C1.1) on ", out)
+        self.assertIn("→ FAILED (failures=1) (exit 1); on the head → OK", out)
+
+    def test_a_command_that_exits_0_on_the_base_fails(self):
+        code, out = self.track_red(spec(test="`tests.test_app.T.test_double`"), runner=self.command())
+        self.assertEqual(code, 1, out)
+        self.assertRegex(out, r"reports OK \(exit 0\) on \w+: it does not see the change")
+
+    def test_a_command_whose_program_is_not_found_is_a_configuration_error(self):
+        code, out = self.track_red(runner="no-such-runner-here {test}")
+        self.assertEqual(code, 2, out)
+        self.assertIn("runs `no-such-runner-here`, which is not found here", out)
+
+    def test_a_command_is_not_looked_up_on_a_branch_that_is_not_a_track(self):
+        code, out = self.track_red(branch="tooling/word-rule-edge-cases", runner="no-such-runner-here {test}")
+        self.assertEqual((code, out.split(":")[0]), (0, "not applicable"), out)
 
     def test_a_branch_that_is_not_a_track_is_not_applicable(self):
         code, out = self.track_red(branch="tooling/word-rule-edge-cases")
