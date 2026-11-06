@@ -5,6 +5,7 @@ a reply is counted once, from its last streamed line, and the day comes from the
 
     python scripts/test_token_usage.py
 """
+import collections
 import contextlib
 import datetime
 import importlib.util
@@ -328,6 +329,55 @@ class ToolsTest(unittest.TestCase):
                 f.write(call("a", "Bash") + "\n" + result("a", "short") + "\n")
             s = tu.tools([before, after], since=tu.moment("2026-11-01"))
         self.assertEqual(s["bash"], 1)
+
+
+REFUSAL = ("PreToolUse:Read hook error: [python -c \"import os,subprocess,sys;d=os.environ.get('CLAUDE_PROJECT_DIR');"
+           "sys.exit(subprocess.call([sys.executable,os.path.join(d,'scripts','read-guard.py')]) if d else 0)\"]: refused")
+
+
+class GatesTest(unittest.TestCase):
+    """Each gate's runs, and the replies that ran it or read its result (gates.json)."""
+
+    def gates(self, main, auditor=()):
+        with tempfile.TemporaryDirectory() as folder:
+            paths = [os.path.join(folder, "session.jsonl")]
+            with open(paths[0], "w", encoding="utf-8") as f:
+                f.write("\n".join(main) + "\n")
+            if auditor:
+                os.makedirs(os.path.join(folder, "subagents"))
+                paths.append(os.path.join(folder, "subagents", "agent-1.jsonl"))
+                with open(paths[1], "w", encoding="utf-8") as f:
+                    f.write("\n".join(auditor) + "\n")
+                with open(os.path.join(folder, "subagents", "agent-1.meta.json"), "w", encoding="utf-8") as f:
+                    json.dump({"agentType": "spec-auditor"}, f)
+            rows = tu.gates(paths)
+        out = collections.defaultdict(lambda: [0, 0])
+        for (_, day, gate), t in rows.items():
+            self.assertEqual(day, 43)
+            out[gate][0] += t["runs"]
+            out[gate][1] += t["replies"]
+        return {g: tuple(v) for g, v in out.items()}
+
+    def test_a_gate_counts_the_reply_that_ran_it_and_the_one_that_read_its_result(self):
+        self.assertEqual(self.gates([
+            call("a", "Bash", {"command": "python scripts/break.py --file x"}), result("a", "broken: x"),
+            call("b", "Read"), result("b", "text"),
+            call("c", "Bash", {"command": "python scripts/test_break.py"}), result("c", "OK"),
+            call("d", "Read"), result("d", REFUSAL),
+            call("e", "Bash", {"command": "git status"}), result("e", "clean")]),
+            {"break on purpose": (1, 2), "hooks": (1, 2)})
+
+    def test_an_auditors_run_is_all_its_replies_and_its_calls_are_no_other_gate(self):
+        self.assertEqual(self.gates([call("a", "Bash", {"command": "ls"})], [
+            call("x", "Bash", {"command": "python scripts/seen-red.py -- pytest"}), result("x", "seen red"),
+            call("y", "Read"), result("y", "text")]), {"auditors": (1, 2)})
+
+    def test_each_script_names_its_gate(self):
+        self.assertEqual([tu.gate_of_call("Bash", {"command": c}) for c in (
+            "python scripts/seen-red.py -- x", "python scripts/close-evidence.py --rehearse b",
+            "python scripts/evidence.py s.md", "python scripts/test_evidence.py", "python scripts/break.py")]
+            + [tu.gate_of_call("Read", {"command": "break.py"})],
+            ["seen red", "evidence replay", "evidence replay", None, "break on purpose", None])
 
 
 class CostTest(unittest.TestCase):

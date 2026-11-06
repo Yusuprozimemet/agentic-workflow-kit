@@ -38,7 +38,8 @@ that qualifies (area branch, short spec, day spec) and say which in the PR.
 3. **A closing PR:** `day-NN/close-the-day`. Tick each criterion with its evidence (test or
    command, and the PR it landed in), add Notes to the spec, and update the Day entry and measurement
    table in [`docs/lab-notebook.md`](docs/lab-notebook.md) (the README keeps only its Findings). Run `python scripts/token-usage.py` and commit the refreshed
-   `docs/dashboard/token-usage.json` and `docs/dashboard/refusals.json`: CI cannot read the
+   `docs/dashboard/token-usage.json`, `docs/dashboard/refusals.json` and `docs/dashboard/gates.json`
+   (each gate's runs and cost, beside what its `found:` lines caught): CI cannot read the
    transcripts or the guards' refusal log they count. Then relabel the
    day's defects blind: `python scripts/relabel.py blind specs/day-NN-*.md --out <dir>`, give
    `<dir>/blind.md` to the **defect-rater** agent, save its JSON as `<dir>/labels.json`, run

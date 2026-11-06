@@ -230,6 +230,12 @@ def demo():
                         text="Receipts are numbered per shop, not per customer")],
         criteria_index=index, attention=attention,
         defect_recurrence=dict(defects=2, with_id=2, recurrences=[dict(id="D2.1", same_as="D1.1")], problems=[]),
+        gate_report=dict(defects=2, elsewhere=1, gates=[
+            dict(gate=g, found=f, defects=n, refused=r, runs=k, replies=3 * k, context=90000 * k, output=1500 * k,
+                 cost=round(0.4 * k, 2), causes=dict(spec=n, implementation=0, process=0, environment=0, other=0))
+            for g, f, n, r, k in (("auditors", "auditor", 1, None, 6), ("seen red", "seen red", 0, None, 9),
+                                  ("break on purpose", "break on purpose", 0, None, 14),
+                                  ("evidence replay", "evidence replay", 0, None, 5), ("hooks", None, 0, 5, 5))]),
         other_groups=[dict(name="tooling", count=4), dict(name="docs", count=3), dict(name="dashboard", count=2)],
         vocab_size=136, tokens=tokens, refusals=refusals, verification=verification,
         infra=dict(runs=runs, latest=dict(runs[0], summary=summary)), deployment=dict(

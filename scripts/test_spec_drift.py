@@ -780,6 +780,34 @@ DEFECT_NOTES = {
 }
 
 
+class GateReportTest(unittest.TestCase):
+    """Each gate's Defect lines by cause, or the hooks' refusals, beside what gates.json says it cost."""
+
+    def test_each_gate_joins_its_found_lines_by_cause_with_its_runs_and_cost(self):
+        days = [dict(day=1, defects=sd.defect_lines(
+            "- **Defect** D1.1 — found: auditor (spec-auditor) · cause: spec · made: Day 1 · a.\n"
+            "- **Defect** D1.2 — found: seen red · cause: implementation · made: Day 1 · b.\n"
+            "- **Defect** D1.3 — found: break on purpose · cause: Process · made: Day 1 · c.\n"
+            "- **Defect** D1.4 — found: evidence replay · cause: environment · made: Day 1 · d.\n"
+            "- **Defect** D1.5 — found: review · cause: spec · made: Day 1 · e.\n"
+            "- **Defect** D1.6 — found: auditor · cause: tooling · made: Day 1 · f.\n", 1))]
+        spent = [dict(date="2026-11-05", day=1, gate="break on purpose", runs=2, replies=3, context=100, output=10, cost=0.5),
+                 dict(date="2026-11-06", day=None, gate="break on purpose", runs=1, replies=2, context=50, output=5, cost=0.254),
+                 dict(date="2026-11-06", day=None, gate="hooks", runs=1, replies=2, context=7, output=1, cost=0.01)]
+        refused = [dict(date="2026-11-05", guard="read-guard", refused=2), dict(date="2026-11-06", guard="step-guard", refused=1)]
+        r = sd.gate_report(days, spent, refused)
+        self.assertEqual((r["defects"], r["elsewhere"]), (6, 1))
+        self.assertEqual([(g["gate"], g["defects"], g["refused"], [n for n in g["causes"].values()], g["runs"], g["replies"], g["cost"])
+                          for g in r["gates"]], [
+            ("auditors", 2, None, [1, 0, 0, 0, 1], 0, 0, 0),
+            ("seen red", 1, None, [0, 1, 0, 0, 0], 0, 0, 0),
+            ("break on purpose", 1, None, [0, 0, 1, 0, 0], 3, 5, 0.75),
+            ("evidence replay", 1, None, [0, 0, 0, 1, 0], 0, 0, 0),
+            ("hooks", 0, 3, [0, 0, 0, 0, 0], 1, 2, 0.01)])
+        # Before refusals.json exists, the hooks' count is not known, not zero.
+        self.assertIsNone(sd.gate_report(days, spent, [])["gates"][-1]["refused"])
+
+
 class DefectTest(unittest.TestCase):
     """Defect lines' IDs, and the ones that repeat an earlier defect (specs/README.md)."""
 

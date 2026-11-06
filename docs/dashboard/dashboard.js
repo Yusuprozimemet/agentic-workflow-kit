@@ -872,6 +872,7 @@ const pct = (a, b) => fmt(b ? a / b * 100 : 0, 1) + "%";
 function drawTokens() {
   const T = DATA.tokens || [];
   drawHooks(T);
+  drawGates();
   const box = document.getElementById("token-bars");
   if (!T.length) {
     box.innerHTML = '<p class="load-error">No token counts yet: run <code>python scripts/token-usage.py</code>.</p>';
@@ -962,6 +963,28 @@ function drawHooks(T) {
       return `<tr><td>${esc(d)}</td>${tok}` +
         guards.map(g => `<td class="num">${logged && d >= logged ? refused(d, g) : "–"}</td>`).join("") + `</tr>`;
     }).join("") + "</tbody>";
+}
+
+// Per gate (scripts/spec-drift.py, gate_report()): the Defect lines it found, by cause, or the hooks'
+// refusals, beside its runs, replies, context and cost; and the Defect lines no gate found.
+function drawGates() {
+  const G = DATA.gate_report, box = document.getElementById("gate-report");
+  if (!G) {
+    box.innerHTML = '<caption><p class="load-error">No gate report yet: rebuild with <code>python scripts/spec-drift.py --build</code>.</p></caption>';
+    return;
+  }
+  const causes = ["spec", "implementation", "process", "environment", "other"];
+  box.innerHTML = `<thead><tr><th>Gate</th><th>Found</th>${causes.map(c => `<th>${c[0].toUpperCase() + c.slice(1)}</th>`).join("")}` +
+    `<th>Runs</th><th>Replies</th><th>Context</th><th>Output</th><th>Cost</th><th>Per catch</th></tr></thead><tbody>` +
+    G.gates.map(g => {
+      const hooks = g.found === null, caught = hooks ? g.refused : g.defects;
+      return `<tr><td>${esc(g.gate)}</td><td class="num">${caught == null ? "–" : caught}${hooks && caught != null ? " refused" : ""}</td>` +
+        causes.map(c => `<td class="num">${hooks ? "–" : g.causes[c]}</td>`).join("") +
+        `<td class="num">${g.runs}</td><td class="num">${g.replies}</td><td class="num">${kilo(g.context)}</td>` +
+        `<td class="num">${kilo(g.output)}</td><td class="num">$${fmt(g.cost, 2)}</td><td class="num">${caught ? "$" + fmt(g.cost / caught, 2) : "–"}</td></tr>`;
+    }).join("") + "</tbody>";
+  document.getElementById("gate-note").innerHTML = `${G.defects} Defect line${G.defects === 1 ? "" : "s"} in all; ${G.elsewhere} ` +
+    `found elsewhere: in the spec-change PR, in review, by the session itself or a track, at the close, on the dashboard, in a later day, or with no <code>found:</code>.`;
 }
 
 // One bar per agent, longest first, coloured by the model it ran on (the legend above names them).
