@@ -544,6 +544,21 @@ function drawVerification() {
     bad.map(v => `<tr><td class="num">#${v.number}</td><td class="num">${v.day ? dd(v.day) : "–"}</td><td class="r num">${v.failed} of ${v.pushes}</td><td>${esc(v.failed_in.join(", "))}</td></tr>`).join("") + "</tbody>";
 }
 
+/* ---------- time from opened to merged, per step ---------- */
+const STEP = { spec: "Spec change", code: "Code track", close: "Close the day", tooling: "Tooling", other: "Other" };
+// Hours as minutes, hours or days, whichever reads at a glance.
+const span = h => h < 1 ? `${Math.round(h * 60)} min` : h < 48 ? `${fmt(h)} h` : `${fmt(h / 24)} d`;
+const median = xs => { const s = [...xs].sort((a, b) => a - b), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+function drawMergeTime() {
+  const timed = (DATA.verification || []).filter(v => typeof v.hours === "number"), box = document.getElementById("merge-time");
+  if (!timed.length) { box.innerHTML = '<caption class="load-error">No merged pull request with its times yet.</caption>'; return; }
+  box.innerHTML = `<thead><tr><th>Step</th><th class="r">Merged PRs</th><th class="r">Median</th><th class="r">Longest</th></tr></thead><tbody>` +
+    Object.keys(STEP).map(k => [k, timed.filter(v => (v.step || v.kind) === k)]).filter(([, vs]) => vs.length).map(([k, vs]) => {
+      const hs = vs.map(v => v.hours), worst = vs.reduce((a, v) => v.hours > a.hours ? v : a);
+      return `<tr><td>${STEP[k]}</td><td class="r num">${vs.length}</td><td class="r num">${span(median(hs))}</td><td class="r num">${span(worst.hours)} (#${worst.number})</td></tr>`;
+    }).join("") + "</tbody>";
+}
+
 /* ---------- heatmap ---------- */
 function drawHeat() {
   const box = document.getElementById("heat");
@@ -1117,7 +1132,7 @@ function drawCriteria() {
 }
 panel("attention-list", drawCriteria);
 
-panel("today", drawNow); panel("work-bar", drawWork); panel("perday", drawPerDay); panel("breaks", drawVerification);
+panel("today", drawNow); panel("work-bar", drawWork); panel("perday", drawPerDay); panel("breaks", drawVerification); panel("merge-time", drawMergeTime);
 panel("infra-head", drawInfra); panel("deployment-head", drawDeployment); panel("token-bars", drawTokens); panel("relabel", drawRelabel);
 panel("evidence-gaps", drawEvidence); panel("evidence-checks", drawEvidenceChecks); panel("hand-offs", drawHandOffs); panel("read", drawConclusion);
 panel("findings", drawFindings); panel("tbl", drawTable); setSel(sel);

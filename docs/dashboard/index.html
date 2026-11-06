@@ -128,6 +128,11 @@
     </div>
     <p id="ci-legend"></p>
     <div class="scroll-x"><table id="ci-fails"></table></div>
+    <div class="panel-head" style="margin-top:14px">
+      <h2 style="font-size:17px">Time from opened to merged</h2>
+      <p>Every merged pull request, from the time it was opened to the time it merged, by the step it was: a spec change, a code track, a day's close, a <code>tooling/</code> branch, or any other. Most of that time is the maintainer's review and the wait for CI, which leave nothing in git. A pull request GitHub gave no time for is left out.</p>
+    </div>
+    <div class="scroll-x"><table id="merge-time"></table></div>
   </section>
 
   <section class="panel">

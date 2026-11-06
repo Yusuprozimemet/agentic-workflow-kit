@@ -426,14 +426,32 @@ def ci_pushes(runs):
 
 
 def verification(prs, runs):
-    """Every merged PR: whether it recorded a break, and how many of its pushes CI failed."""
+    """Every merged PR: whether it recorded a break, how many of its pushes CI failed, its step and
+    the hours it stayed open."""
     ci, out = ci_pushes(runs), []
     for p in sorted(prs.values(), key=lambda p: p["number"]):
         if p.get("state") == "MERGED":
             pushes, failed, failed_in = ci.get(p["headRefName"], (0, 0, []))
-            out.append(dict(number=p["number"], day=day_of(day_branch(p)), kind=kind(p["title"], day_branch(p)),
-                            breaks=break_state(p.get("body"), p["number"]), pushes=pushes, failed=failed, failed_in=failed_in))
+            k = kind(p["title"], day_branch(p))
+            out.append(dict(number=p["number"], day=day_of(day_branch(p)), kind=k, step=step_kind(k, p["headRefName"]),
+                            hours=hours_open(p), breaks=break_state(p.get("body"), p["number"]), pushes=pushes,
+                            failed=failed, failed_in=failed_in))
     return out
+
+
+def step_kind(k, branch):
+    """The step a merged PR was: its kind, with a tooling/ area branch taken out of other."""
+    return "tooling" if k == "other" and branch.lower().startswith("tooling/") else k
+
+
+def hours_open(pr):
+    """Hours from a PR's opening to its merge, or None when GitHub gave either time as empty: the
+    waiting is the maintainer's review, which leaves nothing in git."""
+    opened, merged = pr.get("createdAt"), pr.get("mergedAt")
+    if not (opened and merged):
+        return None
+    at = lambda s: datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+    return round((at(merged) - at(opened)).total_seconds() / 3600, 2)
 
 
 def kind(title, branch, files=None):
@@ -1666,7 +1684,7 @@ def github():
         print(f"{NO_REMOTE} (gh repo view: {(e.stderr or '').strip()})", file=sys.stderr)
         return [], [], NO_REMOTE
     listed = owners_prs(gh_list(PR_LIMIT, "pr", "list", "--state", "all", "--json",
-                                "number,title,headRefName,state,url,body,author"), owner)
+                                "number,title,headRefName,state,url,body,author,createdAt,mergedAt"), owner)
     runs = gh_list(RUN_LIMIT, "run", "list", "--json", "headBranch,headSha,conclusion,event,workflowName")
     return listed, runs, None
 

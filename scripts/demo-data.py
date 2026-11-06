@@ -190,11 +190,17 @@ def demo():
     days, index, attention, checks, removals = build_days(rows)
     merged = [r for r in rows if r["pr"]]
     files = ["plan.md"] + [f"specs/day-{d:02d}-{slug(d)}.md" for d in DAYS]
-    verification = [dict(number=r["pr"], day=r["day"], kind=r["kind"],
+    # Hours open: a spec change waits on review, a close on its replay; one tooling PR beside them.
+    hours = dict(spec=5.5, code=3.25, close=20.0, other=0.75)
+    verification = [dict(number=r["pr"], day=r["day"], kind=r["kind"], step=r["kind"],
+                         hours=hours.get(r["kind"], 1.0) + (r["pr"] % 3) * 0.5,
                          breaks="none" if r["kind"] == "spec" else "recorded",
                          pushes=2 if r["kind"] == "code" else 1, failed=1 if r["kind"] == "code" else 0,
                          failed_in=["unit"] if r["kind"] == "code" else [])
                     for r in merged]
+    verification.append(dict(number=max(r["pr"] for r in merged) + 1, day=None, kind="other", step="tooling",
+                             hours=0.75, breaks="recorded", pushes=1, failed=0, failed_in=[]))
+
     def hooks(n):
         # The story: the hooks arrive on day 4. Days 1 to 3 have no cut Bash results, days 4 to 6 no whole Reads.
         if n <= 3:
