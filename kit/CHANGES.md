@@ -2410,3 +2410,19 @@ if a reliable, small rule can be defined; use the explicit review step now.
   'defect_lines'"; `test_relabel` → the blind file was empty.
 - `broken: relabel.py's FIELD without same-as → AssertionError: '### D44-1 (Day 44)\nthe grep matched comments again.\n\n' != '### D44-1 (Day 44)\nsame-as: D21.2 · the grep matched comments again.\n\n'`
 - `broken: spec-drift.py's recurrence() without the earlier-ID check → AssertionError: {'def[108 chars]1.1'}, {'id': 'D28.5', 'same_as': 'D30.1'}], '[183 chars]n>']} != {'def[108 chars]1.1'}], 'problems': ['D28.3: same-as: D21.9 na[196 chars]n>']}`
+
+### 138. Rehearse a close's evidence replay on its PR, before the merge
+
+- The first fix from the 2026-11-06 review of the kit's assessment (runtime reliability): the
+  replay ran only after the closing merge, so a close whose evidence did not replay merged first
+  (bearing D10.20). `close-evidence.py --rehearse <branch>` makes the merge as a commit on no
+  branch (`git merge-tree --write-tree`, `commit-tree`), replays it in a scratch worktree, and
+  writes `evidence-rehearsal.json`; no ref moves. `evidence.yml` now runs on every pull request
+  and rehearses there, so "A closed day's evidence replays" can be required in branch protection.
+  It does not replace the replay after the merge.
+- **Seen red, on `main`'s code:** the six `RehearseTest` tests → "unrecognized arguments:
+  --rehearse".
+- **On real data:** bearing's Day 10 close, rehearsed at its PR's two sides (`87b6f33`,
+  `7aef810`) → 5 failed: the four problems D10.20 found after the merge, the shared break name
+  reported once per line that names it.
+- `broken: the rehearsal commit given a subject that is not a closing merge's → AssertionError: 'all evidence holds' not found in 'not a closing branch: nothing to rehearse\n'`
