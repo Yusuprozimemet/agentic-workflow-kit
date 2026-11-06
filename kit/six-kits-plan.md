@@ -170,8 +170,7 @@ Bearing, 2026-11-06, 84 merged pull requests: **$1.86 per merged pull request**,
 only ($155.92 at list prices; `token-usage.py --compare --repo ../bearing`), and 34.4 replies
 per merged pull request (2,892 main replies). With subagents, $2.39 ($44.55 more over 1,407
 subagent replies; a one-off count with the script's `count()`, which `--repo` does not print).
-The $2.41 recorded on 2026-11-05 is the same count at 83 pull requests. The
-[automation plan](automation-plan.md) is judged against this baseline.
+The $2.41 recorded on 2026-11-05 is the same count at 83 pull requests.
 
 ## Unverified
 
